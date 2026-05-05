@@ -152,10 +152,20 @@ public record CreateEscritorioDto(
     string Cnpj,
     string Email,
     string? Telefone,
+    int Plano,
     string NomeAdmin,
     string EmailAdmin,
     string SenhaAdmin
 );
+
+public record CreateUsuarioDto(
+    string Nome,
+    string Email,
+    string Senha,
+    string Role = "User"
+);
+
+public record UsuarioResumoDto(Guid Id, string Nome, string Email, string Role, bool Ativo);
 
 public record CreateEmpresaDto(
     string RazaoSocial,

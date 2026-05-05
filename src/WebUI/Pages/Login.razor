@@ -1,53 +1,57 @@
 @page "/login"
 @layout EmptyLayout
 @inject IAuthService AuthService
+@inject IEscritorioService EscritorioService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<MudGrid Justify="Justify.Center" Class="mt-16">
-    <MudItem xs="12" sm="8" md="5" lg="4">
-        @if (_empresas == null)
+<MudGrid Justify="Justify.Center" Class="mt-8">
+    <MudItem xs="12" sm="10" md="6" lg="5">
+
+        @if (_tela == Tela.Login)
         {
             <MudCard Elevation="8" Class="pa-6">
                 <MudCardHeader>
                     <CardHeaderContent>
-                        <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Primary" Class="mb-1">
-                            🧾 NfeSaas
-                        </MudText>
+                        <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Primary" Class="mb-1">🧾 NfeSaas</MudText>
                         <MudText Typo="Typo.subtitle1" Align="Align.Center" Color="Color.Secondary">
-                            Sistema de Emissão Fiscal
+                            Sistema de Emissão Fiscal para Escritórios Contábeis
                         </MudText>
                     </CardHeaderContent>
                 </MudCardHeader>
                 <MudCardContent>
                     <MudTextField @bind-Value="_email" Label="E-mail" Variant="Variant.Outlined"
-                                  InputType="InputType.Email" Class="mb-3" Required />
+                                  InputType="InputType.Email" Class="mb-3" />
                     <MudTextField @bind-Value="_senha" Label="Senha" Variant="Variant.Outlined"
-                                  InputType="_showSenha ? InputType.Text : InputType.Password" Class="mb-4"
+                                  InputType="@(_showSenha ? InputType.Text : InputType.Password)" Class="mb-4"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@(_showSenha ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                                  OnAdornmentClick="@(() => _showSenha = !_showSenha)" Required />
+                                  OnAdornmentClick="@(() => _showSenha = !_showSenha)" />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
-                               OnClick="HandleLogin" Disabled="@_loading">
-                        @if (_loading)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        }
+                               OnClick="HandleLogin" Disabled="@_loading" Class="mb-3">
+                        @if (_loading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
                         Entrar
+                    </MudButton>
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-2">
+                        Novo por aqui?
+                    </MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                               OnClick="@(() => _tela = Tela.Registro)">
+                        Criar conta para meu escritório
                     </MudButton>
                 </MudCardContent>
             </MudCard>
         }
-        else
+
+        @if (_tela == Tela.SelecionarEmpresa && _empresas != null)
         {
             <MudCard Elevation="8" Class="pa-6">
                 <MudCardHeader>
                     <CardHeaderContent>
-                        <MudText Typo="Typo.h5" Align="Align.Center" Color="Color.Primary" Class="mb-1">
-                            Selecione a Empresa
-                        </MudText>
+                        <MudText Typo="Typo.h5" Align="Align.Center" Color="Color.Primary">Selecione a Empresa</MudText>
                         <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
-                            Qual empresa você deseja acessar?
+                            Qual empresa cliente deseja acessar?
                         </MudText>
                     </CardHeaderContent>
                 </MudCardHeader>
@@ -55,51 +59,150 @@
                     @foreach (var empresa in _empresas)
                     {
                         <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                                   Class="mb-2" OnClick="@(() => SelecionarEmpresa(empresa.Id))"
-                                   Disabled="@_loading">
-                            <MudStack Row="false" AlignItems="AlignItems.Start" Class="py-1">
+                                   Class="mb-2" OnClick="@(() => SelecionarEmpresa(empresa.Id))" Disabled="@_loading">
+                            <MudStack Row="false" AlignItems="AlignItems.Start" Class="py-1 w-100">
                                 <MudText Typo="Typo.body1"><b>@empresa.RazaoSocial</b></MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">CNPJ: @empresa.Cnpj</MudText>
                             </MudStack>
                         </MudButton>
                     }
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" FullWidth="true" Class="mt-2"
+                               OnClick="@(() => { _tela = Tela.Login; _empresas = null; })">
+                        Voltar ao login
+                    </MudButton>
                 </MudCardContent>
             </MudCard>
         }
+
+        @if (_tela == Tela.Registro)
+        {
+            <MudCard Elevation="8" Class="pa-6">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h5" Align="Align.Center" Color="Color.Primary">Criar conta</MudText>
+                        <MudText Typo="Typo.subtitle2" Align="Align.Center" Color="Color.Secondary">
+                            Cadastre seu escritório e comece agora
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+
+                    <MudText Typo="Typo.overline" Color="Color.Primary" Class="mb-1">1. Escolha o plano</MudText>
+                    <MudGrid Class="mb-4">
+                        @foreach (var plano in _planos)
+                        {
+                            <MudItem xs="12" sm="4">
+                                <MudCard Outlined="true" Class="@(_reg.Plano == plano.Valor ? "pa-2 border-2" : "pa-2")"
+                                         Style="@(_reg.Plano == plano.Valor ? "border-color:#1565C0;cursor:pointer" : "cursor:pointer")"
+                                         @onclick="@(() => _reg.Plano = plano.Valor)">
+                                    <MudCardContent Class="pa-2 text-center">
+                                        <MudText Typo="Typo.h6">@plano.Nome</MudText>
+                                        <MudText Typo="Typo.h5" Color="Color.Primary"><b>@plano.Preco</b></MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@plano.Descricao</MudText>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+
+                    <MudText Typo="Typo.overline" Color="Color.Primary" Class="mb-1">2. Dados do escritório</MudText>
+                    <MudGrid Class="mb-3">
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_reg.RazaoSocial" Label="Razão Social" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_reg.NomeFantasia" Label="Nome Fantasia" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="5">
+                            <MudTextField @bind-Value="_reg.Cnpj" Label="CNPJ (só números)" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="7">
+                            <MudTextField @bind-Value="_reg.Email" Label="E-mail do escritório" Variant="Variant.Outlined"
+                                          InputType="InputType.Email" />
+                        </MudItem>
+                        <MudItem xs="12" md="5">
+                            <MudTextField @bind-Value="_reg.Telefone" Label="Telefone" Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudText Typo="Typo.overline" Color="Color.Primary" Class="mb-1">3. Administrador do sistema</MudText>
+                    <MudGrid Class="mb-4">
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_reg.NomeAdmin" Label="Nome completo" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_reg.EmailAdmin" Label="E-mail de login" Variant="Variant.Outlined"
+                                          InputType="InputType.Email" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_reg.SenhaAdmin" Label="Senha" Variant="Variant.Outlined"
+                                          InputType="@(_showSenhaReg ? InputType.Text : InputType.Password)"
+                                          Adornment="Adornment.End"
+                                          AdornmentIcon="@(_showSenhaReg ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                          OnAdornmentClick="@(() => _showSenhaReg = !_showSenhaReg)" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_reg.ConfirmarSenha" Label="Confirmar senha" Variant="Variant.Outlined"
+                                          InputType="InputType.Password" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                               OnClick="HandleRegistro" Disabled="@_loading" Class="mb-2">
+                        @if (_loading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Criar conta e entrar
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" FullWidth="true"
+                               OnClick="@(() => _tela = Tela.Login)">
+                        Já tenho conta — fazer login
+                    </MudButton>
+                </MudCardContent>
+            </MudCard>
+        }
+
     </MudItem>
 </MudGrid>
 
 @code {
-    private string _email = "";
-    private string _senha = "";
-    private bool _loading;
-    private bool _showSenha;
+    enum Tela { Login, SelecionarEmpresa, Registro }
+
+    private Tela _tela = Tela.Login;
+    private string _email = "", _senha = "";
+    private bool _loading, _showSenha, _showSenhaReg;
     private List<EmpresaResumoDto>? _empresas;
+
+    private RegistroModel _reg = new();
+
+    record PlanoInfo(int Valor, string Nome, string Preco, string Descricao);
+
+    private readonly List<PlanoInfo> _planos = new()
+    {
+        new(1, "Básico",        "Grátis",    "Até 3 empresas / 50 NF-e/mês"),
+        new(2, "Profissional",  "R$ 99/mês", "Até 20 empresas / ilimitado"),
+        new(3, "Enterprise",    "R$ 299/mês","Empresas ilimitadas + suporte"),
+    };
 
     async Task HandleLogin()
     {
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_senha))
+        {
+            Snackbar.Add("Preencha e-mail e senha.", Severity.Warning);
+            return;
+        }
         _loading = true;
         var result = await AuthService.LoginAsync(_email, _senha);
         _loading = false;
 
-        if (result == null)
-        {
-            Snackbar.Add("Email ou senha inválidos.", Severity.Error);
-            return;
-        }
+        if (result == null) { Snackbar.Add("E-mail ou senha inválidos.", Severity.Error); return; }
 
-        if (result.Empresas.Count == 1)
-        {
-            Nav.NavigateTo("/");
-        }
-        else if (result.Empresas.Count == 0)
-        {
-            Snackbar.Add("Nenhuma empresa cadastrada. Contate o administrador.", Severity.Warning);
-        }
-        else
-        {
-            _empresas = result.Empresas;
-        }
+        if (result.Empresas.Count == 0)
+            Snackbar.Add("Nenhuma empresa cadastrada. Acesse o painel e cadastre a primeira.", Severity.Warning);
+
+        // auto-select handled inside AuthService when count == 1
+        if (result.Empresas.Count <= 1) { Nav.NavigateTo("/"); return; }
+
+        _empresas = result.Empresas;
+        _tela = Tela.SelecionarEmpresa;
     }
 
     async Task SelecionarEmpresa(Guid empresaId)
@@ -107,10 +210,70 @@
         _loading = true;
         var ok = await AuthService.SelecionarEmpresaAsync(empresaId);
         _loading = false;
+        if (ok) Nav.NavigateTo("/");
+        else Snackbar.Add("Erro ao selecionar empresa.", Severity.Error);
+    }
 
-        if (ok)
+    async Task HandleRegistro()
+    {
+        if (string.IsNullOrWhiteSpace(_reg.RazaoSocial) || string.IsNullOrWhiteSpace(_reg.Cnpj)
+            || string.IsNullOrWhiteSpace(_reg.EmailAdmin) || string.IsNullOrWhiteSpace(_reg.SenhaAdmin))
+        {
+            Snackbar.Add("Preencha todos os campos obrigatórios.", Severity.Warning);
+            return;
+        }
+        if (_reg.SenhaAdmin != _reg.ConfirmarSenha)
+        {
+            Snackbar.Add("As senhas não coincidem.", Severity.Warning);
+            return;
+        }
+        if (_reg.SenhaAdmin.Length < 6)
+        {
+            Snackbar.Add("A senha deve ter pelo menos 6 caracteres.", Severity.Warning);
+            return;
+        }
+
+        _loading = true;
+        var dto = new CreateEscritorioDto(
+            _reg.RazaoSocial, _reg.NomeFantasia, _reg.Cnpj, _reg.Email,
+            _reg.Telefone, _reg.Plano, _reg.NomeAdmin, _reg.EmailAdmin, _reg.SenhaAdmin);
+
+        var criado = await EscritorioService.RegistrarAsync(dto);
+        if (criado == null)
+        {
+            _loading = false;
+            Snackbar.Add("CNPJ já cadastrado ou erro no servidor.", Severity.Error);
+            return;
+        }
+
+        // Faz login automaticamente após o registro
+        var result = await AuthService.LoginAsync(_reg.EmailAdmin, _reg.SenhaAdmin);
+        _loading = false;
+
+        if (result != null)
+        {
+            Snackbar.Add($"Bem-vindo ao NfeSaas! Escritório criado com sucesso.", Severity.Success);
             Nav.NavigateTo("/");
+        }
         else
-            Snackbar.Add("Erro ao selecionar empresa.", Severity.Error);
+        {
+            Snackbar.Add("Conta criada! Faça login com suas credenciais.", Severity.Success);
+            _tela = Tela.Login;
+            _email = _reg.EmailAdmin;
+        }
+    }
+
+    class RegistroModel
+    {
+        public int Plano { get; set; } = 1;
+        public string RazaoSocial { get; set; } = "";
+        public string NomeFantasia { get; set; } = "";
+        public string Cnpj { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string? Telefone { get; set; }
+        public string NomeAdmin { get; set; } = "";
+        public string EmailAdmin { get; set; } = "";
+        public string SenhaAdmin { get; set; } = "";
+        public string ConfirmarSenha { get; set; } = "";
     }
 }

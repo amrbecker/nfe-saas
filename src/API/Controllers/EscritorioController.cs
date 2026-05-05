@@ -10,6 +10,7 @@ namespace NfeSaas.API.Controllers;
 [ApiController]
 public class EscritorioController : BaseApiController
 {
+    // Auto-cadastro público — qualquer pessoa pode criar um escritório
     [HttpPost("registrar")]
     public async Task<IActionResult> Registrar([FromBody] CreateEscritorioDto dto)
     {
@@ -17,6 +18,8 @@ public class EscritorioController : BaseApiController
         if (result == null) return Conflict(new { message = "CNPJ já cadastrado." });
         return Ok(result);
     }
+
+    // === EMPRESAS ===
 
     [Authorize]
     [HttpGet("empresas")]
@@ -31,7 +34,26 @@ public class EscritorioController : BaseApiController
     public async Task<IActionResult> CriarEmpresa([FromBody] CreateEmpresaDto dto)
     {
         var result = await Mediator.Send(new CreateEmpresaCommand(EscritorioId, dto));
-        if (result == null) return BadRequest(new { message = "Escritório não encontrado ou dados inválidos." });
+        if (result == null) return BadRequest(new { message = "Dados inválidos ou escritório não encontrado." });
+        return Ok(result);
+    }
+
+    // === USUÁRIOS ===
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("usuarios")]
+    public async Task<IActionResult> GetUsuarios()
+    {
+        var usuarios = await Mediator.Send(new GetUsuariosQuery(EscritorioId));
+        return Ok(usuarios);
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("usuarios")]
+    public async Task<IActionResult> CriarUsuario([FromBody] CreateUsuarioDto dto)
+    {
+        var result = await Mediator.Send(new CreateUsuarioCommand(EscritorioId, dto));
+        if (result == null) return Conflict(new { message = "E-mail já cadastrado." });
         return Ok(result);
     }
 }

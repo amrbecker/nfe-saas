@@ -141,6 +141,9 @@ public interface IEscritorioService
 {
     Task<List<EmpresaResumoDto>?> GetEmpresasAsync();
     Task<EmpresaResumoDto?> CriarEmpresaAsync(CreateEmpresaDto dto);
+    Task<List<UsuarioResumoDto>?> GetUsuariosAsync();
+    Task<UsuarioResumoDto?> CriarUsuarioAsync(CreateUsuarioDto dto);
+    Task<EscritorioDto?> RegistrarAsync(CreateEscritorioDto dto);
 }
 
 public class EscritorioService : IEscritorioService
@@ -171,6 +174,15 @@ public class EscritorioService : IEscritorioService
 
     public async Task<EmpresaResumoDto?> CriarEmpresaAsync(CreateEmpresaDto dto) =>
         await _api.PostAsync<CreateEmpresaDto, EmpresaResumoDto>("api/escritorio/empresas", dto);
+
+    public async Task<List<UsuarioResumoDto>?> GetUsuariosAsync() =>
+        await _api.GetAsync<List<UsuarioResumoDto>>("api/escritorio/usuarios");
+
+    public async Task<UsuarioResumoDto?> CriarUsuarioAsync(CreateUsuarioDto dto) =>
+        await _api.PostAsync<CreateUsuarioDto, UsuarioResumoDto>("api/escritorio/usuarios", dto);
+
+    public async Task<EscritorioDto?> RegistrarAsync(CreateEscritorioDto dto) =>
+        await _api.PostAsync<CreateEscritorioDto, EscritorioDto>("api/escritorio/registrar", dto);
 }
 
 // === NOTA FISCAL SERVICE ===

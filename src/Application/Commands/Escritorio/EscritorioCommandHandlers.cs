@@ -6,7 +6,7 @@ using NfeSaas.Domain.Interfaces;
 
 namespace NfeSaas.Application.Commands.EscritorioCommands;
 
-// === CRIAR ESCRITÓRIO ===
+// === CRIAR ESCRITÓRIO (auto-cadastro) ===
 public record CreateEscritorioCommand(CreateEscritorioDto Dto) : IRequest<EscritorioDto?>;
 
 public class CreateEscritorioCommandHandler : IRequestHandler<CreateEscritorioCommand, EscritorioDto?>
@@ -28,7 +28,8 @@ public class CreateEscritorioCommandHandler : IRequestHandler<CreateEscritorioCo
         var existing = await _escritorioRepo.GetByCnpjAsync(dto.Cnpj, cancellationToken);
         if (existing != null) return null;
 
-        var escritorio = Escritorio.Criar(dto.RazaoSocial, dto.NomeFantasia, dto.Cnpj, dto.Email, dto.Telefone);
+        var plano = (PlanoSaas)dto.Plano;
+        var escritorio = Escritorio.Criar(dto.RazaoSocial, dto.NomeFantasia, dto.Cnpj, dto.Email, dto.Telefone, plano);
         await _escritorioRepo.AddAsync(escritorio, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 
@@ -37,7 +38,8 @@ public class CreateEscritorioCommandHandler : IRequestHandler<CreateEscritorioCo
         await _usuarioRepo.AddAsync(admin, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 
-        return new EscritorioDto(escritorio.Id, escritorio.RazaoSocial, escritorio.NomeFantasia, escritorio.Cnpj, escritorio.Email, escritorio.Telefone, escritorio.Plano.ToString(), escritorio.Ativo);
+        return new EscritorioDto(escritorio.Id, escritorio.RazaoSocial, escritorio.NomeFantasia, escritorio.Cnpj,
+            escritorio.Email, escritorio.Telefone, escritorio.Plano.ToString(), escritorio.Ativo);
     }
 }
 
@@ -74,5 +76,39 @@ public class CreateEmpresaCommandHandler : IRequestHandler<CreateEmpresaCommand,
         await _uow.SaveChangesAsync(cancellationToken);
 
         return new EmpresaResumoDto(empresa.Id, empresa.RazaoSocial, empresa.NomeFantasia, empresa.Cnpj);
+    }
+}
+
+// === CRIAR USUÁRIO NO ESCRITÓRIO ===
+public record CreateUsuarioCommand(Guid EscritorioId, CreateUsuarioDto Dto) : IRequest<UsuarioResumoDto?>;
+
+public class CreateUsuarioCommandHandler : IRequestHandler<CreateUsuarioCommand, UsuarioResumoDto?>
+{
+    private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IEscritorioRepository _escritorioRepo;
+    private readonly IUnitOfWork _uow;
+
+    public CreateUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IEscritorioRepository escritorioRepo, IUnitOfWork uow)
+    {
+        _usuarioRepo = usuarioRepo;
+        _escritorioRepo = escritorioRepo;
+        _uow = uow;
+    }
+
+    public async Task<UsuarioResumoDto?> Handle(CreateUsuarioCommand request, CancellationToken cancellationToken)
+    {
+        var escritorio = await _escritorioRepo.GetByIdAsync(request.EscritorioId, cancellationToken);
+        if (escritorio == null) return null;
+
+        var existing = await _usuarioRepo.GetByEmailAsync(request.Dto.Email, cancellationToken);
+        if (existing != null) return null;
+
+        var senhaHash = BCrypt.Net.BCrypt.HashPassword(request.Dto.Senha);
+        var usuario = Usuario.Criar(request.EscritorioId, request.Dto.Nome, request.Dto.Email, senhaHash, request.Dto.Role);
+
+        await _usuarioRepo.AddAsync(usuario, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+
+        return new UsuarioResumoDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo);
     }
 }

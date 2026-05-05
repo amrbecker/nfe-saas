@@ -18,3 +18,18 @@ public class GetEmpresasQueryHandler : IRequestHandler<GetEmpresasQuery, List<Em
         return empresas.Select(e => new EmpresaResumoDto(e.Id, e.RazaoSocial, e.NomeFantasia, e.Cnpj)).ToList();
     }
 }
+
+public record GetUsuariosQuery(Guid EscritorioId) : IRequest<List<UsuarioResumoDto>>;
+
+public class GetUsuariosQueryHandler : IRequestHandler<GetUsuariosQuery, List<UsuarioResumoDto>>
+{
+    private readonly IUsuarioRepository _repo;
+
+    public GetUsuariosQueryHandler(IUsuarioRepository repo) => _repo = repo;
+
+    public async Task<List<UsuarioResumoDto>> Handle(GetUsuariosQuery request, CancellationToken cancellationToken)
+    {
+        var usuarios = await _repo.GetByEscritorioAsync(request.EscritorioId, cancellationToken);
+        return usuarios.Select(u => new UsuarioResumoDto(u.Id, u.Nome, u.Email, u.Role, u.Ativo)).ToList();
+    }
+}

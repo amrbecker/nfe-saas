@@ -1,0 +1,134 @@
+@page "/usuarios"
+@attribute [Authorize(Roles = "Admin")]
+@inject IEscritorioService EscritorioService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h5" Class="mb-4">Usuários do Escritório</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
+           OnClick="AbrirCadastro" Class="mb-4">
+    Novo Usuário
+</MudButton>
+
+@if (_usuarios == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_usuarios.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Nenhum usuário cadastrado além do administrador.</MudAlert>
+}
+else
+{
+    <MudTable Items="_usuarios" Hover="true" Striped="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>Nome</MudTh>
+            <MudTh>E-mail</MudTh>
+            <MudTh>Perfil</MudTh>
+            <MudTh>Status</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Nome</MudTd>
+            <MudTd>@context.Email</MudTd>
+            <MudTd>
+                <MudChip Size="Size.Small"
+                         Color="@(context.Role == "Admin" ? Color.Primary : Color.Default)">
+                    @(context.Role == "Admin" ? "Administrador" : "Usuário")
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudChip Size="Size.Small" Color="@(context.Ativo ? Color.Success : Color.Error)">
+                    @(context.Ativo ? "Ativo" : "Inativo")
+                </MudChip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@if (_mostrarForm)
+{
+    <MudCard Elevation="2" Class="mt-4 pa-4" Style="max-width:500px">
+        <MudText Typo="Typo.h6" Class="mb-3">Novo Usuário</MudText>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Nome" Label="Nome completo" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Email" Label="E-mail" Variant="Variant.Outlined"
+                              InputType="InputType.Email" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Senha" Label="Senha inicial" Variant="Variant.Outlined"
+                              InputType="@(_showSenha ? InputType.Text : InputType.Password)"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showSenha ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                              OnAdornmentClick="@(() => _showSenha = !_showSenha)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_form.Role" Label="Perfil de acesso" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("User")">Usuário — acesso operacional</MudSelectItem>
+                    <MudSelectItem Value="@("Admin")">Administrador — acesso total</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+        <MudStack Row="true" Class="mt-3" Justify="Justify.FlexEnd">
+            <MudButton OnClick="@(() => _mostrarForm = false)">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Salvar" Disabled="@_salvando">
+                @if (_salvando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Salvar
+            </MudButton>
+        </MudStack>
+    </MudCard>
+}
+
+@code {
+    private List<UsuarioResumoDto>? _usuarios;
+    private bool _mostrarForm, _salvando, _showSenha;
+    private FormModel _form = new();
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        _usuarios = await EscritorioService.GetUsuariosAsync();
+    }
+
+    void AbrirCadastro()
+    {
+        _form = new FormModel();
+        _mostrarForm = true;
+    }
+
+    async Task Salvar()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Nome) || string.IsNullOrWhiteSpace(_form.Email)
+            || string.IsNullOrWhiteSpace(_form.Senha))
+        {
+            Snackbar.Add("Preencha todos os campos.", Severity.Warning);
+            return;
+        }
+        _salvando = true;
+        var dto = new CreateUsuarioDto(_form.Nome, _form.Email, _form.Senha, _form.Role);
+        var result = await EscritorioService.CriarUsuarioAsync(dto);
+        _salvando = false;
+
+        if (result != null)
+        {
+            Snackbar.Add($"Usuário {result.Nome} criado com sucesso!", Severity.Success);
+            _mostrarForm = false;
+            await Carregar();
+        }
+        else
+        {
+            Snackbar.Add("E-mail já cadastrado ou erro no servidor.", Severity.Error);
+        }
+    }
+
+    class FormModel
+    {
+        public string Nome { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Senha { get; set; } = "";
+        public string Role { get; set; } = "User";
+    }
+}

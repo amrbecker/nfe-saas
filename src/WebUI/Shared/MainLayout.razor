@@ -42,9 +42,16 @@
                     <MudNavLink Href="/emitir" Icon="@Icons.Material.Filled.NoteAdd">Emitir NF-e</MudNavLink>
                     <MudNavLink Href="/notas" Icon="@Icons.Material.Filled.Receipt">Notas Emitidas</MudNavLink>
                     <MudDivider />
-                    <MudNavLink Href="/empresas" Icon="@Icons.Material.Filled.Apartment">Empresas Clientes</MudNavLink>
                     <MudNavLink Href="/empresa" Icon="@Icons.Material.Filled.Business">Config. Empresa</MudNavLink>
-                    <MudNavLink Href="/certificado" Icon="@Icons.Material.Filled.Security">Certificado</MudNavLink>
+                    <MudNavLink Href="/certificado" Icon="@Icons.Material.Filled.Security">Certificado Digital</MudNavLink>
+                    <AuthorizeView Roles="Admin" Context="adminCtx">
+                        <Authorized>
+                            <MudDivider />
+                            <MudText Typo="Typo.overline" Class="px-4 pt-2 pb-1" Style="color:#888;font-size:10px">ADMINISTRAÇÃO</MudText>
+                            <MudNavLink Href="/empresas" Icon="@Icons.Material.Filled.Apartment">Empresas Clientes</MudNavLink>
+                            <MudNavLink Href="/usuarios" Icon="@Icons.Material.Filled.People">Usuários</MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
                 </MudNavMenu>
             </MudDrawer>
 
