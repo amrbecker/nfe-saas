@@ -165,7 +165,7 @@ public class NotaFiscal : BaseEntity
 
     private void RecalcularTotais()
     {
-        TotalProdutos = _itens.Sum(i => i.ValorTotal);
+        TotalProdutos = _itens.Sum(i => i.Quantidade * i.ValorUnitario);
         TotalDesconto = _itens.Sum(i => i.ValorDesconto);
         TotalIcms = _itens.Sum(i => i.ValorIcms);
         TotalIcmsSt = _itens.Sum(i => i.ValorIcmsSt) ?? 0m;
