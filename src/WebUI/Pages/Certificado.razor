@@ -1,0 +1,174 @@
+@page "/certificado"
+@attribute [Authorize]
+@inject IEmpresaService EmpresaService
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Certificado Digital - NfeSaas</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Certificado Digital A1</MudText>
+
+<MudGrid>
+    <!-- Status atual -->
+    <MudItem xs="12" md="5">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1"><b>Status do Certificado</b></MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (_statusLoading)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                }
+                else if (_status != null)
+                {
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudChip Color="@(_certValido ? Color.Success : Color.Error)" Size="Size.Medium">
+                                @(_certValido ? "✓ Válido" : "✗ Inválido ou não configurado")
+                            </MudChip>
+                        </MudItem>
+                        @if (_certNome != null)
+                        {
+                            <MudItem xs="12"><MudText><b>Titular:</b> @_certNome</MudText></MudItem>
+                            <MudItem xs="12"><MudText><b>CNPJ:</b> @_certCnpj</MudText></MudItem>
+                            <MudItem xs="12">
+                                <MudText Color="@(_certVencendo ? Color.Warning : Color.Default)">
+                                    <b>Validade:</b> @_certValidade?.ToString("dd/MM/yyyy")
+                                    @if (_certVencendo) { <span> ⚠️ Vencendo em breve!</span> }
+                                </MudText>
+                            </MudItem>
+                        }
+                        @if (!string.IsNullOrEmpty(_certMensagem))
+                        {
+                            <MudItem xs="12"><MudAlert Severity="Severity.Warning" Dense="true">@_certMensagem</MudAlert></MudItem>
+                        }
+                    </MudGrid>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <!-- Upload -->
+    <MudItem xs="12" md="7">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1"><b>Carregar Novo Certificado</b></MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudAlert Severity="Severity.Info" Class="mb-3">
+                    Aceito apenas arquivos <b>.pfx</b> ou <b>.p12</b> (Certificado A1). O arquivo é armazenado de forma segura e criptografada.
+                </MudAlert>
+
+                <MudFileUpload T="IBrowserFile" FilesChanged="ArquivoSelecionado" Accept=".pfx,.p12" Class="mb-3">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.UploadFile">
+                            Selecionar Arquivo (.pfx / .p12)
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                @if (_arquivo != null)
+                {
+                    <MudChip Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Small" Class="mb-3">
+                        @_arquivo.Name (@(_arquivo.Size / 1024) KB)
+                    </MudChip>
+                }
+
+                <MudTextField @bind-Value="_senha" Label="Senha do Certificado" Variant="Variant.Outlined"
+                              InputType="@(_showSenha ? InputType.Text : InputType.Password)"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showSenha ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                              OnAdornmentClick="@(() => _showSenha = !_showSenha)"
+                              Class="mb-3" Required />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FazerUpload"
+                           Disabled="@(_arquivo == null || string.IsNullOrEmpty(_senha) || _uploading)"
+                           StartIcon="@Icons.Material.Filled.CloudUpload">
+                    @if (_uploading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Validando e enviando...</span>
+                    }
+                    else
+                    {
+                        <span>Enviar Certificado</span>
+                    }
+                </MudButton>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private bool _statusLoading = true;
+    private bool _certValido;
+    private string? _certNome, _certCnpj, _certMensagem;
+    private DateTime? _certValidade;
+    private bool _certVencendo;
+    private object? _status;
+
+    private IBrowserFile? _arquivo;
+    private string _senha = "";
+    private bool _showSenha;
+    private bool _uploading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarStatus();
+    }
+
+    async Task CarregarStatus()
+    {
+        _statusLoading = true;
+        _status = await EmpresaService.GetCertificadoStatusAsync();
+        // Parse status from dynamic object
+        _statusLoading = false;
+    }
+
+    void ArquivoSelecionado(IBrowserFile? file) => _arquivo = file;
+
+    async Task FazerUpload()
+    {
+        if (_arquivo == null) return;
+        _uploading = true;
+        try
+        {
+            using var ms = new MemoryStream();
+            await _arquivo.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(ms);
+            var bytes = ms.ToArray();
+
+            var form = new MultipartFormDataContent();
+            form.Add(new ByteArrayContent(bytes), "arquivo", _arquivo.Name);
+            form.Add(new StringContent(_senha), "senha");
+
+            await Api.SetAuthHeader();
+            var response = await new HttpClient().PostAsync("api/empresa/certificado/upload", form);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Certificado instalado com sucesso!", Severity.Success);
+                await CarregarStatus();
+                _arquivo = null;
+                _senha = "";
+            }
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Erro: {msg}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao enviar certificado: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+}

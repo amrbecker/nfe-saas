@@ -1,0 +1,85 @@
+@page "/empresa"
+@attribute [Authorize]
+@inject IEmpresaService EmpresaService
+@inject ISnackbar Snackbar
+
+<PageTitle>Empresa - NfeSaas</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Dados da Empresa</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudAlert Severity="Severity.Info" Class="mb-3">
+                Para alterar dados cadastrais, entre em contato com o suporte.
+            </MudAlert>
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@GetProp("razaoSocial")"
+                                  Label="Razão Social" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@GetProp("nomeFantasia")"
+                                  Label="Nome Fantasia" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField Value="@GetProp("cnpj")"
+                                  Label="CNPJ" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField Value="@GetProp("inscricaoEstadual")"
+                                  Label="Inscrição Estadual" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField Value="@GetProp("email")"
+                                  Label="E-mail" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField Value="@GetProp("ambienteSefaz")"
+                                  Label="Ambiente SEFAZ" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField Value="@GetProp("ultimoNumeronFe")"
+                                  Label="Último Número NF-e" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField Value="@GetProp("ultimoNumeronFCe")"
+                                  Label="Último Número NFC-e" Variant="Variant.Outlined" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField Value="@(_certValido ? "✓ Certificado Válido" : "✗ Sem Certificado")"
+                                  Label="Certificado A1"
+                                  Variant="Variant.Outlined" ReadOnly="true"
+                                  Style="@(_certValido ? "color:green" : "color:red")" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Href="/certificado" StartIcon="@Icons.Material.Filled.Security" Color="Color.Primary" Variant="Variant.Outlined">
+                Gerenciar Certificado
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    private object? _empresa;
+    private bool _loading = true;
+    private bool _certValido;
+
+    private string? GetProp(string name) =>
+        _empresa?.GetType().GetProperty(name)?.GetValue(_empresa)?.ToString();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresa = await EmpresaService.GetEmpresaAsync();
+        var certValido = _empresa?.GetType().GetProperty("certificadoValido")?.GetValue(_empresa);
+        _certValido = certValido is bool b && b;
+        _loading = false;
+    }
+}

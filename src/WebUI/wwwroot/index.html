@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NfeSaas — Emissão de NF-e/NFC-e</title>
+    <base href="/" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; }
+        #app { height: 100%; }
+        .loading-overlay {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; height: 100vh;
+            background: linear-gradient(135deg, #1565C0 0%, #0D47A1 60%, #00897B 100%);
+            color: white; font-family: Roboto, sans-serif;
+        }
+        .loading-logo { font-size: 3rem; margin-bottom: 1rem; }
+        .loading-title { font-size: 1.8rem; font-weight: 300; margin-bottom: 0.5rem; }
+        .loading-sub { font-size: 0.9rem; opacity: 0.8; margin-bottom: 2rem; }
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading-overlay">
+            <div class="loading-logo">🧾</div>
+            <div class="loading-title">NfeSaas</div>
+            <div class="loading-sub">Sistema de Emissão Fiscal</div>
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Erro na aplicação. <a href="">Recarregar</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_content/Blazored.LocalStorage/blazored-localstorage.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        // Download file helper
+        window.downloadFile = function(filename, contentType, content) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = "data:" + contentType + ";base64," + content;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
+</body>
+</html>

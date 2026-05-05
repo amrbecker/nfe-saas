@@ -1,0 +1,111 @@
+@page "/"
+@attribute [Authorize]
+@inject INotaFiscalService NotaService
+@inject ISnackbar Snackbar
+
+<PageTitle>Dashboard - NfeSaas</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Dashboard</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_dashboard != null)
+{
+    <!-- KPI Cards -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Faturamento do Mês</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Primary">R$ @_dashboard.TotalEmitidoMes.ToString("N2")</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Notas Autorizadas</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Success">@_dashboard.TotalNotasAutorizadas</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Notas Canceladas</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Error">@_dashboard.TotalNotasCanceladas</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="2">
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Pendentes</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Warning">@_dashboard.TotalNotasPendentes</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Últimas Notas -->
+    @if (_ultimasNotas?.Notas?.Any() == true)
+    {
+        <MudText Typo="Typo.h6" Class="mb-2">Últimas Notas Emitidas</MudText>
+        <MudTable Items="_ultimasNotas.Notas" Hover="true" Dense="true" Striped="true" Elevation="2">
+            <HeaderContent>
+                <MudTh>Número</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh>Destinatário</MudTh>
+                <MudTh>Valor</MudTh>
+                <MudTh>Data</MudTh>
+                <MudTh>Situação</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Serie.ToString("D3")-@context.Numero.ToString("D9")</MudTd>
+                <MudTd><MudChip Size="Size.Small" Color="@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? Color.Info : Color.Secondary)">@context.Tipo</MudChip></MudTd>
+                <MudTd>@(context.DestinatarioRazaoSocial ?? "Consumidor Final")</MudTd>
+                <MudTd>R$ @context.TotalNota.ToString("N2")</MudTd>
+                <MudTd>@context.DataEmissao.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd>
+                    <MudChip Size="Size.Small" Color="@GetCorSituacao(context.Situacao)">
+                        @context.Situacao
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+}
+
+@code {
+    private DashboardDto? _dashboard;
+    private GetNotasResult? _ultimasNotas;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _dashboard = await NotaService.GetDashboardAsync();
+            _ultimasNotas = await NotaService.GetNotasAsync(1, 10);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao carregar dashboard: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    Color GetCorSituacao(NfeSaas.Domain.Enums.SituacaoNota situacao) => situacao switch
+    {
+        NfeSaas.Domain.Enums.SituacaoNota.Autorizada => Color.Success,
+        NfeSaas.Domain.Enums.SituacaoNota.Cancelada => Color.Error,
+        NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada => Color.Info,
+        _ => Color.Default
+    };
+}

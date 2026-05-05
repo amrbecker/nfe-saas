@@ -1,0 +1,67 @@
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+
+<MudThemeProvider Theme="_theme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<AuthorizeView>
+    <Authorized>
+        <MudLayout>
+            <MudAppBar Elevation="1" Color="Color.Primary">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                               OnClick="@ToggleDrawer" />
+                <MudText Typo="Typo.h6" Class="ml-3">🧾 NfeSaas</MudText>
+                <MudSpacer />
+                <MudChip Icon="@Icons.Material.Filled.Business" Color="Color.Secondary" Size="Size.Small">
+                    Sistema de NF-e/NFC-e
+                </MudChip>
+                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="Logout" Title="Sair" />
+            </MudAppBar>
+
+            <MudDrawer @bind-Open="_drawerOpen" Elevation="2" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always">
+                <MudNavMenu>
+                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                    <MudNavLink Href="/emitir" Icon="@Icons.Material.Filled.NoteAdd">Emitir NF-e</MudNavLink>
+                    <MudNavLink Href="/notas" Icon="@Icons.Material.Filled.Receipt">Notas Emitidas</MudNavLink>
+                    <MudDivider />
+                    <MudNavLink Href="/empresa" Icon="@Icons.Material.Filled.Business">Empresa</MudNavLink>
+                    <MudNavLink Href="/certificado" Icon="@Icons.Material.Filled.Security">Certificado</MudNavLink>
+                </MudNavMenu>
+            </MudDrawer>
+
+            <MudMainContent>
+                <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-4">
+                    @Body
+                </MudContainer>
+            </MudMainContent>
+        </MudLayout>
+    </Authorized>
+    <NotAuthorized>
+        @Body
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private readonly MudTheme _theme = new()
+    {
+        Palette = new Palette
+        {
+            Primary = "#1565C0",
+            Secondary = "#00897B",
+            AppbarBackground = "#1565C0",
+            Background = "#F5F5F5"
+        }
+    };
+
+    void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+}

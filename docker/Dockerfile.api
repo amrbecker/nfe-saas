@@ -1,0 +1,31 @@
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy project files and restore
+COPY src/Domain/NfeSaas.Domain.csproj src/Domain/
+COPY src/Application/NfeSaas.Application.csproj src/Application/
+COPY src/Infrastructure/NfeSaas.Infrastructure.csproj src/Infrastructure/
+COPY src/API/NfeSaas.API.csproj src/API/
+
+RUN dotnet restore src/API/NfeSaas.API.csproj
+
+# Copy all source and build
+COPY src/ src/
+RUN dotnet publish src/API/NfeSaas.API.csproj -c Release -o /app/publish --no-restore
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/publish .
+
+RUN mkdir -p logs
+
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+
+ENTRYPOINT ["dotnet", "NfeSaas.API.dll"]

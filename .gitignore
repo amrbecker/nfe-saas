@@ -1,0 +1,49 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+
+## Publish output
+/publish/
+/app/publish/
+
+## EF migrations temp
+*.db
+*.sqlite
+
+## Secrets / config local
+appsettings.*.json
+!appsettings.json
+secrets.json
+.env
+.env.*
+
+## Docker volumes
+postgres_data/
+
+## Logs
+logs/
+*.log
+
+## Claude Code local settings
+.claude/settings.local.json
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Rider / VS Code
+.idea/
+.vscode/
+*.DotSettings.user
+
+## NuGet
+*.nupkg
+.nuget/
+
+## Test results
+TestResults/
+coverage/

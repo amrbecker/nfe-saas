@@ -1,0 +1,315 @@
+@page "/emitir"
+@attribute [Authorize]
+@inject INotaFiscalService NotaService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Emitir Nota Fiscal - NfeSaas</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Emitir Nota Fiscal</MudText>
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+
+    <!-- STEP 1: Tipo e Configuração -->
+    <MudTabPanel Text="Configuração" Icon="@Icons.Material.Filled.Settings">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_tipo" Label="Tipo de Nota" Variant="Variant.Outlined" Required>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoNota.NFe">NF-e (55)</MudSelectItem>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoNota.NFCe">NFC-e (65)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_tipoOperacao" Label="Tipo de Operação" Variant="Variant.Outlined" Required>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoOperacao.Saida">Saída</MudSelectItem>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoOperacao.Entrada">Entrada</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_finalidade" Label="Finalidade" Variant="Variant.Outlined" Required>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.FinalidadeNota.Normal">Normal</MudSelectItem>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.FinalidadeNota.Complementar">Complementar</MudSelectItem>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.FinalidadeNota.Devolucao">Devolução</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    <!-- STEP 2: Destinatário -->
+    <MudTabPanel Text="Destinatário" Icon="@Icons.Material.Filled.Person">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_tipoPessoa" Label="Tipo de Pessoa" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoPessoa.PessoaFisica">Pessoa Física (CPF)</MudSelectItem>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoPessoa.PessoaJuridica">Pessoa Jurídica (CNPJ)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_destCpfCnpj"
+                              Label="@(_tipoPessoa == NfeSaas.Domain.Enums.TipoPessoa.PessoaFisica ? "CPF" : "CNPJ")"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_destEmail" Label="E-mail" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_destNome" Label="Nome / Razão Social" Variant="Variant.Outlined" Required />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_destIe" Label="Inscrição Estadual" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_destLogradouro" Label="Logradouro" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_destNumero" Label="Número" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_destBairro" Label="Bairro" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_destCidade" Label="Cidade" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_destUf" Label="UF" Variant="Variant.Outlined" MaxLength="2" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_destCep" Label="CEP" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_destCodigoMun" Label="Código Município (IBGE)" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    <!-- STEP 3: Produtos -->
+    <MudTabPanel Text="Produtos" Icon="@Icons.Material.Filled.Inventory">
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AdicionarItem" StartIcon="@Icons.Material.Filled.Add" Class="mb-3">
+            Adicionar Produto
+        </MudButton>
+
+        @foreach (var (item, idx) in _itens.Select((i, x) => (i, x)))
+        {
+            <MudCard Elevation="1" Class="mb-3 pa-3">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Item @(idx + 1)</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                       OnClick="@(() => RemoverItem(idx))" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="item.CodigoProduto" Label="Código" Variant="Variant.Outlined" Required />
+                    </MudItem>
+                    <MudItem xs="12" md="5">
+                        <MudTextField @bind-Value="item.Descricao" Label="Descrição" Variant="Variant.Outlined" Required />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField @bind-Value="item.Ncm" Label="NCM" Variant="Variant.Outlined" Required />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField @bind-Value="item.Cfop" Label="CFOP" Variant="Variant.Outlined" Required />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField @bind-Value="item.Unidade" Label="UN" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.Quantidade" Label="Qtd" Variant="Variant.Outlined" Min="0.001m" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.ValorUnitario" Label="V.Unit. R$" Variant="Variant.Outlined" Min="0m" Format="F2" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.Desconto" Label="Desconto R$" Variant="Variant.Outlined" Min="0m" Format="F2" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudText Typo="Typo.body2" Class="mt-3">Total: R$ @((item.Quantidade * item.ValorUnitario - item.Desconto).ToString("N2"))</MudText>
+                    </MudItem>
+                    <!-- Impostos -->
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.AliquotaIcms" Label="Alíq. ICMS %" Variant="Variant.Outlined" Min="0m" Max="100m" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.AliquotaPis" Label="Alíq. PIS %" Variant="Variant.Outlined" Min="0m" Max="100m" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.AliquotaCofins" Label="Alíq. COFINS %" Variant="Variant.Outlined" Min="0m" Max="100m" />
+                    </MudItem>
+                </MudGrid>
+            </MudCard>
+        }
+
+        @if (_itens.Any())
+        {
+            <MudText Typo="Typo.h6" Class="mt-2 text-right">
+                Total: R$ @_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto).ToString("N2")
+            </MudText>
+        }
+    </MudTabPanel>
+
+    <!-- STEP 4: Transporte e Pagamento -->
+    <MudTabPanel Text="Transporte/Pgto" Icon="@Icons.Material.Filled.LocalShipping">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_modalidadeFrete" Label="Modalidade de Frete" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.ModalidadeFrete.ContratacaoRemetente">Por Conta do Remetente</MudSelectItem>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.ModalidadeFrete.ContratacaoDestinatario">Por Conta do Destinatário</MudSelectItem>
+                    <MudSelectItem Value="@NfeSaas.Domain.Enums.ModalidadeFrete.SemFrete">Sem Frete</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField @bind-Value="_valorFrete" Label="Valor do Frete R$" Variant="Variant.Outlined" Min="0m" Format="F2" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField @bind-Value="_valorSeguro" Label="Valor do Seguro R$" Variant="Variant.Outlined" Min="0m" Format="F2" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect @bind-Value="_formaPagamento" Label="Forma de Pagamento" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("01")">Dinheiro</MudSelectItem>
+                    <MudSelectItem Value="@("02")">Cheque</MudSelectItem>
+                    <MudSelectItem Value="@("03")">Cartão de Crédito</MudSelectItem>
+                    <MudSelectItem Value="@("04")">Cartão de Débito</MudSelectItem>
+                    <MudSelectItem Value="@("05")">Crédito Loja</MudSelectItem>
+                    <MudSelectItem Value="@("10")">Vale Alimentação</MudSelectItem>
+                    <MudSelectItem Value="@("15")">Boleto Bancário</MudSelectItem>
+                    <MudSelectItem Value="@("90")">Sem Pagamento</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_infoAdicionais" Label="Informações Adicionais" Variant="Variant.Outlined" Lines="3" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    <!-- STEP 5: Revisão e Emissão -->
+    <MudTabPanel Text="Emitir" Icon="@Icons.Material.Filled.Send">
+        <MudAlert Severity="Severity.Info" Class="mb-3">
+            Revise os dados antes de emitir. Após a autorização pela SEFAZ, a nota não pode ser editada.
+        </MudAlert>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudText><b>Tipo:</b> @_tipo | <b>Operação:</b> @_tipoOperacao | <b>Finalidade:</b> @_finalidade</MudText>
+                <MudText><b>Destinatário:</b> @_destNome (@_destCpfCnpj)</MudText>
+                <MudText><b>Itens:</b> @_itens.Count produto(s)</MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudText><b>Total Produtos:</b> R$ @_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto).ToString("N2")</MudText>
+                <MudText><b>Frete:</b> R$ @_valorFrete.ToString("N2")</MudText>
+                <MudText Typo="Typo.h6" Color="Color.Primary">
+                    <b>TOTAL NF-e: R$ @(_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto) + _valorFrete + _valorSeguro).ToString("N2")</b>
+                </MudText>
+            </MudItem>
+        </MudGrid>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Large"
+                   OnClick="EmitirNota" Disabled="@_emitindo" Class="mt-4"
+                   StartIcon="@Icons.Material.Filled.Send">
+            @if (_emitindo)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Enviando para SEFAZ...</span>
+            }
+            else
+            {
+                <span>Emitir Nota Fiscal</span>
+            }
+        </MudButton>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    // Nota config
+    private NfeSaas.Domain.Enums.TipoNota _tipo = NfeSaas.Domain.Enums.TipoNota.NFe;
+    private NfeSaas.Domain.Enums.TipoOperacao _tipoOperacao = NfeSaas.Domain.Enums.TipoOperacao.Saida;
+    private NfeSaas.Domain.Enums.FinalidadeNota _finalidade = NfeSaas.Domain.Enums.FinalidadeNota.Normal;
+
+    // Destinatário
+    private NfeSaas.Domain.Enums.TipoPessoa _tipoPessoa = NfeSaas.Domain.Enums.TipoPessoa.PessoaJuridica;
+    private string _destCpfCnpj = "";
+    private string _destNome = "";
+    private string _destEmail = "";
+    private string _destIe = "";
+    private string _destLogradouro = "";
+    private string _destNumero = "";
+    private string _destBairro = "";
+    private string _destCidade = "";
+    private string _destUf = "";
+    private string _destCep = "";
+    private string _destCodigoMun = "";
+
+    // Transporte/Pgto
+    private NfeSaas.Domain.Enums.ModalidadeFrete _modalidadeFrete = NfeSaas.Domain.Enums.ModalidadeFrete.SemFrete;
+    private decimal _valorFrete;
+    private decimal _valorSeguro;
+    private string _formaPagamento = "01";
+    private string _infoAdicionais = "";
+    private bool _emitindo;
+
+    // Itens
+    private List<ItemForm> _itens = new();
+
+    void AdicionarItem() => _itens.Add(new ItemForm());
+    void RemoverItem(int idx) => _itens.RemoveAt(idx);
+
+    async Task EmitirNota()
+    {
+        if (!_itens.Any())
+        {
+            Snackbar.Add("Adicione ao menos um produto.", Severity.Warning);
+            return;
+        }
+
+        _emitindo = true;
+        try
+        {
+            var totalNota = _itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto) + _valorFrete + _valorSeguro;
+
+            var dto = new NfeSaas.Application.DTOs.EmitirNotaFiscalDto(
+                _tipo, _finalidade, _tipoOperacao,
+                new NfeSaas.Application.DTOs.DestinatarioDto(
+                    _destCpfCnpj, _destNome, _destEmail, _tipoPessoa,
+                    _destLogradouro, _destNumero, null, _destBairro,
+                    _destCidade, _destUf, _destCep, _destCodigoMun, _destIe),
+                _itens.Select(i => new NfeSaas.Application.DTOs.ItemNotaDto(
+                    i.CodigoProduto, i.Descricao, i.Ncm, null, i.Cfop, i.Unidade,
+                    i.Quantidade, i.ValorUnitario, i.Desconto, null,
+                    new NfeSaas.Application.DTOs.ImpostosItemDto(
+                        NfeSaas.Domain.Enums.OrigemMercadoria.Nacional,
+                        NfeSaas.Domain.Enums.CstIcms.Tributada,
+                        i.AliquotaIcms, null, false, null, null,
+                        NfeSaas.Domain.Enums.CstPisCofins.TributadaAliquotaBasica, i.AliquotaPis,
+                        NfeSaas.Domain.Enums.CstPisCofins.TributadaAliquotaBasica, i.AliquotaCofins))).ToList(),
+                new NfeSaas.Application.DTOs.TransporteDto(_modalidadeFrete, null, null, _valorFrete, _valorSeguro),
+                new NfeSaas.Application.DTOs.PagamentoDto(_formaPagamento, totalNota),
+                _infoAdicionais);
+
+            var result = await NotaService.EmitirAsync(dto);
+            if (result?.Sucesso == true)
+            {
+                Snackbar.Add($"NF-e autorizada! Chave: {result.ChaveAcesso?[..8]}...", Severity.Success);
+                Nav.NavigateTo("/notas");
+            }
+            else
+            {
+                Snackbar.Add($"Erro: {result?.MensagemErro ?? "Falha na emissão."}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _emitindo = false;
+        }
+    }
+
+    class ItemForm
+    {
+        public string CodigoProduto { get; set; } = "";
+        public string Descricao { get; set; } = "";
+        public string Ncm { get; set; } = "";
+        public string Cfop { get; set; } = "5102";
+        public string Unidade { get; set; } = "UN";
+        public decimal Quantidade { get; set; } = 1;
+        public decimal ValorUnitario { get; set; }
+        public decimal Desconto { get; set; }
+        public decimal AliquotaIcms { get; set; } = 12;
+        public decimal AliquotaPis { get; set; } = 0.65m;
+        public decimal AliquotaCofins { get; set; } = 3;
+    }
+}

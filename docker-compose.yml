@@ -1,0 +1,71 @@
+version: '3.9'
+
+# Copia do docker/docker-compose.yml na raiz para facilitar uso
+# Execute: docker compose up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nfesaas_postgres
+    environment:
+      POSTGRES_DB: nfesaas
+      POSTGRES_USER: nfesaas
+      POSTGRES_PASSWORD: nfesaas123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nfesaas -d nfesaas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nfesaas_net
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: nfesaas_api
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=nfesaas;Username=nfesaas;Password=nfesaas123
+      - Jwt__Secret=SUA_CHAVE_SECRETA_MUITO_LONGA_E_SEGURA_AQUI_32CHARS_MIN
+      - Jwt__Issuer=NfeSaas
+      - Jwt__Audience=NfeSaas.WebUI
+      - WebUI__BaseUrl=http://localhost:5002
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - api_logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - nfesaas_net
+
+  webui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.webui
+    container_name: nfesaas_webui
+    ports:
+      - "5002:80"
+    depends_on:
+      - api
+    networks:
+      - nfesaas_net
+
+volumes:
+  postgres_data:
+  api_logs:
+
+networks:
+  nfesaas_net:
+    driver: bridge

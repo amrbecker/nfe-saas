@@ -1,0 +1,123 @@
+@page "/notas"
+@attribute [Authorize]
+@inject INotaFiscalService NotaService
+@inject ISnackbar Snackbar
+@inject IDialogService Dialog
+@inject NavigationManager Nav
+
+<PageTitle>Notas Emitidas - NfeSaas</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Notas Fiscais Emitidas</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.NoteAdd"
+           Href="/emitir" Class="mb-4">Nova Nota Fiscal</MudButton>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable T="NfeSaas.Application.DTOs.NotaFiscalResumoDto" ServerData="ServerReload" @ref="_table" Hover="true" Dense="true" Striped="true" Elevation="2">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Notas (@_total registros)</MudText>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Número</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Destinatário</MudTh>
+            <MudTh>Valor Total</MudTh>
+            <MudTh>Data Emissão</MudTh>
+            <MudTh>Situação</MudTh>
+            <MudTh>Ações</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Serie.ToString("D3")-@context.Numero.ToString("D9")</MudTd>
+            <MudTd>
+                <MudChip Size="Size.Small" Color="@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? Color.Info : Color.Secondary)">
+                    @context.Tipo
+                </MudChip>
+            </MudTd>
+            <MudTd>@(context.DestinatarioRazaoSocial ?? "Consumidor Final")</MudTd>
+            <MudTd>R$ @context.TotalNota.ToString("N2")</MudTd>
+            <MudTd>@context.DataEmissao.ToString("dd/MM/yyyy HH:mm")</MudTd>
+            <MudTd>
+                <MudChip Size="Size.Small" Color="@GetCorSituacao(context.Situacao)">@context.Situacao</MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Info"
+                               OnClick="@(() => VerDetalhe(context.Id))" Title="Detalhes" />
+                <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Color="Color.Error"
+                               OnClick="@(() => DownloadDanfe(context.Id))" Title="DANFE PDF"
+                               Disabled="@(context.Situacao != NfeSaas.Domain.Enums.SituacaoNota.Autorizada)" />
+                @if (context.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Autorizada)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Warning"
+                                   OnClick="@(() => ConfirmarCancelamento(context.Id))" Title="Cancelar" />
+                }
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private MudTable<NfeSaas.Application.DTOs.NotaFiscalResumoDto> _table = null!;
+    private bool _loading = true;
+    private int _total;
+
+    async Task<TableData<NfeSaas.Application.DTOs.NotaFiscalResumoDto>> ServerReload(TableState state)
+    {
+        _loading = true;
+        try
+        {
+            var result = await NotaService.GetNotasAsync(state.Page + 1, state.PageSize);
+            _total = result?.Total ?? 0;
+            return new TableData<NfeSaas.Application.DTOs.NotaFiscalResumoDto>
+            {
+                Items = result?.Notas ?? [],
+                TotalItems = _total
+            };
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    void VerDetalhe(Guid id) => Nav.NavigateTo($"/notas/{id}");
+
+    async Task DownloadDanfe(Guid id)
+    {
+        var pdf = await NotaService.GetDanfePdfAsync(id);
+        if (pdf == null) { Snackbar.Add("Erro ao gerar DANFE.", Severity.Error); return; }
+        // In production: trigger JS interop to download file
+        Snackbar.Add("DANFE gerado com sucesso!", Severity.Success);
+    }
+
+    async Task ConfirmarCancelamento(Guid id)
+    {
+        var result = await Dialog.ShowMessageBox("Cancelar NF-e",
+            "Informe a justificativa (mínimo 15 caracteres):",
+            yesText: "Cancelar NF-e", cancelText: "Voltar");
+
+        if (result == true)
+        {
+            var ok = await NotaService.CancelarAsync(id, "Cancelamento solicitado pelo usuário.");
+            Snackbar.Add(ok ? "Nota cancelada com sucesso!" : "Erro ao cancelar nota.",
+                ok ? Severity.Success : Severity.Error);
+            await _table.ReloadServerData();
+        }
+    }
+
+    Color GetCorSituacao(NfeSaas.Domain.Enums.SituacaoNota situacao) => situacao switch
+    {
+        NfeSaas.Domain.Enums.SituacaoNota.Autorizada => Color.Success,
+        NfeSaas.Domain.Enums.SituacaoNota.Cancelada => Color.Error,
+        NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada => Color.Info,
+        _ => Color.Default
+    };
+}

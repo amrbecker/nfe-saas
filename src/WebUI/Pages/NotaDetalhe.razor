@@ -1,0 +1,191 @@
+@page "/notas/{Id:guid}"
+@attribute [Authorize]
+@inject INotaFiscalService NotaService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Detalhe da Nota - NfeSaas</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_nota == null)
+{
+    <MudAlert Severity="Severity.Error">Nota fiscal não encontrada.</MudAlert>
+    <MudButton Href="/notas" StartIcon="@Icons.Material.Filled.ArrowBack">Voltar</MudButton>
+}
+else
+{
+    <MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+    <MudGrid>
+        <!-- Cabeçalho -->
+        <MudItem xs="12">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">
+                            @_nota.Tipo — Série @_nota.Serie.ToString("D3") — Número @_nota.Numero.ToString("D9")
+                        </MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudChip Color="@GetCorSituacao(_nota.Situacao)" Size="Size.Medium">@_nota.Situacao</MudChip>
+                        @if (_nota.Ambiente == NfeSaas.Domain.Enums.AmbienteSefaz.Homologacao)
+                        {
+                            <MudChip Color="Color.Warning" Size="Size.Small">HOMOLOGAÇÃO</MudChip>
+                        }
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudText><b>Chave de Acesso:</b></MudText>
+                            <MudText Style="font-family: monospace; font-size: 0.8rem; word-break: break-all;">
+                                @(_nota.ChaveAcesso ?? "—")
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudText><b>Protocolo:</b> @(_nota.Protocolo ?? "—")</MudText>
+                            <MudText><b>Data Emissão:</b> @_nota.DataEmissao.ToString("dd/MM/yyyy HH:mm")</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            @if (_nota.DataAutorizacao.HasValue)
+                            {
+                                <MudText><b>Autorizada em:</b> @_nota.DataAutorizacao.Value.ToString("dd/MM/yyyy HH:mm")</MudText>
+                            }
+                            @if (!string.IsNullOrEmpty(_nota.MotivoRejeicao))
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">@_nota.MotivoRejeicao</MudAlert>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+                <MudCardActions>
+                    @if (_nota.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Autorizada)
+                    {
+                        <MudButton StartIcon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error"
+                                   OnClick="DownloadDanfe" Variant="Variant.Outlined">DANFE PDF</MudButton>
+                    }
+                    <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Href="/notas" Variant="Variant.Text">Voltar</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+
+        <!-- Destinatário -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1"><b>Destinatário</b></MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <MudText><b>Nome:</b> @(_nota.Destinatario.RazaoSocial ?? "Consumidor Final")</MudText>
+                    @if (!string.IsNullOrEmpty(_nota.Destinatario.CpfCnpj))
+                    {
+                        <MudText><b>CPF/CNPJ:</b> @_nota.Destinatario.CpfCnpj</MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(_nota.Destinatario.Email))
+                    {
+                        <MudText><b>E-mail:</b> @_nota.Destinatario.Email</MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(_nota.Destinatario.Cidade))
+                    {
+                        <MudText><b>Endereço:</b> @_nota.Destinatario.Logradouro, @_nota.Destinatario.Numero — @_nota.Destinatario.Cidade/@_nota.Destinatario.Uf</MudText>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Totais -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1"><b>Totais</b></MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <MudText>Produtos: <b>R$ @_nota.TotalProdutos.ToString("N2")</b></MudText>
+                    @if (_nota.TotalDesconto > 0) { <MudText>Desconto: <b>R$ @_nota.TotalDesconto.ToString("N2")</b></MudText> }
+                    @if (_nota.TotalFrete > 0) { <MudText>Frete: <b>R$ @_nota.TotalFrete.ToString("N2")</b></MudText> }
+                    <MudText>ICMS: <b>R$ @_nota.TotalIcms.ToString("N2")</b></MudText>
+                    <MudText>PIS: <b>R$ @_nota.TotalPis.ToString("N2")</b></MudText>
+                    <MudText>COFINS: <b>R$ @_nota.TotalCofins.ToString("N2")</b></MudText>
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.h6" Color="Color.Primary"><b>TOTAL: R$ @_nota.TotalNota.ToString("N2")</b></MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Itens -->
+        <MudItem xs="12">
+            <MudCard Elevation="2">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1"><b>Itens da Nota</b></MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <MudTable Items="_nota.Itens" Dense="true" Striped="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>#</MudTh>
+                            <MudTh>Código</MudTh>
+                            <MudTh>Descrição</MudTh>
+                            <MudTh>NCM</MudTh>
+                            <MudTh>CFOP</MudTh>
+                            <MudTh>UN</MudTh>
+                            <MudTh>Qtd</MudTh>
+                            <MudTh>V.Unit.</MudTh>
+                            <MudTh>Desconto</MudTh>
+                            <MudTh>V.Total</MudTh>
+                            <MudTh>ICMS</MudTh>
+                            <MudTh>PIS</MudTh>
+                            <MudTh>COFINS</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.NumeroItem</MudTd>
+                            <MudTd>@context.CodigoProduto</MudTd>
+                            <MudTd>@context.Descricao</MudTd>
+                            <MudTd>@context.Ncm</MudTd>
+                            <MudTd>@context.Cfop</MudTd>
+                            <MudTd>@context.Unidade</MudTd>
+                            <MudTd>@context.Quantidade.ToString("F2")</MudTd>
+                            <MudTd>@context.ValorUnitario.ToString("F4")</MudTd>
+                            <MudTd>@context.ValorDesconto.ToString("F2")</MudTd>
+                            <MudTd><b>@context.ValorTotal.ToString("F2")</b></MudTd>
+                            <MudTd>@context.ValorIcms.ToString("F2")</MudTd>
+                            <MudTd>@context.ValorPis.ToString("F2")</MudTd>
+                            <MudTd>@context.ValorCofins.ToString("F2")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private NfeSaas.Application.DTOs.NotaFiscalDetalheDto? _nota;
+    private bool _loading = true;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Dashboard", href: "/"),
+        new BreadcrumbItem("Notas", href: "/notas"),
+        new BreadcrumbItem("Detalhe", href: null, disabled: true)
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _nota = await NotaService.GetNotaAsync(Id);
+        _loading = false;
+    }
+
+    async Task DownloadDanfe()
+    {
+        var pdf = await NotaService.GetDanfePdfAsync(Id);
+        if (pdf == null) Snackbar.Add("Erro ao gerar DANFE.", Severity.Error);
+        else Snackbar.Add("DANFE gerado! Use o menu do navegador para salvar.", Severity.Success);
+    }
+
+    Color GetCorSituacao(NfeSaas.Domain.Enums.SituacaoNota s) => s switch
+    {
+        NfeSaas.Domain.Enums.SituacaoNota.Autorizada => Color.Success,
+        NfeSaas.Domain.Enums.SituacaoNota.Cancelada => Color.Error,
+        NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada => Color.Info,
+        _ => Color.Default
+    };
+}

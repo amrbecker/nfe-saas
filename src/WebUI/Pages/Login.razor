@@ -1,0 +1,57 @@
+@page "/login"
+@layout EmptyLayout
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudGrid Justify="Justify.Center" Class="mt-16">
+    <MudItem xs="12" sm="8" md="5" lg="4">
+        <MudCard Elevation="8" Class="pa-6">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Primary" Class="mb-1">
+                        🧾 NfeSaas
+                    </MudText>
+                    <MudText Typo="Typo.subtitle1" Align="Align.Center" Color="Color.Secondary">
+                        Sistema de Emissão Fiscal
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudTextField @bind-Value="_email" Label="E-mail" Variant="Variant.Outlined"
+                              InputType="InputType.Email" Class="mb-3" Required />
+                <MudTextField @bind-Value="_senha" Label="Senha" Variant="Variant.Outlined"
+                              InputType="_showSenha ? InputType.Text : InputType.Password" Class="mb-4"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showSenha ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                              OnAdornmentClick="@(() => _showSenha = !_showSenha)" Required />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                           OnClick="HandleLogin" Disabled="@_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Entrar
+                </MudButton>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string _email = "";
+    private string _senha = "";
+    private bool _loading;
+    private bool _showSenha;
+
+    async Task HandleLogin()
+    {
+        _loading = true;
+        var ok = await AuthService.LoginAsync(_email, _senha);
+        _loading = false;
+        if (ok)
+            Nav.NavigateTo("/");
+        else
+            Snackbar.Add("Email ou senha inválidos.", Severity.Error);
+    }
+}

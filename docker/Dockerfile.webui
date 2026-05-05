@@ -1,0 +1,33 @@
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Python is required by Emscripten (used by wasm-tools for native WASM compilation)
+RUN apt-get update && apt-get install -y python3 \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Blazor WASM workload
+RUN dotnet workload install wasm-tools
+
+# Copy project files for restore (all referenced projects)
+COPY src/Domain/NfeSaas.Domain.csproj src/Domain/
+COPY src/Application/NfeSaas.Application.csproj src/Application/
+COPY src/WebUI/NfeSaas.WebUI.csproj src/WebUI/
+
+RUN dotnet restore src/WebUI/NfeSaas.WebUI.csproj
+
+# Copy all source files
+COPY src/ src/
+
+RUN dotnet publish src/WebUI/NfeSaas.WebUI.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+# Nginx runtime
+FROM nginx:alpine AS runtime
+COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
