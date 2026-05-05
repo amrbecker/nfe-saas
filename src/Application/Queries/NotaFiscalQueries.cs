@@ -77,7 +77,7 @@ public class GetDashboardQueryHandler : IRequestHandler<GetDashboardQuery, Dashb
         var totalMes = await _repo.GetTotalEmitidoMesAsync(request.EmpresaId, request.Ano, request.Mes, cancellationToken);
         var contagemPorSituacao = await _repo.GetContagemPorSituacaoAsync(request.EmpresaId, cancellationToken);
 
-        var inicio = new DateTime(request.Ano, request.Mes, 1);
+        var inicio = new DateTime(request.Ano, request.Mes, 1, 0, 0, 0, DateTimeKind.Utc);
         var fim = inicio.AddMonths(1).AddDays(-1);
         var notasMes = await _repo.GetByPeriodoAsync(request.EmpresaId, inicio, fim, cancellationToken);
 
