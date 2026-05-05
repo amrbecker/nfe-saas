@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IEmpresaService EmpresaService
 @inject ISnackbar Snackbar
+@using NfeSaas.Domain.Enums
 
 <PageTitle>Empresa - NfeSaas</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">Dados da Empresa</MudText>
@@ -20,42 +21,42 @@ else
 
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField Value="@GetProp("razaoSocial")"
+                    <MudTextField Value="@_empresa?.RazaoSocial"
                                   Label="Razão Social" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField Value="@GetProp("nomeFantasia")"
+                    <MudTextField Value="@_empresa?.NomeFantasia"
                                   Label="Nome Fantasia" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudTextField Value="@GetProp("cnpj")"
+                    <MudTextField Value="@_empresa?.Cnpj"
                                   Label="CNPJ" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudTextField Value="@GetProp("inscricaoEstadual")"
+                    <MudTextField Value="@_empresa?.InscricaoEstadual"
                                   Label="Inscrição Estadual" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudTextField Value="@GetProp("email")"
+                    <MudTextField Value="@_empresa?.Email"
                                   Label="E-mail" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudTextField Value="@GetProp("ambienteSefaz")"
+                    <MudTextField Value="@((AmbienteSefaz?)_empresa?.AmbienteSefaz == AmbienteSefaz.Producao ? "Produção" : "Homologação")"
                                   Label="Ambiente SEFAZ" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudTextField Value="@GetProp("ultimoNumeronFe")"
+                    <MudTextField Value="@_empresa?.UltimoNumeronFe.ToString()"
                                   Label="Último Número NF-e" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudTextField Value="@GetProp("ultimoNumeronFCe")"
+                    <MudTextField Value="@_empresa?.UltimoNumeronFCe.ToString()"
                                   Label="Último Número NFC-e" Variant="Variant.Outlined" ReadOnly="true" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudTextField Value="@(_certValido ? "✓ Certificado Válido" : "✗ Sem Certificado")"
+                    <MudTextField Value="@(_empresa?.CertificadoValido == true ? "✓ Certificado Válido" : "✗ Sem Certificado")"
                                   Label="Certificado A1"
                                   Variant="Variant.Outlined" ReadOnly="true"
-                                  Style="@(_certValido ? "color:green" : "color:red")" />
+                                  Style="@(_empresa?.CertificadoValido == true ? "color:green" : "color:red")" />
                 </MudItem>
             </MudGrid>
         </MudCardContent>
@@ -68,18 +69,13 @@ else
 }
 
 @code {
-    private object? _empresa;
+    private EmpresaDetalheDto? _empresa;
     private bool _loading = true;
-    private bool _certValido;
-
-    private string? GetProp(string name) =>
-        _empresa?.GetType().GetProperty(name)?.GetValue(_empresa)?.ToString();
 
     protected override async Task OnInitializedAsync()
     {
-        _empresa = await EmpresaService.GetEmpresaAsync();
-        var certValido = _empresa?.GetType().GetProperty("certificadoValido")?.GetValue(_empresa);
-        _certValido = certValido is bool b && b;
-        _loading = false;
+        try { _empresa = await EmpresaService.GetEmpresaAsync(); }
+        catch { Snackbar.Add("Erro ao carregar dados da empresa.", Severity.Error); }
+        finally { _loading = false; }
     }
 }

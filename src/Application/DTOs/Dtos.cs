@@ -187,3 +187,26 @@ public record CreateEmpresaDto(
 
 public record UploadCertificadoDto(string Senha);
 public record CertificadoStatusDto(bool Valido, string? NomeTitular, string? Cnpj, DateTime? Validade, string? Mensagem);
+
+public record EmpresaDetalheDto(
+    Guid Id,
+    string RazaoSocial,
+    string NomeFantasia,
+    string Cnpj,
+    string InscricaoEstadual,
+    string Email,
+    string? Telefone,
+    string Logradouro,
+    string Numero,
+    string Bairro,
+    string Cidade,
+    string Uf,
+    string Cep,
+    int RegimeTributario,
+    int AmbienteSefaz,
+    int UltimoNumeronFe,
+    int UltimoNumeronFCe,
+    DateTime? CertificadoValidade,
+    string? CertificadoCnpj,
+    bool CertificadoValido
+);

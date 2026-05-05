@@ -76,12 +76,13 @@ public class CertificadoService : ICertificadoService
             var subject = cert.Subject;
             var cnpj = ExtrairCnpjDoCertificado(subject);
 
+            var validade = cert.NotAfter.ToUniversalTime();
             return new CertificadoInfo(
-                Valido: cert.NotAfter > DateTime.UtcNow,
+                Valido: validade > DateTime.UtcNow,
                 Cnpj: cnpj,
                 NomeTitular: cert.GetNameInfo(X509NameType.SimpleName, false),
-                Validade: cert.NotAfter,
-                MensagemErro: cert.NotAfter <= DateTime.UtcNow ? "Certificado expirado" : null);
+                Validade: validade,
+                MensagemErro: validade <= DateTime.UtcNow ? "Certificado expirado" : null);
         }
         catch (Exception ex)
         {

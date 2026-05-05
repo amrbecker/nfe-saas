@@ -4,6 +4,7 @@
 @inject IEscritorioService EscritorioService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudGrid Justify="Justify.Center" Class="mt-8">
     <MudItem xs="12" sm="10" md="6" lg="5">
@@ -194,6 +195,8 @@
         _loading = false;
 
         if (result == null) { Snackbar.Add("E-mail ou senha inválidos.", Severity.Error); return; }
+
+        ((JwtAuthStateProvider)AuthStateProvider).NotifyAuthStateChanged();
 
         if (result.Empresas.Count == 0)
             Snackbar.Add("Nenhuma empresa cadastrada. Acesse o painel e cadastre a primeira.", Severity.Warning);

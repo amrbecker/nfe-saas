@@ -53,6 +53,12 @@ public class ApiClient
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadAsByteArrayAsync();
     }
+
+    public async Task<HttpResponseMessage> PostMultipartAsync(string url, MultipartFormDataContent form)
+    {
+        await SetAuthHeader();
+        return await _http.PostAsync(url, form);
+    }
 }
 
 // === AUTH SERVICE ===
@@ -172,8 +178,13 @@ public class EscritorioService : IEscritorioService
         return await _api.GetAsync<List<EmpresaResumoDto>>("api/escritorio/empresas");
     }
 
-    public async Task<EmpresaResumoDto?> CriarEmpresaAsync(CreateEmpresaDto dto) =>
-        await _api.PostAsync<CreateEmpresaDto, EmpresaResumoDto>("api/escritorio/empresas", dto);
+    public async Task<EmpresaResumoDto?> CriarEmpresaAsync(CreateEmpresaDto dto)
+    {
+        var result = await _api.PostAsync<CreateEmpresaDto, EmpresaResumoDto>("api/escritorio/empresas", dto);
+        if (result != null)
+            await _storage.RemoveItemAsync("empresas");
+        return result;
+    }
 
     public async Task<List<UsuarioResumoDto>?> GetUsuariosAsync() =>
         await _api.GetAsync<List<UsuarioResumoDto>>("api/escritorio/usuarios");
@@ -231,8 +242,8 @@ public class NotaFiscalService : INotaFiscalService
 // === EMPRESA SERVICE ===
 public interface IEmpresaService
 {
-    Task<object?> GetEmpresaAsync();
-    Task<object?> GetCertificadoStatusAsync();
+    Task<EmpresaDetalheDto?> GetEmpresaAsync();
+    Task<CertificadoStatusDto?> GetCertificadoStatusAsync();
 }
 
 public class EmpresaService : IEmpresaService
@@ -241,11 +252,11 @@ public class EmpresaService : IEmpresaService
 
     public EmpresaService(ApiClient api) => _api = api;
 
-    public async Task<object?> GetEmpresaAsync() =>
-        await _api.GetAsync<object>("api/empresa");
+    public async Task<EmpresaDetalheDto?> GetEmpresaAsync() =>
+        await _api.GetAsync<EmpresaDetalheDto>("api/empresa");
 
-    public async Task<object?> GetCertificadoStatusAsync() =>
-        await _api.GetAsync<object>("api/empresa/certificado/status");
+    public async Task<CertificadoStatusDto?> GetCertificadoStatusAsync() =>
+        await _api.GetAsync<CertificadoStatusDto>("api/empresa/certificado/status");
 }
 
 public record EmitirNFeResult(bool Sucesso, Guid? NotaFiscalId, string? ChaveAcesso, string? Protocolo, string? MensagemErro);

@@ -29,20 +29,23 @@
                                 @(_certValido ? "✓ Válido" : "✗ Inválido ou não configurado")
                             </MudChip>
                         </MudItem>
-                        @if (_certNome != null)
+                        @if (_status.NomeTitular != null)
                         {
-                            <MudItem xs="12"><MudText><b>Titular:</b> @_certNome</MudText></MudItem>
-                            <MudItem xs="12"><MudText><b>CNPJ:</b> @_certCnpj</MudText></MudItem>
+                            <MudItem xs="12"><MudText><b>Titular:</b> @_status.NomeTitular</MudText></MudItem>
+                            @if (_status.Cnpj != null)
+                            {
+                                <MudItem xs="12"><MudText><b>CNPJ:</b> @_status.Cnpj</MudText></MudItem>
+                            }
                             <MudItem xs="12">
                                 <MudText Color="@(_certVencendo ? Color.Warning : Color.Default)">
-                                    <b>Validade:</b> @_certValidade?.ToString("dd/MM/yyyy")
+                                    <b>Validade:</b> @_status.Validade?.ToLocalTime().ToString("dd/MM/yyyy")
                                     @if (_certVencendo) { <span> ⚠️ Vencendo em breve!</span> }
                                 </MudText>
                             </MudItem>
                         }
-                        @if (!string.IsNullOrEmpty(_certMensagem))
+                        @if (!string.IsNullOrEmpty(_status.Mensagem))
                         {
-                            <MudItem xs="12"><MudAlert Severity="Severity.Warning" Dense="true">@_certMensagem</MudAlert></MudItem>
+                            <MudItem xs="12"><MudAlert Severity="Severity.Warning" Dense="true">@_status.Mensagem</MudAlert></MudItem>
                         }
                     </MudGrid>
                 }
@@ -63,14 +66,14 @@
                     Aceito apenas arquivos <b>.pfx</b> ou <b>.p12</b> (Certificado A1). O arquivo é armazenado de forma segura e criptografada.
                 </MudAlert>
 
-                <MudFileUpload T="IBrowserFile" FilesChanged="ArquivoSelecionado" Accept=".pfx,.p12" Class="mb-3">
-                    <ActivatorContent>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.UploadFile">
-                            Selecionar Arquivo (.pfx / .p12)
-                        </MudButton>
-                    </ActivatorContent>
-                </MudFileUpload>
+                <InputFile id="certFileInput" OnChange="ArquivoSelecionado" style="display:none" accept=".pfx,.p12" />
+                <label for="certFileInput" class="mb-3" style="display:block">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.UploadFile"
+                               HtmlTag="span">
+                        Selecionar Arquivo (.pfx / .p12)
+                    </MudButton>
+                </label>
 
                 @if (_arquivo != null)
                 {
@@ -106,16 +109,16 @@
 
 @code {
     private bool _statusLoading = true;
-    private bool _certValido;
-    private string? _certNome, _certCnpj, _certMensagem;
-    private DateTime? _certValidade;
-    private bool _certVencendo;
-    private object? _status;
+    private CertificadoStatusDto? _status;
 
     private IBrowserFile? _arquivo;
     private string _senha = "";
     private bool _showSenha;
     private bool _uploading;
+
+    private bool _certValido => _status?.Valido == true;
+    private bool _certVencendo => _status?.Validade.HasValue == true
+        && _status.Validade!.Value < DateTime.UtcNow.AddDays(30);
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,11 +129,10 @@
     {
         _statusLoading = true;
         _status = await EmpresaService.GetCertificadoStatusAsync();
-        // Parse status from dynamic object
         _statusLoading = false;
     }
 
-    void ArquivoSelecionado(IBrowserFile? file) => _arquivo = file;
+    void ArquivoSelecionado(InputFileChangeEventArgs e) => _arquivo = e.File;
 
     async Task FazerUpload()
     {
@@ -146,8 +148,7 @@
             form.Add(new ByteArrayContent(bytes), "arquivo", _arquivo.Name);
             form.Add(new StringContent(_senha), "senha");
 
-            await Api.SetAuthHeader();
-            var response = await new HttpClient().PostAsync("api/empresa/certificado/upload", form);
+            var response = await Api.PostMultipartAsync("api/empresa/certificado/upload", form);
 
             if (response.IsSuccessStatusCode)
             {
