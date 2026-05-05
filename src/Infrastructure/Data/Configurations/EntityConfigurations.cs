@@ -4,6 +4,21 @@ using NfeSaas.Domain.Entities;
 
 namespace NfeSaas.Infrastructure.Data.Configurations;
 
+public class EscritorioConfiguration : IEntityTypeConfiguration<Escritorio>
+{
+    public void Configure(EntityTypeBuilder<Escritorio> builder)
+    {
+        builder.ToTable("escritorios");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.RazaoSocial).IsRequired().HasMaxLength(150);
+        builder.Property(e => e.NomeFantasia).HasMaxLength(150);
+        builder.Property(e => e.Cnpj).IsRequired().HasMaxLength(14);
+        builder.HasIndex(e => e.Cnpj).IsUnique();
+        builder.Property(e => e.Email).IsRequired().HasMaxLength(100);
+        builder.Property(e => e.Telefone).HasMaxLength(20);
+    }
+}
+
 public class EmpresaConfiguration : IEntityTypeConfiguration<Empresa>
 {
     public void Configure(EntityTypeBuilder<Empresa> builder)
@@ -20,6 +35,11 @@ public class EmpresaConfiguration : IEntityTypeConfiguration<Empresa>
         builder.Property(e => e.Cep).HasMaxLength(8);
         builder.Property(e => e.CertificadoBytes).HasColumnType("bytea");
         builder.Property(e => e.CertificadoSenha).HasMaxLength(500);
+
+        builder.HasOne(e => e.Escritorio)
+            .WithMany(es => es.Empresas)
+            .HasForeignKey(e => e.EscritorioId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 
@@ -36,9 +56,9 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         builder.Property(u => u.Role).HasMaxLength(50);
         builder.Property(u => u.RefreshToken).HasMaxLength(500);
 
-        builder.HasOne(u => u.Empresa)
+        builder.HasOne(u => u.Escritorio)
             .WithMany(e => e.Usuarios)
-            .HasForeignKey(u => u.EmpresaId)
+            .HasForeignKey(u => u.EscritorioId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -4,8 +4,8 @@ namespace NfeSaas.Domain.Entities;
 
 public class Usuario : BaseEntity
 {
-    public Guid EmpresaId { get; private set; }
-    public Empresa Empresa { get; private set; } = null!;
+    public Guid EscritorioId { get; private set; }
+    public Escritorio Escritorio { get; private set; } = null!;
     public string Nome { get; private set; } = null!;
     public string Email { get; private set; } = null!;
     public string SenhaHash { get; private set; } = null!;
@@ -16,11 +16,11 @@ public class Usuario : BaseEntity
 
     protected Usuario() { }
 
-    public static Usuario Criar(Guid empresaId, string nome, string email, string senhaHash, string role = "User")
+    public static Usuario Criar(Guid escritorioId, string nome, string email, string senhaHash, string role = "User")
     {
         return new Usuario
         {
-            EmpresaId = empresaId,
+            EscritorioId = escritorioId,
             Nome = nome,
             Email = email,
             SenhaHash = senhaHash,

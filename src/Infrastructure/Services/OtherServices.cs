@@ -15,19 +15,23 @@ public class TokenService : ITokenService
 
     public TokenService(IConfiguration config) => _config = config;
 
-    public string GerarAccessToken(Guid usuarioId, string email, string role, Guid empresaId)
+    public string GerarAccessToken(Guid usuarioId, string email, string role, Guid escritorioId, Guid? empresaId = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Secret"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claimsList = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, usuarioId.ToString()),
             new Claim(ClaimTypes.Email, email),
             new Claim(ClaimTypes.Role, role),
-            new Claim("empresa_id", empresaId.ToString()),
+            new Claim("escritorio_id", escritorioId.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+        if (empresaId.HasValue)
+            claimsList.Add(new Claim("empresa_id", empresaId.Value.ToString()));
+
+        var claims = claimsList.ToArray();
 
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],

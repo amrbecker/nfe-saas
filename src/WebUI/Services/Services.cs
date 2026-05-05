@@ -58,9 +58,12 @@ public class ApiClient
 // === AUTH SERVICE ===
 public interface IAuthService
 {
-    Task<bool> LoginAsync(string email, string senha);
+    Task<LoginResultDto?> LoginAsync(string email, string senha);
+    Task<bool> SelecionarEmpresaAsync(Guid empresaId);
     Task LogoutAsync();
     Task<string?> GetTokenAsync();
+    Task<bool> IsAuthenticatedAsync();
+    Task<bool> HasEmpresaSelecionadaAsync();
 }
 
 public class AuthService : IAuthService
@@ -74,17 +77,41 @@ public class AuthService : IAuthService
         _storage = storage;
     }
 
-    public async Task<bool> LoginAsync(string email, string senha)
+    public async Task<LoginResultDto?> LoginAsync(string email, string senha)
     {
         var result = await _api.PostAsync<LoginDto, LoginResultDto>(
             "api/auth/login", new LoginDto(email, senha));
 
-        if (result == null) return false;
+        if (result == null) return null;
 
         await _storage.SetItemAsStringAsync("access_token", result.AccessToken);
         await _storage.SetItemAsStringAsync("refresh_token", result.RefreshToken);
         await _storage.SetItemAsStringAsync("user_name", result.NomeUsuario);
         await _storage.SetItemAsStringAsync("user_role", result.Role);
+        await _storage.SetItemAsStringAsync("escritorio_id", result.EscritorioId.ToString());
+
+        // Store empresas list for selection
+        var empresasJson = System.Text.Json.JsonSerializer.Serialize(result.Empresas);
+        await _storage.SetItemAsStringAsync("empresas", empresasJson);
+
+        // Auto-select if only one empresa
+        if (result.Empresas.Count == 1)
+            await SelecionarEmpresaAsync(result.Empresas[0].Id);
+
+        return result;
+    }
+
+    public async Task<bool> SelecionarEmpresaAsync(Guid empresaId)
+    {
+        var response = await _api.PostRawAsync("api/auth/selecionar-empresa", new { empresaId });
+        if (!response.IsSuccessStatusCode) return false;
+
+        var json = await response.Content.ReadFromJsonAsync<JsonDocument>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var token = json?.RootElement.GetProperty("accessToken").GetString();
+        if (token == null) return false;
+
+        await _storage.SetItemAsStringAsync("access_token", token);
+        await _storage.SetItemAsStringAsync("empresa_id", empresaId.ToString());
         return true;
     }
 
@@ -94,10 +121,56 @@ public class AuthService : IAuthService
         await _storage.RemoveItemAsync("refresh_token");
         await _storage.RemoveItemAsync("user_name");
         await _storage.RemoveItemAsync("user_role");
+        await _storage.RemoveItemAsync("escritorio_id");
+        await _storage.RemoveItemAsync("empresa_id");
+        await _storage.RemoveItemAsync("empresas");
     }
 
     public async Task<string?> GetTokenAsync() =>
         await _storage.GetItemAsStringAsync("access_token");
+
+    public async Task<bool> IsAuthenticatedAsync() =>
+        !string.IsNullOrEmpty(await _storage.GetItemAsStringAsync("access_token"));
+
+    public async Task<bool> HasEmpresaSelecionadaAsync() =>
+        !string.IsNullOrEmpty(await _storage.GetItemAsStringAsync("empresa_id"));
+}
+
+// === ESCRITÓRIO SERVICE ===
+public interface IEscritorioService
+{
+    Task<List<EmpresaResumoDto>?> GetEmpresasAsync();
+    Task<EmpresaResumoDto?> CriarEmpresaAsync(CreateEmpresaDto dto);
+}
+
+public class EscritorioService : IEscritorioService
+{
+    private readonly ApiClient _api;
+    private readonly ILocalStorageService _storage;
+
+    public EscritorioService(ApiClient api, ILocalStorageService storage)
+    {
+        _api = api;
+        _storage = storage;
+    }
+
+    public async Task<List<EmpresaResumoDto>?> GetEmpresasAsync()
+    {
+        var cached = await _storage.GetItemAsStringAsync("empresas");
+        if (!string.IsNullOrEmpty(cached))
+        {
+            try
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<List<EmpresaResumoDto>>(cached,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            }
+            catch { }
+        }
+        return await _api.GetAsync<List<EmpresaResumoDto>>("api/escritorio/empresas");
+    }
+
+    public async Task<EmpresaResumoDto?> CriarEmpresaAsync(CreateEmpresaDto dto) =>
+        await _api.PostAsync<CreateEmpresaDto, EmpresaResumoDto>("api/escritorio/empresas", dto);
 }
 
 // === NOTA FISCAL SERVICE ===

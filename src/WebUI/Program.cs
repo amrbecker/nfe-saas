@@ -30,6 +30,7 @@ builder.Services.AddScoped<AuthenticationStateProvider, JwtAuthStateProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<INotaFiscalService, NotaFiscalService>();
 builder.Services.AddScoped<IEmpresaService, EmpresaService>();
+builder.Services.AddScoped<IEscritorioService, EscritorioService>();
 builder.Services.AddScoped<ApiClient>();
 
 await builder.Build().RunAsync();

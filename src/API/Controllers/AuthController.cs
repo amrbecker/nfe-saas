@@ -25,4 +25,13 @@ public class AuthController : BaseApiController
         if (result == null) return Unauthorized();
         return Ok(result);
     }
+
+    [Authorize]
+    [HttpPost("selecionar-empresa")]
+    public async Task<IActionResult> SelecionarEmpresa([FromBody] SelecionarEmpresaDto dto)
+    {
+        var token = await Mediator.Send(new SelecionarEmpresaCommand(UserId, dto.EmpresaId));
+        if (token == null) return BadRequest(new { message = "Empresa inválida ou não pertence ao seu escritório." });
+        return Ok(new { accessToken = token });
+    }
 }

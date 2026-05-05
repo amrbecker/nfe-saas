@@ -1,5 +1,13 @@
 namespace NfeSaas.Domain.Enums;
 
+public enum PlanoSaas
+{
+    Free = 0,
+    Basico = 1,
+    Profissional = 2,
+    Enterprise = 3
+}
+
 public enum TipoNota
 {
     NFe = 55,

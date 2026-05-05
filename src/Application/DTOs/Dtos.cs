@@ -139,8 +139,41 @@ public record DashboardDto(
 public record FaturamentoDiarioDto(DateTime Data, decimal Total, int Quantidade);
 
 public record LoginDto(string Email, string Senha);
-public record LoginResultDto(string AccessToken, string RefreshToken, string NomeUsuario, string Email, string Role);
+public record LoginResultDto(string AccessToken, string RefreshToken, string NomeUsuario, string Email, string Role, Guid EscritorioId, List<EmpresaResumoDto> Empresas);
 public record RefreshTokenDto(string RefreshToken);
+public record SelecionarEmpresaDto(Guid EmpresaId);
+
+public record EmpresaResumoDto(Guid Id, string RazaoSocial, string NomeFantasia, string Cnpj);
+public record EscritorioDto(Guid Id, string RazaoSocial, string NomeFantasia, string Cnpj, string Email, string? Telefone, string Plano, bool Ativo);
+
+public record CreateEscritorioDto(
+    string RazaoSocial,
+    string NomeFantasia,
+    string Cnpj,
+    string Email,
+    string? Telefone,
+    string NomeAdmin,
+    string EmailAdmin,
+    string SenhaAdmin
+);
+
+public record CreateEmpresaDto(
+    string RazaoSocial,
+    string NomeFantasia,
+    string Cnpj,
+    string InscricaoEstadual,
+    string Logradouro,
+    string Numero,
+    string Bairro,
+    string Cidade,
+    string Uf,
+    string Cep,
+    string CodigoMunicipio,
+    string Telefone,
+    string Email,
+    int RegimeTributario,
+    int AmbienteSefaz
+);
 
 public record UploadCertificadoDto(string Senha);
 public record CertificadoStatusDto(bool Valido, string? NomeTitular, string? Cnpj, DateTime? Validade, string? Mensagem);

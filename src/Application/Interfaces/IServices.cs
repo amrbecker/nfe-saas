@@ -64,7 +64,7 @@ public record ImpostoResultado(decimal BaseCalculo, decimal Aliquota, decimal Va
 
 public interface ITokenService
 {
-    string GerarAccessToken(Guid usuarioId, string email, string role, Guid empresaId);
+    string GerarAccessToken(Guid usuarioId, string email, string role, Guid escritorioId, Guid? empresaId = null);
     string GerarRefreshToken();
     Guid? ObterUsuarioIdDoToken(string token);
 }

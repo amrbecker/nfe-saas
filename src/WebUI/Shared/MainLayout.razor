@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
 @inject IAuthService AuthService
+@inject IEscritorioService EscritorioService
 @inject NavigationManager Nav
+@inject ILocalStorageService Storage
 
 <MudThemeProvider Theme="_theme" />
 <MudDialogProvider />
@@ -14,9 +16,23 @@
                                OnClick="@ToggleDrawer" />
                 <MudText Typo="Typo.h6" Class="ml-3">🧾 NfeSaas</MudText>
                 <MudSpacer />
-                <MudChip Icon="@Icons.Material.Filled.Business" Color="Color.Secondary" Size="Size.Small">
-                    Sistema de NF-e/NFC-e
-                </MudChip>
+                @if (_empresas != null && _empresas.Count > 1)
+                {
+                    <MudSelect T="Guid" Value="_empresaIdSelecionada" ValueChanged="TrocarEmpresa"
+                               Variant="Variant.Outlined" Dense="true" Class="mr-2"
+                               Style="min-width:220px; background:rgba(255,255,255,0.15); border-radius:4px;">
+                        @foreach (var e in _empresas)
+                        {
+                            <MudSelectItem Value="@e.Id">@e.NomeFantasia</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                else if (_empresaNome != null)
+                {
+                    <MudChip Icon="@Icons.Material.Filled.Business" Color="Color.Secondary" Size="Size.Small" Class="mr-1">
+                        @_empresaNome
+                    </MudChip>
+                }
                 <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="Logout" Title="Sair" />
             </MudAppBar>
 
@@ -26,7 +42,8 @@
                     <MudNavLink Href="/emitir" Icon="@Icons.Material.Filled.NoteAdd">Emitir NF-e</MudNavLink>
                     <MudNavLink Href="/notas" Icon="@Icons.Material.Filled.Receipt">Notas Emitidas</MudNavLink>
                     <MudDivider />
-                    <MudNavLink Href="/empresa" Icon="@Icons.Material.Filled.Business">Empresa</MudNavLink>
+                    <MudNavLink Href="/empresas" Icon="@Icons.Material.Filled.Apartment">Empresas Clientes</MudNavLink>
+                    <MudNavLink Href="/empresa" Icon="@Icons.Material.Filled.Business">Config. Empresa</MudNavLink>
                     <MudNavLink Href="/certificado" Icon="@Icons.Material.Filled.Security">Certificado</MudNavLink>
                 </MudNavMenu>
             </MudDrawer>
@@ -45,6 +62,9 @@
 
 @code {
     private bool _drawerOpen = true;
+    private List<EmpresaResumoDto>? _empresas;
+    private Guid _empresaIdSelecionada;
+    private string? _empresaNome;
 
     private readonly MudTheme _theme = new()
     {
@@ -57,7 +77,26 @@
         }
     };
 
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = await EscritorioService.GetEmpresasAsync();
+        var empresaIdStr = await Storage.GetItemAsStringAsync("empresa_id");
+        if (Guid.TryParse(empresaIdStr, out var eid))
+        {
+            _empresaIdSelecionada = eid;
+            _empresaNome = _empresas?.FirstOrDefault(e => e.Id == eid)?.NomeFantasia;
+        }
+    }
+
     void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    async Task TrocarEmpresa(Guid empresaId)
+    {
+        _empresaIdSelecionada = empresaId;
+        await AuthService.SelecionarEmpresaAsync(empresaId);
+        _empresaNome = _empresas?.FirstOrDefault(e => e.Id == empresaId)?.NomeFantasia;
+        Nav.NavigateTo("/", forceLoad: true);
+    }
 
     async Task Logout()
     {

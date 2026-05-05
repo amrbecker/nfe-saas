@@ -1,0 +1,186 @@
+@page "/empresas"
+@attribute [Authorize(Roles = "Admin")]
+@inject IEscritorioService EscritorioService
+@inject IAuthService AuthService
+@inject ISnackbar Snackbar
+@inject IDialogService Dialog
+
+<MudText Typo="Typo.h5" Class="mb-4">Empresas Clientes</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+           OnClick="AbrirCadastro" Class="mb-4">
+    Nova Empresa
+</MudButton>
+
+@if (_empresas == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_empresas.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Nenhuma empresa cadastrada. Clique em "Nova Empresa" para começar.</MudAlert>
+}
+else
+{
+    <MudTable Items="_empresas" Hover="true" Striped="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>Razão Social</MudTh>
+            <MudTh>Nome Fantasia</MudTh>
+            <MudTh>CNPJ</MudTh>
+            <MudTh>Ações</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.RazaoSocial</MudTd>
+            <MudTd>@context.NomeFantasia</MudTd>
+            <MudTd>@context.Cnpj</MudTd>
+            <MudTd>
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                           OnClick="@(() => Acessar(context.Id))">
+                    Acessar
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@if (_mostrarForm)
+{
+    <MudCard Elevation="2" Class="mt-4 pa-4">
+        <MudText Typo="Typo.h6" Class="mb-3">Cadastrar Nova Empresa</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_form.RazaoSocial" Label="Razão Social" Variant="Variant.Outlined" Required />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_form.NomeFantasia" Label="Nome Fantasia" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_form.Cnpj" Label="CNPJ (só números)" Variant="Variant.Outlined" Required />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_form.InscricaoEstadual" Label="Inscrição Estadual" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_form.Email" Label="E-mail" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_form.Logradouro" Label="Logradouro" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_form.Numero" Label="Número" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_form.Bairro" Label="Bairro" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="5">
+                <MudTextField @bind-Value="_form.Cidade" Label="Cidade" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_form.Uf" Label="UF" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_form.Cep" Label="CEP" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_form.Telefone" Label="Telefone" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_form.CodigoMunicipio" Label="Cód. Município (IBGE)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_form.RegimeTributario" Label="Regime Tributário" Variant="Variant.Outlined">
+                    <MudSelectItem Value="1">Simples Nacional</MudSelectItem>
+                    <MudSelectItem Value="2">Simples Nacional - Excesso</MudSelectItem>
+                    <MudSelectItem Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_form.AmbienteSefaz" Label="Ambiente SEFAZ" Variant="Variant.Outlined">
+                    <MudSelectItem Value="1">Produção</MudSelectItem>
+                    <MudSelectItem Value="2">Homologação (Testes)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+        <MudStack Row="true" Class="mt-3" Justify="Justify.FlexEnd">
+            <MudButton OnClick="@(() => _mostrarForm = false)">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Salvar" Disabled="@_salvando">
+                @if (_salvando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Salvar
+            </MudButton>
+        </MudStack>
+    </MudCard>
+}
+
+@code {
+    private List<EmpresaResumoDto>? _empresas;
+    private bool _mostrarForm;
+    private bool _salvando;
+    private FormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarEmpresas();
+    }
+
+    async Task CarregarEmpresas()
+    {
+        _empresas = await EscritorioService.GetEmpresasAsync();
+    }
+
+    void AbrirCadastro()
+    {
+        _form = new FormModel { RegimeTributario = 1, AmbienteSefaz = 2 };
+        _mostrarForm = true;
+    }
+
+    async Task Salvar()
+    {
+        _salvando = true;
+        var dto = new CreateEmpresaDto(
+            _form.RazaoSocial, _form.NomeFantasia, _form.Cnpj, _form.InscricaoEstadual,
+            _form.Logradouro, _form.Numero, _form.Bairro, _form.Cidade, _form.Uf,
+            _form.Cep, _form.CodigoMunicipio, _form.Telefone, _form.Email,
+            _form.RegimeTributario, _form.AmbienteSefaz);
+
+        var result = await EscritorioService.CriarEmpresaAsync(dto);
+        _salvando = false;
+
+        if (result != null)
+        {
+            Snackbar.Add($"Empresa {result.RazaoSocial} cadastrada com sucesso!", Severity.Success);
+            _mostrarForm = false;
+            _empresas = null;
+            await CarregarEmpresas();
+        }
+        else
+        {
+            Snackbar.Add("Erro ao cadastrar empresa.", Severity.Error);
+        }
+    }
+
+    async Task Acessar(Guid empresaId)
+    {
+        await AuthService.SelecionarEmpresaAsync(empresaId);
+        StateHasChanged();
+        Snackbar.Add("Empresa selecionada.", Severity.Success);
+    }
+
+    class FormModel
+    {
+        public string RazaoSocial { get; set; } = "";
+        public string NomeFantasia { get; set; } = "";
+        public string Cnpj { get; set; } = "";
+        public string InscricaoEstadual { get; set; } = "";
+        public string Logradouro { get; set; } = "";
+        public string Numero { get; set; } = "";
+        public string Bairro { get; set; } = "";
+        public string Cidade { get; set; } = "";
+        public string Uf { get; set; } = "";
+        public string Cep { get; set; } = "";
+        public string CodigoMunicipio { get; set; } = "";
+        public string Telefone { get; set; } = "";
+        public string Email { get; set; } = "";
+        public int RegimeTributario { get; set; } = 1;
+        public int AmbienteSefaz { get; set; } = 2;
+    }
+}

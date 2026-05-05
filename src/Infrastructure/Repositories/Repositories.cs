@@ -59,6 +59,27 @@ public class NotaFiscalRepository : INotaFiscalRepository
     }
 }
 
+public class EscritorioRepository : IEscritorioRepository
+{
+    private readonly NfeDbContext _ctx;
+    public EscritorioRepository(NfeDbContext ctx) => _ctx = ctx;
+
+    public async Task<Escritorio?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        await _ctx.Escritorios.FirstOrDefaultAsync(e => e.Id == id, ct);
+
+    public async Task<Escritorio?> GetByCnpjAsync(string cnpj, CancellationToken ct = default) =>
+        await _ctx.Escritorios.FirstOrDefaultAsync(e => e.Cnpj == cnpj, ct);
+
+    public async Task AddAsync(Escritorio escritorio, CancellationToken ct = default) =>
+        await _ctx.Escritorios.AddAsync(escritorio, ct);
+
+    public Task UpdateAsync(Escritorio escritorio, CancellationToken ct = default)
+    {
+        _ctx.Escritorios.Update(escritorio);
+        return Task.CompletedTask;
+    }
+}
+
 public class EmpresaRepository : IEmpresaRepository
 {
     private readonly NfeDbContext _ctx;
@@ -69,6 +90,9 @@ public class EmpresaRepository : IEmpresaRepository
 
     public async Task<Empresa?> GetByCnpjAsync(string cnpj, CancellationToken ct = default) =>
         await _ctx.Empresas.FirstOrDefaultAsync(e => e.Cnpj == cnpj, ct);
+
+    public async Task<IEnumerable<Empresa>> GetByEscritorioAsync(Guid escritorioId, CancellationToken ct = default) =>
+        await _ctx.Empresas.Where(e => e.EscritorioId == escritorioId).OrderBy(e => e.RazaoSocial).ToListAsync(ct);
 
     public async Task AddAsync(Empresa empresa, CancellationToken ct = default) =>
         await _ctx.Empresas.AddAsync(empresa, ct);
@@ -91,8 +115,8 @@ public class UsuarioRepository : IUsuarioRepository
     public async Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default) =>
         await _ctx.Usuarios.FirstOrDefaultAsync(u => u.Email == email, ct);
 
-    public async Task<IEnumerable<Usuario>> GetByEmpresaAsync(Guid empresaId, CancellationToken ct = default) =>
-        await _ctx.Usuarios.Where(u => u.EmpresaId == empresaId).ToListAsync(ct);
+    public async Task<IEnumerable<Usuario>> GetByEscritorioAsync(Guid escritorioId, CancellationToken ct = default) =>
+        await _ctx.Usuarios.Where(u => u.EscritorioId == escritorioId).ToListAsync(ct);
 
     public async Task AddAsync(Usuario usuario, CancellationToken ct = default) =>
         await _ctx.Usuarios.AddAsync(usuario, ct);

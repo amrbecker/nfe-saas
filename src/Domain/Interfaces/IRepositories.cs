@@ -20,15 +20,24 @@ public interface IEmpresaRepository
 {
     Task<Empresa?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Empresa?> GetByCnpjAsync(string cnpj, CancellationToken ct = default);
+    Task<IEnumerable<Empresa>> GetByEscritorioAsync(Guid escritorioId, CancellationToken ct = default);
     Task AddAsync(Empresa empresa, CancellationToken ct = default);
     Task UpdateAsync(Empresa empresa, CancellationToken ct = default);
+}
+
+public interface IEscritorioRepository
+{
+    Task<Escritorio?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<Escritorio?> GetByCnpjAsync(string cnpj, CancellationToken ct = default);
+    Task AddAsync(Escritorio escritorio, CancellationToken ct = default);
+    Task UpdateAsync(Escritorio escritorio, CancellationToken ct = default);
 }
 
 public interface IUsuarioRepository
 {
     Task<Usuario?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default);
-    Task<IEnumerable<Usuario>> GetByEmpresaAsync(Guid empresaId, CancellationToken ct = default);
+    Task<IEnumerable<Usuario>> GetByEscritorioAsync(Guid escritorioId, CancellationToken ct = default);
     Task AddAsync(Usuario usuario, CancellationToken ct = default);
     Task UpdateAsync(Usuario usuario, CancellationToken ct = default);
 }

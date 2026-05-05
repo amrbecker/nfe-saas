@@ -7,6 +7,7 @@ public class NfeDbContext : DbContext
 {
     public NfeDbContext(DbContextOptions<NfeDbContext> options) : base(options) { }
 
+    public DbSet<Escritorio> Escritorios => Set<Escritorio>();
     public DbSet<Empresa> Empresas => Set<Empresa>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<NotaFiscal> NotasFiscais => Set<NotaFiscal>();
@@ -17,7 +18,7 @@ public class NfeDbContext : DbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(NfeDbContext).Assembly);
 
-        // Global query filter for soft delete
+        modelBuilder.Entity<Escritorio>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Empresa>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Usuario>().HasQueryFilter(u => !u.IsDeleted);
         modelBuilder.Entity<NotaFiscal>().HasQueryFilter(n => !n.IsDeleted);

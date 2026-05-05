@@ -5,6 +5,9 @@ namespace NfeSaas.Domain.Entities;
 
 public class Empresa : BaseEntity
 {
+    public Guid EscritorioId { get; private set; }
+    public Escritorio Escritorio { get; private set; } = null!;
+
     public string RazaoSocial { get; private set; } = null!;
     public string NomeFantasia { get; private set; } = null!;
     public string Cnpj { get; private set; } = null!;
@@ -38,12 +41,10 @@ public class Empresa : BaseEntity
     private readonly List<NotaFiscal> _notas = new();
     public IReadOnlyCollection<NotaFiscal> Notas => _notas.AsReadOnly();
 
-    private readonly List<Usuario> _usuarios = new();
-    public IReadOnlyCollection<Usuario> Usuarios => _usuarios.AsReadOnly();
-
     protected Empresa() { }
 
     public static Empresa Criar(
+        Guid escritorioId,
         string razaoSocial, string nomeFantasia, string cnpj, string inscricaoEstadual,
         string logradouro, string numero, string bairro, string cidade, string uf,
         string cep, string codigoMunicipio, string telefone, string email,
@@ -51,6 +52,7 @@ public class Empresa : BaseEntity
     {
         return new Empresa
         {
+            EscritorioId = escritorioId,
             RazaoSocial = razaoSocial,
             NomeFantasia = nomeFantasia,
             Cnpj = cnpj,

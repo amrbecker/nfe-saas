@@ -6,35 +6,66 @@
 
 <MudGrid Justify="Justify.Center" Class="mt-16">
     <MudItem xs="12" sm="8" md="5" lg="4">
-        <MudCard Elevation="8" Class="pa-6">
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Primary" Class="mb-1">
-                        🧾 NfeSaas
-                    </MudText>
-                    <MudText Typo="Typo.subtitle1" Align="Align.Center" Color="Color.Secondary">
-                        Sistema de Emissão Fiscal
-                    </MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                <MudTextField @bind-Value="_email" Label="E-mail" Variant="Variant.Outlined"
-                              InputType="InputType.Email" Class="mb-3" Required />
-                <MudTextField @bind-Value="_senha" Label="Senha" Variant="Variant.Outlined"
-                              InputType="_showSenha ? InputType.Text : InputType.Password" Class="mb-4"
-                              Adornment="Adornment.End"
-                              AdornmentIcon="@(_showSenha ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                              OnAdornmentClick="@(() => _showSenha = !_showSenha)" Required />
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
-                           OnClick="HandleLogin" Disabled="@_loading">
-                    @if (_loading)
+        @if (_empresas == null)
+        {
+            <MudCard Elevation="8" Class="pa-6">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Primary" Class="mb-1">
+                            🧾 NfeSaas
+                        </MudText>
+                        <MudText Typo="Typo.subtitle1" Align="Align.Center" Color="Color.Secondary">
+                            Sistema de Emissão Fiscal
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTextField @bind-Value="_email" Label="E-mail" Variant="Variant.Outlined"
+                                  InputType="InputType.Email" Class="mb-3" Required />
+                    <MudTextField @bind-Value="_senha" Label="Senha" Variant="Variant.Outlined"
+                                  InputType="_showSenha ? InputType.Text : InputType.Password" Class="mb-4"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showSenha ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="@(() => _showSenha = !_showSenha)" Required />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                               OnClick="HandleLogin" Disabled="@_loading">
+                        @if (_loading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Entrar
+                    </MudButton>
+                </MudCardContent>
+            </MudCard>
+        }
+        else
+        {
+            <MudCard Elevation="8" Class="pa-6">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h5" Align="Align.Center" Color="Color.Primary" Class="mb-1">
+                            Selecione a Empresa
+                        </MudText>
+                        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
+                            Qual empresa você deseja acessar?
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @foreach (var empresa in _empresas)
                     {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                   Class="mb-2" OnClick="@(() => SelecionarEmpresa(empresa.Id))"
+                                   Disabled="@_loading">
+                            <MudStack Row="false" AlignItems="AlignItems.Start" Class="py-1">
+                                <MudText Typo="Typo.body1"><b>@empresa.RazaoSocial</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">CNPJ: @empresa.Cnpj</MudText>
+                            </MudStack>
+                        </MudButton>
                     }
-                    Entrar
-                </MudButton>
-            </MudCardContent>
-        </MudCard>
+                </MudCardContent>
+            </MudCard>
+        }
     </MudItem>
 </MudGrid>
 
@@ -43,15 +74,43 @@
     private string _senha = "";
     private bool _loading;
     private bool _showSenha;
+    private List<EmpresaResumoDto>? _empresas;
 
     async Task HandleLogin()
     {
         _loading = true;
-        var ok = await AuthService.LoginAsync(_email, _senha);
+        var result = await AuthService.LoginAsync(_email, _senha);
         _loading = false;
+
+        if (result == null)
+        {
+            Snackbar.Add("Email ou senha inválidos.", Severity.Error);
+            return;
+        }
+
+        if (result.Empresas.Count == 1)
+        {
+            Nav.NavigateTo("/");
+        }
+        else if (result.Empresas.Count == 0)
+        {
+            Snackbar.Add("Nenhuma empresa cadastrada. Contate o administrador.", Severity.Warning);
+        }
+        else
+        {
+            _empresas = result.Empresas;
+        }
+    }
+
+    async Task SelecionarEmpresa(Guid empresaId)
+    {
+        _loading = true;
+        var ok = await AuthService.SelecionarEmpresaAsync(empresaId);
+        _loading = false;
+
         if (ok)
             Nav.NavigateTo("/");
         else
-            Snackbar.Add("Email ou senha inválidos.", Severity.Error);
+            Snackbar.Add("Erro ao selecionar empresa.", Severity.Error);
     }
 }
