@@ -101,12 +101,12 @@ public class SefazService : ISefazService
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Erro de conexão com SEFAZ na URL {Url}", url);
-            return new SefazResultado(false, null, null, null, $"Erro de conexão: {ex.Message}", -2);
+            return new SefazResultado(false, null, null, null, "Falha na conexão com a SEFAZ. Verifique a disponibilidade do serviço.", -2);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao comunicar com SEFAZ para nota {Numero}", nota.Numero);
-            return new SefazResultado(false, null, null, null, $"Erro de comunicação: {ex.Message}", 0);
+            return new SefazResultado(false, null, null, null, "Erro na comunicação com a SEFAZ.", 0);
         }
     }
 
@@ -123,7 +123,8 @@ public class SefazService : ISefazService
         }
         catch (Exception ex)
         {
-            return new SefazResultado(false, null, null, null, ex.Message, 0);
+            _logger.LogError(ex, "Erro ao cancelar NF-e {Chave}", nota.ChaveAcesso);
+            return new SefazResultado(false, null, null, null, "Erro ao processar o cancelamento da NF-e.", 0);
         }
     }
 
@@ -163,7 +164,8 @@ public class SefazService : ISefazService
         }
         catch (Exception ex)
         {
-            return new SefazResultado(false, null, null, null, $"Erro ao processar retorno: {ex.Message}", 0);
+            _logger.LogError(ex, "Erro ao processar retorno SEFAZ");
+            return new SefazResultado(false, null, null, null, "Erro ao processar resposta da SEFAZ. O formato do retorno não era esperado.", 0);
         }
     }
 

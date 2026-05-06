@@ -18,12 +18,23 @@ public static class ApiHelper
                 return m;
             if (doc.RootElement.TryGetProperty("title", out var title) && title.GetString() is { } t)
                 return t;
-            return body;
+            if (!string.IsNullOrWhiteSpace(body) && body.Length < 300)
+                return body;
         }
-        catch
+        catch { }
+
+        return (int)response.StatusCode switch
         {
-            return $"Erro {(int)response.StatusCode}: {response.ReasonPhrase}";
-        }
+            400 => "Requisição inválida. Verifique os dados informados.",
+            401 => "Não autenticado. Faça login novamente.",
+            403 => "Acesso negado. Você não tem permissão para esta operação.",
+            404 => "Recurso não encontrado.",
+            409 => "Conflito: o recurso já existe ou está em uso.",
+            422 => "Dados inválidos. Verifique os campos e tente novamente.",
+            500 => "Erro interno no servidor. Tente novamente ou contate o suporte.",
+            502 or 503 => "Serviço temporariamente indisponível. Tente novamente em instantes.",
+            _ => $"Erro {(int)response.StatusCode}. Tente novamente ou contate o suporte."
+        };
     }
 }
 

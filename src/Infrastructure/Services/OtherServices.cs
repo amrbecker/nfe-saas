@@ -116,7 +116,10 @@ public class CertificadoService : ICertificadoService
         }
         catch (Exception ex)
         {
-            return new CertificadoInfo(false, null, null, DateTime.MinValue, $"Erro ao ler certificado: {ex.Message}");
+            // ex.Message is in English (.NET runtime); expose only a generic PT-BR message
+            _ = ex;
+            return new CertificadoInfo(false, null, null, DateTime.MinValue,
+                "Não foi possível ler o certificado. Verifique se o arquivo é válido e se a senha está correta.");
         }
     }
 

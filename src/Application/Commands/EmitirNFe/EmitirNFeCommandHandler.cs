@@ -177,7 +177,7 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
         {
             await _uow.RollbackAsync(cancellationToken);
             _logger.LogError(ex, "Erro ao emitir nota fiscal para empresa {EmpresaId}", request.EmpresaId);
-            return new EmitirNFeResult(false, null, null, null, $"Erro interno: {ex.Message}");
+            return new EmitirNFeResult(false, null, null, null, "Ocorreu um erro interno ao processar a nota fiscal. Tente novamente.");
         }
     }
 

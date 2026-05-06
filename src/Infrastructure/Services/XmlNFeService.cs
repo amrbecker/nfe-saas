@@ -283,7 +283,8 @@ public class XmlNFeService : IXmlNFeService
         }
         catch (Exception ex)
         {
-            listaErros.Add(ex.Message);
+            _ = ex;
+            listaErros.Add("O XML da nota fiscal não é válido. Verifique a estrutura do documento.");
             erros = listaErros;
             return false;
         }
