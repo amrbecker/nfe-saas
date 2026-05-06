@@ -3,6 +3,7 @@
 @inject IEscritorioService EscritorioService
 @inject NavigationManager Nav
 @inject ILocalStorageService Storage
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudThemeProvider Theme="_theme" />
 <MudDialogProvider />
@@ -16,22 +17,39 @@
                                OnClick="@ToggleDrawer" />
                 <MudText Typo="Typo.h6" Class="ml-3">🧾 NfeSaas</MudText>
                 <MudSpacer />
-                @if (_empresas != null && _empresas.Count > 1)
+                @if (_empresaSelecionada != null)
                 {
-                    <MudSelect T="Guid" Value="_empresaIdSelecionada" ValueChanged="TrocarEmpresa"
-                               Variant="Variant.Outlined" Dense="true" Class="mr-2"
-                               Style="min-width:220px; background:rgba(255,255,255,0.15); border-radius:4px;">
-                        @foreach (var e in _empresas)
+                    <div style="display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.18); border-radius:8px; padding:4px 10px; margin-right:8px; max-width:300px">
+                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Style="color:rgba(255,255,255,0.7); flex-shrink:0" />
+                        @if (_empresas != null && _empresas.Count > 1)
                         {
-                            <MudSelectItem Value="@e.Id">@e.NomeFantasia</MudSelectItem>
+                            <div style="min-width:0; flex:1">
+                                <MudSelect T="Guid" Value="_empresaIdSelecionada" ValueChanged="TrocarEmpresa"
+                                           Variant="Variant.Text" Dense="true" Margin="Margin.Dense"
+                                           DisableUnderLine="true"
+                                           Style="color:white; font-weight:600; font-size:13px; margin:0; padding:0">
+                                    @foreach (var e in _empresas)
+                                    {
+                                        <MudSelectItem Value="@e.Id">@NomeExibicao(e)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <div style="color:rgba(255,255,255,0.65); font-size:10px; padding-left:2px; margin-top:-2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+                                    @_empresas.FirstOrDefault(e => e.Id == _empresaIdSelecionada)?.Cnpj
+                                </div>
+                            </div>
                         }
-                    </MudSelect>
-                }
-                else if (_empresaNome != null)
-                {
-                    <MudChip Icon="@Icons.Material.Filled.Business" Color="Color.Secondary" Size="Size.Small" Class="mr-1">
-                        @_empresaNome
-                    </MudChip>
+                        else
+                        {
+                            <div style="min-width:0">
+                                <div style="color:white; font-weight:600; font-size:13px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+                                    @NomeExibicao(_empresaSelecionada)
+                                </div>
+                                <div style="color:rgba(255,255,255,0.65); font-size:10px; line-height:1.3; white-space:nowrap">
+                                    @_empresaSelecionada.Cnpj
+                                </div>
+                            </div>
+                        }
+                    </div>
                 }
                 <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="Logout" Title="Sair" />
             </MudAppBar>
@@ -71,7 +89,10 @@
     private bool _drawerOpen = true;
     private List<EmpresaResumoDto>? _empresas;
     private Guid _empresaIdSelecionada;
-    private string? _empresaNome;
+    private EmpresaResumoDto? _empresaSelecionada;
+
+    string NomeExibicao(EmpresaResumoDto? e) =>
+        string.IsNullOrWhiteSpace(e?.NomeFantasia) ? e?.RazaoSocial ?? "" : e.NomeFantasia;
 
     private readonly MudTheme _theme = new()
     {
@@ -91,7 +112,7 @@
         if (Guid.TryParse(empresaIdStr, out var eid))
         {
             _empresaIdSelecionada = eid;
-            _empresaNome = _empresas?.FirstOrDefault(e => e.Id == eid)?.NomeFantasia;
+            _empresaSelecionada = _empresas?.FirstOrDefault(e => e.Id == eid);
         }
     }
 
@@ -100,8 +121,9 @@
     async Task TrocarEmpresa(Guid empresaId)
     {
         _empresaIdSelecionada = empresaId;
+        _empresaSelecionada = _empresas?.FirstOrDefault(e => e.Id == empresaId);
         await AuthService.SelecionarEmpresaAsync(empresaId);
-        _empresaNome = _empresas?.FirstOrDefault(e => e.Id == empresaId)?.NomeFantasia;
+        ((JwtAuthStateProvider)AuthStateProvider).NotifyAuthStateChanged();
         Nav.NavigateTo("/", forceLoad: true);
     }
 

@@ -25,6 +25,23 @@ public class SefazService : ISefazService
         { ("SVRS", AmbienteSefaz.Homologacao), "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx" },
     };
 
+    // SVC-AN contingency URLs (SEFAZ Virtual - Ambiente Nacional)
+    private static readonly Dictionary<AmbienteSefaz, string> _urlsSvcAn = new()
+    {
+        { AmbienteSefaz.Producao, "https://www.svc.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx" },
+        { AmbienteSefaz.Homologacao, "https://hom.svc.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx" },
+    };
+
+    // SVC-RS contingency URLs (states using RS as contingency)
+    private static readonly Dictionary<AmbienteSefaz, string> _urlsSvcRs = new()
+    {
+        { AmbienteSefaz.Producao, "https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx" },
+        { AmbienteSefaz.Homologacao, "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx" },
+    };
+
+    // States that use SVC-RS as contingency (others use SVC-AN)
+    private static readonly HashSet<string> _estadosSvcRs = ["AM", "BA", "CE", "GO", "MA", "MS", "MT", "PA", "PE", "PI", "RN", "RS"];
+
     public SefazService(ILogger<SefazService> logger, IHttpClientFactory httpFactory)
     {
         _logger = logger;
@@ -33,20 +50,39 @@ public class SefazService : ISefazService
 
     public async Task<SefazResultado> EnviarNFeAsync(NotaFiscal nota, Empresa empresa, CancellationToken ct = default)
     {
+        if (empresa.CertificadoBytes == null)
+            return new SefazResultado(false, null, null, null, "Certificado não configurado.", 0);
+
+        // Try primary SEFAZ first
+        var resultado = await TentarEnvioAsync(nota, empresa, ObterUrl(empresa.Uf, empresa.AmbienteSefaz, "autorizacao"), ct);
+
+        if (!resultado.Sucesso && IsErroConexao(resultado))
+        {
+            // Primary SEFAZ unavailable — fall back to contingency (SVC-AN or SVC-RS)
+            _logger.LogWarning("SEFAZ primária indisponível para nota {Numero}. Tentando contingência.", nota.Numero);
+            var urlContingencia = ObterUrlContingencia(empresa.Uf, empresa.AmbienteSefaz);
+            resultado = await TentarEnvioAsync(nota, empresa, urlContingencia, ct);
+
+            if (!resultado.Sucesso && IsErroConexao(resultado))
+                return new SefazResultado(false, null, null, null,
+                    "SEFAZ indisponível. Nota salva em contingência. Retransmitir quando o serviço retornar.", -1);
+        }
+
+        return resultado;
+    }
+
+    private async Task<SefazResultado> TentarEnvioAsync(NotaFiscal nota, Empresa empresa, string url, CancellationToken ct)
+    {
         try
         {
-            if (empresa.CertificadoBytes == null)
-                return new SefazResultado(false, null, null, null, "Certificado não configurado.", 0);
-
-            var url = ObterUrl(empresa.Uf, empresa.AmbienteSefaz, "autorizacao");
-            var cert = new X509Certificate2(empresa.CertificadoBytes, empresa.CertificadoSenha,
+            var cert = new X509Certificate2(empresa.CertificadoBytes!, empresa.CertificadoSenha,
                 X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
 
             var handler = new HttpClientHandler();
             handler.ClientCertificates.Add(cert);
             handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
 
-            using var client = new HttpClient(handler);
+            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/xml"));
 
             var soapEnvelope = MontarSoapEnvio(nota.XmlEnvio!, (int)nota.Ambiente);
@@ -58,12 +94,23 @@ public class SefazService : ISefazService
 
             return ParsearRetornoAutorizacao(responseXml);
         }
+        catch (TaskCanceledException)
+        {
+            return new SefazResultado(false, null, null, null, "Timeout na comunicação com SEFAZ.", -2);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Erro de conexão com SEFAZ na URL {Url}", url);
+            return new SefazResultado(false, null, null, null, $"Erro de conexão: {ex.Message}", -2);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao comunicar com SEFAZ para nota {Numero}", nota.Numero);
             return new SefazResultado(false, null, null, null, $"Erro de comunicação: {ex.Message}", 0);
         }
     }
+
+    private static bool IsErroConexao(SefazResultado r) => r.CodigoRetorno is -1 or -2;
 
     public async Task<SefazResultado> CancelarNFeAsync(NotaFiscal nota, Empresa empresa, string justificativa, CancellationToken ct = default)
     {
@@ -90,19 +137,6 @@ public class SefazService : ISefazService
         catch
         {
             return new SefazConsultaResultado(false, null, null, null, null);
-        }
-    }
-
-    public async Task<bool> ConsultarStatusServicoAsync(Empresa empresa, CancellationToken ct = default)
-    {
-        try
-        {
-            await Task.Delay(50, ct);
-            return true;
-        }
-        catch
-        {
-            return false;
         }
     }
 
@@ -154,9 +188,41 @@ public class SefazService : ISefazService
     private string ObterUrl(string uf, AmbienteSefaz ambiente, string servico)
     {
         if (_urlsAutorizacao.TryGetValue((uf, ambiente), out var url)) return url;
-        // fallback to SVRS
         return _urlsAutorizacao.TryGetValue(("SVRS", ambiente), out var svrs)
             ? svrs
             : "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx";
+    }
+
+    private string ObterUrlContingencia(string uf, AmbienteSefaz ambiente)
+    {
+        if (_estadosSvcRs.Contains(uf.ToUpper()))
+            return _urlsSvcRs.TryGetValue(ambiente, out var rsUrl) ? rsUrl : _urlsSvcRs[AmbienteSefaz.Homologacao];
+
+        return _urlsSvcAn.TryGetValue(ambiente, out var anUrl) ? anUrl : _urlsSvcAn[AmbienteSefaz.Homologacao];
+    }
+
+    public async Task<bool> ConsultarStatusServicoAsync(Empresa empresa, CancellationToken ct = default)
+    {
+        // Override the existing stub with a real connectivity check
+        try
+        {
+            if (empresa.CertificadoBytes == null) return false;
+
+            var cert = new X509Certificate2(empresa.CertificadoBytes, empresa.CertificadoSenha,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
+
+            var handler = new HttpClientHandler();
+            handler.ClientCertificates.Add(cert);
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+            var url = ObterUrl(empresa.Uf, empresa.AmbienteSefaz, "status");
+            var response = await client.GetAsync(url, ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

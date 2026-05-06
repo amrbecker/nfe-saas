@@ -127,3 +127,20 @@ public class UsuarioRepository : IUsuarioRepository
         return Task.CompletedTask;
     }
 }
+
+public class AuditLogRepository : IAuditLogRepository
+{
+    private readonly NfeDbContext _ctx;
+    public AuditLogRepository(NfeDbContext ctx) => _ctx = ctx;
+
+    public async Task AddAsync(AuditLog log, CancellationToken ct = default) =>
+        await _ctx.AuditLogs.AddAsync(log, ct);
+
+    public async Task<IEnumerable<AuditLog>> GetByEmpresaAsync(Guid empresaId, int pagina, int tamanho, CancellationToken ct = default) =>
+        await _ctx.AuditLogs
+            .Where(l => l.EmpresaId == empresaId)
+            .OrderByDescending(l => l.Timestamp)
+            .Skip((pagina - 1) * tamanho)
+            .Take(tamanho)
+            .ToListAsync(ct);
+}

@@ -3,6 +3,8 @@
 @inject IEmpresaService EmpresaService
 @inject ApiClient Api
 @inject ISnackbar Snackbar
+@using System.Net.Http.Json
+@using System.Text.Json
 
 <PageTitle>Certificado Digital - NfeSaas</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">Certificado Digital A1</MudText>
@@ -132,6 +134,24 @@
         _statusLoading = false;
     }
 
+    static async Task<string> ExtrairMensagemErro(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("message", out var msg))
+                return msg.GetString() ?? "Erro desconhecido.";
+            if (doc.RootElement.TryGetProperty("title", out var title))
+                return title.GetString() ?? "Erro desconhecido.";
+            return body;
+        }
+        catch
+        {
+            return $"Erro {(int)response.StatusCode}: {response.ReasonPhrase}";
+        }
+    }
+
     void ArquivoSelecionado(InputFileChangeEventArgs e) => _arquivo = e.File;
 
     async Task FazerUpload()
@@ -159,8 +179,8 @@
             }
             else
             {
-                var msg = await response.Content.ReadAsStringAsync();
-                Snackbar.Add($"Erro: {msg}", Severity.Error);
+                var mensagem = await ExtrairMensagemErro(response);
+                Snackbar.Add(mensagem, Severity.Error);
             }
         }
         catch (Exception ex)

@@ -6,6 +6,27 @@ using NfeSaas.Application.DTOs;
 
 namespace NfeSaas.WebUI.Services;
 
+public static class ApiHelper
+{
+    public static async Task<string> ExtrairMensagemErro(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("message", out var msg) && msg.GetString() is { } m)
+                return m;
+            if (doc.RootElement.TryGetProperty("title", out var title) && title.GetString() is { } t)
+                return t;
+            return body;
+        }
+        catch
+        {
+            return $"Erro {(int)response.StatusCode}: {response.ReasonPhrase}";
+        }
+    }
+}
+
 public class ApiClient
 {
     private readonly HttpClient _http;
@@ -52,6 +73,28 @@ public class ApiClient
         var response = await _http.GetAsync(url);
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadAsByteArrayAsync();
+    }
+
+    public async Task<TResponse?> PutAsync<TRequest, TResponse>(string url, TRequest data)
+    {
+        await SetAuthHeader();
+        var response = await _http.PutAsJsonAsync(url, data);
+        if (!response.IsSuccessStatusCode) return default;
+        return await response.Content.ReadFromJsonAsync<TResponse>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    }
+
+    public async Task<TResponse?> PatchAsync<TResponse>(string url)
+    {
+        await SetAuthHeader();
+        var response = await _http.PatchAsync(url, null);
+        if (!response.IsSuccessStatusCode) return default;
+        return await response.Content.ReadFromJsonAsync<TResponse>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    }
+
+    public async Task<HttpResponseMessage> DeleteAsync(string url)
+    {
+        await SetAuthHeader();
+        return await _http.DeleteAsync(url);
     }
 
     public async Task<HttpResponseMessage> PostMultipartAsync(string url, MultipartFormDataContent form)
@@ -147,8 +190,12 @@ public interface IEscritorioService
 {
     Task<List<EmpresaResumoDto>?> GetEmpresasAsync();
     Task<EmpresaResumoDto?> CriarEmpresaAsync(CreateEmpresaDto dto);
+    Task<(EmpresaResumoDto? Empresa, string? Erro)> CriarEmpresaComResultadoAsync(CreateEmpresaDto dto);
     Task<List<UsuarioResumoDto>?> GetUsuariosAsync();
     Task<UsuarioResumoDto?> CriarUsuarioAsync(CreateUsuarioDto dto);
+    Task<UsuarioResumoDto?> AtualizarUsuarioAsync(Guid id, UpdateUsuarioDto dto);
+    Task<UsuarioResumoDto?> ToggleAtivoUsuarioAsync(Guid id);
+    Task<bool> ExcluirUsuarioAsync(Guid id);
     Task<EscritorioDto?> RegistrarAsync(CreateEscritorioDto dto);
 }
 
@@ -186,11 +233,37 @@ public class EscritorioService : IEscritorioService
         return result;
     }
 
+    public async Task<(EmpresaResumoDto? Empresa, string? Erro)> CriarEmpresaComResultadoAsync(CreateEmpresaDto dto)
+    {
+        var response = await _api.PostRawAsync("api/escritorio/empresas", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<EmpresaResumoDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (result != null) await _storage.RemoveItemAsync("empresas");
+            return (result, null);
+        }
+        var erro = await ApiHelper.ExtrairMensagemErro(response);
+        return (null, erro);
+    }
+
     public async Task<List<UsuarioResumoDto>?> GetUsuariosAsync() =>
         await _api.GetAsync<List<UsuarioResumoDto>>("api/escritorio/usuarios");
 
     public async Task<UsuarioResumoDto?> CriarUsuarioAsync(CreateUsuarioDto dto) =>
         await _api.PostAsync<CreateUsuarioDto, UsuarioResumoDto>("api/escritorio/usuarios", dto);
+
+    public async Task<UsuarioResumoDto?> AtualizarUsuarioAsync(Guid id, UpdateUsuarioDto dto) =>
+        await _api.PutAsync<UpdateUsuarioDto, UsuarioResumoDto>($"api/escritorio/usuarios/{id}", dto);
+
+    public async Task<UsuarioResumoDto?> ToggleAtivoUsuarioAsync(Guid id) =>
+        await _api.PatchAsync<UsuarioResumoDto>($"api/escritorio/usuarios/{id}/toggle-ativo");
+
+    public async Task<bool> ExcluirUsuarioAsync(Guid id)
+    {
+        var response = await _api.DeleteAsync($"api/escritorio/usuarios/{id}");
+        return response.IsSuccessStatusCode;
+    }
 
     public async Task<EscritorioDto?> RegistrarAsync(CreateEscritorioDto dto) =>
         await _api.PostAsync<CreateEscritorioDto, EscritorioDto>("api/escritorio/registrar", dto);

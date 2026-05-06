@@ -56,4 +56,31 @@ public class EscritorioController : BaseApiController
         if (result == null) return Conflict(new { message = "E-mail já cadastrado." });
         return Ok(result);
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("usuarios/{id:guid}")]
+    public async Task<IActionResult> AtualizarUsuario(Guid id, [FromBody] UpdateUsuarioDto dto)
+    {
+        var result = await Mediator.Send(new UpdateUsuarioCommand(EscritorioId, id, dto));
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPatch("usuarios/{id:guid}/toggle-ativo")]
+    public async Task<IActionResult> ToggleAtivoUsuario(Guid id)
+    {
+        var result = await Mediator.Send(new ToggleAtivoUsuarioCommand(EscritorioId, id));
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("usuarios/{id:guid}")]
+    public async Task<IActionResult> ExcluirUsuario(Guid id)
+    {
+        var ok = await Mediator.Send(new DeleteUsuarioCommand(EscritorioId, id));
+        if (!ok) return NotFound();
+        return NoContent();
+    }
 }

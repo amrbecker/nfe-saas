@@ -140,7 +140,7 @@
         @if (_itens.Any())
         {
             <MudText Typo="Typo.h6" Class="mt-2 text-right">
-                Total: R$ @_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto).ToString("N2")
+                Total: R$ @(_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto).ToString("N2"))
             </MudText>
         }
     </MudTabPanel>
@@ -186,15 +186,15 @@
         </MudAlert>
         <MudGrid>
             <MudItem xs="12" md="6">
-                <MudText><b>Tipo:</b> @_tipo | <b>Operação:</b> @_tipoOperacao | <b>Finalidade:</b> @_finalidade</MudText>
+                <MudText><b>Tipo:</b> @NomeTipo(_tipo) | <b>Operação:</b> @NomeOperacao(_tipoOperacao) | <b>Finalidade:</b> @NomeFinalidade(_finalidade)</MudText>
                 <MudText><b>Destinatário:</b> @_destNome (@_destCpfCnpj)</MudText>
                 <MudText><b>Itens:</b> @_itens.Count produto(s)</MudText>
             </MudItem>
             <MudItem xs="12" md="6">
-                <MudText><b>Total Produtos:</b> R$ @_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto).ToString("N2")</MudText>
-                <MudText><b>Frete:</b> R$ @_valorFrete.ToString("N2")</MudText>
+                <MudText><b>Total Produtos:</b> R$ @(_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto).ToString("N2"))</MudText>
+                <MudText><b>Frete:</b> R$ @(_valorFrete.ToString("N2"))</MudText>
                 <MudText Typo="Typo.h6" Color="Color.Primary">
-                    <b>TOTAL NF-e: R$ @(_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto) + _valorFrete + _valorSeguro).ToString("N2")</b>
+                    <b>TOTAL NF-e: R$ @((_itens.Sum(i => i.Quantidade * i.ValorUnitario - i.Desconto) + _valorFrete + _valorSeguro).ToString("N2"))</b>
                 </MudText>
             </MudItem>
         </MudGrid>
@@ -297,6 +297,24 @@
             _emitindo = false;
         }
     }
+
+    static string NomeTipo(NfeSaas.Domain.Enums.TipoNota t) => t == NfeSaas.Domain.Enums.TipoNota.NFe ? "NF-e" : "NFC-e";
+
+    static string NomeOperacao(NfeSaas.Domain.Enums.TipoOperacao o) => o switch
+    {
+        NfeSaas.Domain.Enums.TipoOperacao.Saida   => "Saída",
+        NfeSaas.Domain.Enums.TipoOperacao.Entrada => "Entrada",
+        _ => o.ToString()
+    };
+
+    static string NomeFinalidade(NfeSaas.Domain.Enums.FinalidadeNota f) => f switch
+    {
+        NfeSaas.Domain.Enums.FinalidadeNota.Normal      => "Normal",
+        NfeSaas.Domain.Enums.FinalidadeNota.Complementar => "Complementar",
+        NfeSaas.Domain.Enums.FinalidadeNota.Devolucao   => "Devolução",
+        NfeSaas.Domain.Enums.FinalidadeNota.Ajuste      => "Ajuste",
+        _ => f.ToString()
+    };
 
     class ItemForm
     {

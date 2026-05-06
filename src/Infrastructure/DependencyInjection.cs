@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IEscritorioRepository, EscritorioRepository>();
         services.AddScoped<IEmpresaRepository, EmpresaRepository>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Services
@@ -32,8 +33,10 @@ public static class DependencyInjection
         services.AddScoped<ICertificadoService, CertificadoService>();
         services.AddScoped<IImpostoCalculoService, ImpostoCalculoService>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<ICepValidationService, CepValidationService>();
+        services.AddScoped<IAuditService, AuditService>();
 
-        // HttpClient for SEFAZ
+        // HttpClient for SEFAZ and ViaCEP
         services.AddHttpClient();
 
         return services;

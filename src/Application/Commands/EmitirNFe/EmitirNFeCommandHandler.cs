@@ -4,6 +4,7 @@ using NfeSaas.Application.Interfaces;
 using NfeSaas.Domain.Entities;
 using NfeSaas.Domain.Enums;
 using NfeSaas.Domain.Interfaces;
+using NfeSaas.Domain.Services;
 using Microsoft.Extensions.Logging;
 
 namespace NfeSaas.Application.Commands.EmitirNFe;
@@ -19,6 +20,7 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
     private readonly ISefazService _sefaz;
     private readonly IXmlNFeService _xmlService;
     private readonly IImpostoCalculoService _impostoService;
+    private readonly IAuditService _auditService;
     private readonly IUnitOfWork _uow;
     private readonly ILogger<EmitirNFeCommandHandler> _logger;
 
@@ -28,6 +30,7 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
         ISefazService sefaz,
         IXmlNFeService xmlService,
         IImpostoCalculoService impostoService,
+        IAuditService auditService,
         IUnitOfWork uow,
         ILogger<EmitirNFeCommandHandler> logger)
     {
@@ -36,6 +39,7 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
         _sefaz = sefaz;
         _xmlService = xmlService;
         _impostoService = impostoService;
+        _auditService = auditService;
         _uow = uow;
         _logger = logger;
     }
@@ -48,6 +52,28 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
 
         if (!empresa.CertificadoValido())
             return new EmitirNFeResult(false, null, null, null, "Certificado digital inválido ou expirado.");
+
+        // Validate CNPJ of the empresa
+        if (!CnpjValidator.Validar(empresa.Cnpj))
+            return new EmitirNFeResult(false, null, null, null, $"CNPJ da empresa inválido: {empresa.Cnpj}");
+
+        // Validate recipient
+        var destErro = ValidarDestinatario(request.Dados.Destinatario);
+        if (destErro != null)
+            return new EmitirNFeResult(false, null, null, null, destErro);
+
+        // Validate CFOP for each item
+        var isInterestadual = !string.Equals(empresa.Uf, request.Dados.Destinatario.Uf, StringComparison.OrdinalIgnoreCase);
+        foreach (var item in request.Dados.Itens)
+        {
+            if (!CfopValidator.Existe(item.Cfop))
+                return new EmitirNFeResult(false, null, null, null, $"CFOP inválido: {item.Cfop}");
+
+            if (request.Dados.TipoOperacao == TipoOperacao.Saida &&
+                !CfopValidator.ValidarParaSaida(item.Cfop, isInterestadual))
+                return new EmitirNFeResult(false, null, null, null,
+                    $"CFOP {item.Cfop} não é válido para operação de saída {(isInterestadual ? "interestadual" : "intraestadual")}");
+        }
 
         await _uow.BeginTransactionAsync(cancellationToken);
         try
@@ -134,6 +160,15 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
             await _uow.SaveChangesAsync(cancellationToken);
             await _uow.CommitAsync(cancellationToken);
 
+            // Audit
+            var auditDetalhes = resultado.Sucesso
+                ? $"Autorizada. Protocolo: {resultado.Protocolo}"
+                : $"Rejeitada: {resultado.MensagemErro}";
+            await _auditService.RegistrarAsync(empresa.Id,
+                resultado.Sucesso ? "NFe.Autorizada" : "NFe.Rejeitada",
+                request.UsuarioId, resultado.ChaveAcesso, auditDetalhes,
+                ct: cancellationToken);
+
             return resultado.Sucesso
                 ? new EmitirNFeResult(true, nota.Id, resultado.ChaveAcesso, resultado.Protocolo, null)
                 : new EmitirNFeResult(false, nota.Id, null, null, resultado.MensagemErro);
@@ -144,5 +179,41 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
             _logger.LogError(ex, "Erro ao emitir nota fiscal para empresa {EmpresaId}", request.EmpresaId);
             return new EmitirNFeResult(false, null, null, null, $"Erro interno: {ex.Message}");
         }
+    }
+
+    private static string? ValidarDestinatario(DestinatarioDto dest)
+    {
+        if (dest.TipoPessoa != TipoPessoa.Estrangeiro)
+        {
+            if (string.IsNullOrWhiteSpace(dest.CpfCnpj))
+                return "CPF/CNPJ do destinatário é obrigatório.";
+
+            var digits = CnpjValidator.ApenasDigitos(dest.CpfCnpj);
+            if (digits.Length == 14 && !CnpjValidator.Validar(dest.CpfCnpj))
+                return $"CNPJ do destinatário inválido: {dest.CpfCnpj}";
+            if (digits.Length == 11 && !CnpjValidator.ValidarCpf(dest.CpfCnpj))
+                return $"CPF do destinatário inválido: {dest.CpfCnpj}";
+            if (digits.Length != 11 && digits.Length != 14)
+                return $"CPF/CNPJ do destinatário com formato inválido: {dest.CpfCnpj}";
+        }
+
+        if (string.IsNullOrWhiteSpace(dest.RazaoSocial))
+            return "Razão social do destinatário é obrigatória.";
+        if (string.IsNullOrWhiteSpace(dest.Logradouro))
+            return "Logradouro do destinatário é obrigatório.";
+        if (string.IsNullOrWhiteSpace(dest.Numero))
+            return "Número do destinatário é obrigatório.";
+        if (string.IsNullOrWhiteSpace(dest.Bairro))
+            return "Bairro do destinatário é obrigatório.";
+        if (string.IsNullOrWhiteSpace(dest.Cidade))
+            return "Cidade do destinatário é obrigatória.";
+        if (string.IsNullOrWhiteSpace(dest.Uf) || !IeValidator.UfValida(dest.Uf))
+            return $"UF do destinatário inválida: {dest.Uf}";
+        if (string.IsNullOrWhiteSpace(dest.Cep) || dest.Cep.Where(char.IsDigit).Count() != 8)
+            return "CEP do destinatário inválido (deve ter 8 dígitos).";
+        if (string.IsNullOrWhiteSpace(dest.CodigoMunicipio))
+            return "Código IBGE do município do destinatário é obrigatório.";
+
+        return null;
     }
 }

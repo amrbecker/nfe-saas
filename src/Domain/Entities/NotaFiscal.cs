@@ -19,6 +19,7 @@ public class NotaFiscal : BaseEntity
     public TipoOperacao TipoOperacao { get; private set; }
     public AmbienteSefaz Ambiente { get; private set; }
     public SituacaoNota Situacao { get; private set; } = SituacaoNota.Rascunho;
+    public TipoEmissao TipoEmissao { get; private set; } = TipoEmissao.Normal;
 
     // Destinatário
     public string? DestinatarioCpfCnpj { get; private set; }
@@ -63,7 +64,7 @@ public class NotaFiscal : BaseEntity
     public string? MotivoRejeicao { get; private set; }
     public string? InformacoesAdicionais { get; private set; }
 
-    public DateTime DataEmissao { get; private set; } = DateTime.Now;
+    public DateTime DataEmissao { get; private set; } = DateTime.UtcNow;
 
     private readonly List<ItemNotaFiscal> _itens = new();
     public IReadOnlyCollection<ItemNotaFiscal> Itens => _itens.AsReadOnly();
@@ -162,6 +163,12 @@ public class NotaFiscal : BaseEntity
     }
 
     public void SetXmlEnvio(string xml) => XmlEnvio = xml;
+
+    public void MarcarContingencia(TipoEmissao tipo)
+    {
+        TipoEmissao = tipo;
+        SetUpdated();
+    }
 
     private void RecalcularTotais()
     {

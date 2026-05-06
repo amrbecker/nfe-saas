@@ -73,3 +73,18 @@ public interface IEmailService
 {
     Task EnviarNFeAsync(string destinatario, string chaveAcesso, byte[] xmlBytes, byte[] danfeBytes, CancellationToken ct = default);
 }
+
+public interface ICepValidationService
+{
+    Task<CepInfo?> ConsultarAsync(string cep, CancellationToken ct = default);
+    bool FormatoValido(string? cep);
+}
+
+public record CepInfo(string Cep, string Logradouro, string Bairro, string Cidade, string Uf, string CodigoMunicipio);
+
+public interface IAuditService
+{
+    Task RegistrarAsync(Guid empresaId, string acao, Guid? usuarioId = null,
+        string? chaveNfe = null, string? detalhes = null, string? ipOrigem = null,
+        CancellationToken ct = default);
+}

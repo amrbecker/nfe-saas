@@ -165,6 +165,8 @@ public record CreateUsuarioDto(
     string Role = "User"
 );
 
+public record UpdateUsuarioDto(string Nome, string Role);
+
 public record UsuarioResumoDto(Guid Id, string Nome, string Email, string Role, bool Ativo);
 
 public record CreateEmpresaDto(

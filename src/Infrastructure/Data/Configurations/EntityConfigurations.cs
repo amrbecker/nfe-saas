@@ -116,3 +116,18 @@ public class ItemNotaFiscalConfiguration : IEntityTypeConfiguration<ItemNotaFisc
         builder.Property(i => i.ValorCofins).HasPrecision(15, 2);
     }
 }
+
+public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
+{
+    public void Configure(EntityTypeBuilder<AuditLog> builder)
+    {
+        builder.ToTable("audit_logs");
+        builder.HasKey(a => a.Id);
+        builder.Property(a => a.Acao).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.ChaveNFe).HasMaxLength(44);
+        builder.Property(a => a.Detalhes).HasMaxLength(1000);
+        builder.Property(a => a.IpOrigem).HasMaxLength(45);
+        builder.HasIndex(a => a.EmpresaId);
+        builder.HasIndex(a => a.Timestamp);
+    }
+}

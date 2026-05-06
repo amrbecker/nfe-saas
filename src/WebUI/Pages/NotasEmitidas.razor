@@ -12,79 +12,67 @@
 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.NoteAdd"
            Href="/emitir" Class="mb-4">Nova Nota Fiscal</MudButton>
 
-@if (_loading)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-}
-else
-{
-    <MudTable T="NfeSaas.Application.DTOs.NotaFiscalResumoDto" ServerData="ServerReload" @ref="_table" Hover="true" Dense="true" Striped="true" Elevation="2">
-        <ToolBarContent>
-            <MudText Typo="Typo.h6">Notas (@_total registros)</MudText>
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh>Número</MudTh>
-            <MudTh>Tipo</MudTh>
-            <MudTh>Destinatário</MudTh>
-            <MudTh>Valor Total</MudTh>
-            <MudTh>Data Emissão</MudTh>
-            <MudTh>Situação</MudTh>
-            <MudTh>Ações</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.Serie.ToString("D3")-@context.Numero.ToString("D9")</MudTd>
-            <MudTd>
-                <MudChip Size="Size.Small" Color="@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? Color.Info : Color.Secondary)">
-                    @context.Tipo
-                </MudChip>
-            </MudTd>
-            <MudTd>@(context.DestinatarioRazaoSocial ?? "Consumidor Final")</MudTd>
-            <MudTd>R$ @context.TotalNota.ToString("N2")</MudTd>
-            <MudTd>@context.DataEmissao.ToString("dd/MM/yyyy HH:mm")</MudTd>
-            <MudTd>
-                <MudChip Size="Size.Small" Color="@GetCorSituacao(context.Situacao)">@context.Situacao</MudChip>
-            </MudTd>
-            <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Info"
-                               OnClick="@(() => VerDetalhe(context.Id))" Title="Detalhes" />
-                <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Color="Color.Error"
-                               OnClick="@(() => DownloadDanfe(context.Id))" Title="DANFE PDF"
-                               Disabled="@(context.Situacao != NfeSaas.Domain.Enums.SituacaoNota.Autorizada)" />
-                @if (context.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Autorizada)
-                {
-                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Warning"
-                                   OnClick="@(() => ConfirmarCancelamento(context.Id))" Title="Cancelar" />
-                }
-            </MudTd>
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager />
-        </PagerContent>
-    </MudTable>
-}
+<MudTable T="NfeSaas.Application.DTOs.NotaFiscalResumoDto" ServerData="ServerReload" @ref="_table"
+          Hover="true" Dense="true" Striped="true" Elevation="2">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Notas (@_total registros)</MudText>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Número</MudTh>
+        <MudTh>Tipo</MudTh>
+        <MudTh>Destinatário</MudTh>
+        <MudTh>Valor Total</MudTh>
+        <MudTh>Data Emissão</MudTh>
+        <MudTh>Situação</MudTh>
+        <MudTh>Ações</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Serie.ToString("D3")-@context.Numero.ToString("D9")</MudTd>
+        <MudTd>
+            <MudChip Size="Size.Small" Color="@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? Color.Info : Color.Secondary)">
+                @(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? "NF-e" : "NFC-e")
+            </MudChip>
+        </MudTd>
+        <MudTd>@(context.DestinatarioRazaoSocial ?? "Consumidor Final")</MudTd>
+        <MudTd>R$ @context.TotalNota.ToString("N2")</MudTd>
+        <MudTd>@context.DataEmissao.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+        <MudTd>
+            <MudChip Size="Size.Small" Color="@GetCorSituacao(context.Situacao)">@NomeSituacao(context.Situacao)</MudChip>
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Info"
+                           OnClick="@(() => VerDetalhe(context.Id))" Title="Detalhes" />
+            <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Color="Color.Error"
+                           OnClick="@(() => DownloadDanfe(context.Id))" Title="DANFE PDF"
+                           Disabled="@(context.Situacao != NfeSaas.Domain.Enums.SituacaoNota.Autorizada)" />
+            @if (context.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Autorizada)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Warning"
+                               OnClick="@(() => ConfirmarCancelamento(context.Id))" Title="Cancelar NF-e" />
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Class="pa-4" Color="Color.Secondary">Nenhuma nota fiscal emitida.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
 
 @code {
     private MudTable<NfeSaas.Application.DTOs.NotaFiscalResumoDto> _table = null!;
-    private bool _loading = true;
     private int _total;
 
     async Task<TableData<NfeSaas.Application.DTOs.NotaFiscalResumoDto>> ServerReload(TableState state)
     {
-        _loading = true;
-        try
+        var result = await NotaService.GetNotasAsync(state.Page + 1, state.PageSize);
+        _total = result?.Total ?? 0;
+        return new TableData<NfeSaas.Application.DTOs.NotaFiscalResumoDto>
         {
-            var result = await NotaService.GetNotasAsync(state.Page + 1, state.PageSize);
-            _total = result?.Total ?? 0;
-            return new TableData<NfeSaas.Application.DTOs.NotaFiscalResumoDto>
-            {
-                Items = result?.Notas ?? [],
-                TotalItems = _total
-            };
-        }
-        finally
-        {
-            _loading = false;
-        }
+            Items = result?.Notas ?? [],
+            TotalItems = _total
+        };
     }
 
     void VerDetalhe(Guid id) => Nav.NavigateTo($"/notas/{id}");
@@ -117,7 +105,19 @@ else
         NfeSaas.Domain.Enums.SituacaoNota.Autorizada => Color.Success,
         NfeSaas.Domain.Enums.SituacaoNota.Cancelada => Color.Error,
         NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
-        NfeSaas.Domain.Enums.SituacaoNota.Enviada => Color.Info,
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada   => Color.Info,
+        NfeSaas.Domain.Enums.SituacaoNota.Denegada  => Color.Error,
         _ => Color.Default
+    };
+
+    string NomeSituacao(NfeSaas.Domain.Enums.SituacaoNota situacao) => situacao switch
+    {
+        NfeSaas.Domain.Enums.SituacaoNota.Rascunho  => "Rascunho",
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada   => "Enviada",
+        NfeSaas.Domain.Enums.SituacaoNota.Autorizada => "Autorizada",
+        NfeSaas.Domain.Enums.SituacaoNota.Cancelada => "Cancelada",
+        NfeSaas.Domain.Enums.SituacaoNota.Denegada  => "Denegada",
+        NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => "Rejeitada",
+        _ => situacao.ToString()
     };
 }

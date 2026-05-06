@@ -4,6 +4,8 @@
 @inject IAuthService AuthService
 @inject ISnackbar Snackbar
 @inject IDialogService Dialog
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudText Typo="Typo.h5" Class="mb-4">Empresas Clientes</MudText>
 
@@ -142,7 +144,7 @@ else
             _form.Cep, _form.CodigoMunicipio, _form.Telefone, _form.Email,
             _form.RegimeTributario, _form.AmbienteSefaz);
 
-        var result = await EscritorioService.CriarEmpresaAsync(dto);
+        var (result, erro) = await EscritorioService.CriarEmpresaComResultadoAsync(dto);
         _salvando = false;
 
         if (result != null)
@@ -154,15 +156,20 @@ else
         }
         else
         {
-            Snackbar.Add("Erro ao cadastrar empresa.", Severity.Error);
+            Snackbar.Add(erro ?? "Erro ao cadastrar empresa.", Severity.Error);
         }
     }
 
     async Task Acessar(Guid empresaId)
     {
-        await AuthService.SelecionarEmpresaAsync(empresaId);
-        StateHasChanged();
-        Snackbar.Add("Empresa selecionada.", Severity.Success);
+        var ok = await AuthService.SelecionarEmpresaAsync(empresaId);
+        if (!ok)
+        {
+            Snackbar.Add("Erro ao selecionar empresa.", Severity.Error);
+            return;
+        }
+        ((JwtAuthStateProvider)AuthStateProvider).NotifyAuthStateChanged();
+        Nav.NavigateTo("/", forceLoad: true);
     }
 
     class FormModel

@@ -3,6 +3,7 @@ using NfeSaas.Application.DTOs;
 using NfeSaas.Domain.Entities;
 using NfeSaas.Domain.Enums;
 using NfeSaas.Domain.Interfaces;
+using NfeSaas.Domain.Services;
 
 namespace NfeSaas.Application.Commands.EscritorioCommands;
 
@@ -25,7 +26,9 @@ public class CreateEscritorioCommandHandler : IRequestHandler<CreateEscritorioCo
     public async Task<EscritorioDto?> Handle(CreateEscritorioCommand request, CancellationToken cancellationToken)
     {
         var dto = request.Dto;
-        var existing = await _escritorioRepo.GetByCnpjAsync(dto.Cnpj, cancellationToken);
+        if (!CnpjValidator.Validar(dto.Cnpj)) return null;
+
+        var existing = await _escritorioRepo.GetByCnpjAsync(CnpjValidator.ApenasDigitos(dto.Cnpj), cancellationToken);
         if (existing != null) return null;
 
         var plano = (PlanoSaas)dto.Plano;
@@ -65,6 +68,12 @@ public class CreateEmpresaCommandHandler : IRequestHandler<CreateEmpresaCommand,
         if (escritorio == null) return null;
 
         var dto = request.Dto;
+
+        if (!CnpjValidator.Validar(dto.Cnpj)) return null;
+        if (!IeValidator.UfValida(dto.Uf)) return null;
+        if (!IeValidator.Validar(dto.InscricaoEstadual, dto.Uf)) return null;
+        if (dto.Cep.Where(char.IsDigit).Count() != 8) return null;
+
         var empresa = Empresa.Criar(
             request.EscritorioId,
             dto.RazaoSocial, dto.NomeFantasia, dto.Cnpj, dto.InscricaoEstadual,
@@ -110,5 +119,88 @@ public class CreateUsuarioCommandHandler : IRequestHandler<CreateUsuarioCommand,
         await _uow.SaveChangesAsync(cancellationToken);
 
         return new UsuarioResumoDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo);
+    }
+}
+
+// === ATUALIZAR USUÁRIO ===
+public record UpdateUsuarioCommand(Guid EscritorioId, Guid UsuarioId, UpdateUsuarioDto Dto) : IRequest<UsuarioResumoDto?>;
+
+public class UpdateUsuarioCommandHandler : IRequestHandler<UpdateUsuarioCommand, UsuarioResumoDto?>
+{
+    private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IUnitOfWork _uow;
+
+    public UpdateUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IUnitOfWork uow)
+    {
+        _usuarioRepo = usuarioRepo;
+        _uow = uow;
+    }
+
+    public async Task<UsuarioResumoDto?> Handle(UpdateUsuarioCommand request, CancellationToken cancellationToken)
+    {
+        var usuario = await _usuarioRepo.GetByIdAsync(request.UsuarioId, cancellationToken);
+        if (usuario == null || usuario.EscritorioId != request.EscritorioId || usuario.IsDeleted)
+            return null;
+
+        usuario.Atualizar(request.Dto.Nome, request.Dto.Role);
+        await _usuarioRepo.UpdateAsync(usuario, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+
+        return new UsuarioResumoDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo);
+    }
+}
+
+// === TOGGLE ATIVO USUÁRIO ===
+public record ToggleAtivoUsuarioCommand(Guid EscritorioId, Guid UsuarioId) : IRequest<UsuarioResumoDto?>;
+
+public class ToggleAtivoUsuarioCommandHandler : IRequestHandler<ToggleAtivoUsuarioCommand, UsuarioResumoDto?>
+{
+    private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IUnitOfWork _uow;
+
+    public ToggleAtivoUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IUnitOfWork uow)
+    {
+        _usuarioRepo = usuarioRepo;
+        _uow = uow;
+    }
+
+    public async Task<UsuarioResumoDto?> Handle(ToggleAtivoUsuarioCommand request, CancellationToken cancellationToken)
+    {
+        var usuario = await _usuarioRepo.GetByIdAsync(request.UsuarioId, cancellationToken);
+        if (usuario == null || usuario.EscritorioId != request.EscritorioId || usuario.IsDeleted)
+            return null;
+
+        if (usuario.Ativo) usuario.Desativar(); else usuario.Ativar();
+        await _usuarioRepo.UpdateAsync(usuario, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+
+        return new UsuarioResumoDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo);
+    }
+}
+
+// === EXCLUIR USUÁRIO (soft delete) ===
+public record DeleteUsuarioCommand(Guid EscritorioId, Guid UsuarioId) : IRequest<bool>;
+
+public class DeleteUsuarioCommandHandler : IRequestHandler<DeleteUsuarioCommand, bool>
+{
+    private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IUnitOfWork _uow;
+
+    public DeleteUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IUnitOfWork uow)
+    {
+        _usuarioRepo = usuarioRepo;
+        _uow = uow;
+    }
+
+    public async Task<bool> Handle(DeleteUsuarioCommand request, CancellationToken cancellationToken)
+    {
+        var usuario = await _usuarioRepo.GetByIdAsync(request.UsuarioId, cancellationToken);
+        if (usuario == null || usuario.EscritorioId != request.EscritorioId || usuario.IsDeleted)
+            return false;
+
+        usuario.Delete();
+        await _usuarioRepo.UpdateAsync(usuario, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+        return true;
     }
 }

@@ -95,6 +95,14 @@ public enum CstIcms
     Outras = 90
 }
 
+public enum TipoEmissao
+{
+    Normal = 1,
+    ContingenciaSvcAn = 9,   // SVC-AN (SEFAZ Virtual Contingência - AN)
+    ContingenciaSvcRs = 6,   // SVC-RS (SEFAZ Virtual Contingência - RS)
+    ContingenciaFsda = 5,    // FS-DA (Formulário de Segurança - Documento Auxiliar)
+}
+
 public enum CstPisCofins
 {
     TributadaAliquotaBasica = 01,

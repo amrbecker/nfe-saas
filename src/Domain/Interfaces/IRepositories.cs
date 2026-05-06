@@ -42,6 +42,12 @@ public interface IUsuarioRepository
     Task UpdateAsync(Usuario usuario, CancellationToken ct = default);
 }
 
+public interface IAuditLogRepository
+{
+    Task AddAsync(AuditLog log, CancellationToken ct = default);
+    Task<IEnumerable<AuditLog>> GetByEmpresaAsync(Guid empresaId, int pagina, int tamanho, CancellationToken ct = default);
+}
+
 public interface IUnitOfWork
 {
     Task<int> SaveChangesAsync(CancellationToken ct = default);

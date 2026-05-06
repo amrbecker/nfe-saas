@@ -26,11 +26,11 @@ else
                 <MudCardHeader>
                     <CardHeaderContent>
                         <MudText Typo="Typo.h6">
-                            @_nota.Tipo — Série @_nota.Serie.ToString("D3") — Número @_nota.Numero.ToString("D9")
+                            @(_nota.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? "NF-e" : "NFC-e") — Série @_nota.Serie.ToString("D3") — Número @_nota.Numero.ToString("D9")
                         </MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip Color="@GetCorSituacao(_nota.Situacao)" Size="Size.Medium">@_nota.Situacao</MudChip>
+                        <MudChip Color="@GetCorSituacao(_nota.Situacao)" Size="Size.Medium">@NomeSituacao(_nota.Situacao)</MudChip>
                         @if (_nota.Ambiente == NfeSaas.Domain.Enums.AmbienteSefaz.Homologacao)
                         {
                             <MudChip Color="Color.Warning" Size="Size.Small">HOMOLOGAÇÃO</MudChip>
@@ -169,8 +169,18 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _nota = await NotaService.GetNotaAsync(Id);
-        _loading = false;
+        try
+        {
+            _nota = await NotaService.GetNotaAsync(Id);
+        }
+        catch
+        {
+            Snackbar.Add("Erro ao carregar nota fiscal.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     async Task DownloadDanfe()
@@ -185,7 +195,19 @@ else
         NfeSaas.Domain.Enums.SituacaoNota.Autorizada => Color.Success,
         NfeSaas.Domain.Enums.SituacaoNota.Cancelada => Color.Error,
         NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
-        NfeSaas.Domain.Enums.SituacaoNota.Enviada => Color.Info,
+        NfeSaas.Domain.Enums.SituacaoNota.Denegada  => Color.Error,
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada   => Color.Info,
         _ => Color.Default
+    };
+
+    static string NomeSituacao(NfeSaas.Domain.Enums.SituacaoNota s) => s switch
+    {
+        NfeSaas.Domain.Enums.SituacaoNota.Rascunho  => "Rascunho",
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada   => "Enviada",
+        NfeSaas.Domain.Enums.SituacaoNota.Autorizada => "Autorizada",
+        NfeSaas.Domain.Enums.SituacaoNota.Cancelada => "Cancelada",
+        NfeSaas.Domain.Enums.SituacaoNota.Denegada  => "Denegada",
+        NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => "Rejeitada",
+        _ => s.ToString()
     };
 }

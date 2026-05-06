@@ -11,6 +11,12 @@
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
 }
+else if (_erro)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">
+        Não foi possível carregar o dashboard. Verifique sua conexão e recarregue a página.
+    </MudAlert>
+}
 else if (_dashboard != null)
 {
     <!-- KPI Cards -->
@@ -64,13 +70,13 @@ else if (_dashboard != null)
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.Serie.ToString("D3")-@context.Numero.ToString("D9")</MudTd>
-                <MudTd><MudChip Size="Size.Small" Color="@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? Color.Info : Color.Secondary)">@context.Tipo</MudChip></MudTd>
+                <MudTd><MudChip Size="Size.Small" Color="@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? Color.Info : Color.Secondary)">@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? "NF-e" : "NFC-e")</MudChip></MudTd>
                 <MudTd>@(context.DestinatarioRazaoSocial ?? "Consumidor Final")</MudTd>
                 <MudTd>R$ @context.TotalNota.ToString("N2")</MudTd>
                 <MudTd>@context.DataEmissao.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>
                     <MudChip Size="Size.Small" Color="@GetCorSituacao(context.Situacao)">
-                        @context.Situacao
+                        @NomeSituacao(context.Situacao)
                     </MudChip>
                 </MudTd>
             </RowTemplate>
@@ -82,6 +88,7 @@ else if (_dashboard != null)
     private DashboardDto? _dashboard;
     private GetNotasResult? _ultimasNotas;
     private bool _loading = true;
+    private bool _erro;
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,9 +97,9 @@ else if (_dashboard != null)
             _dashboard = await NotaService.GetDashboardAsync();
             _ultimasNotas = await NotaService.GetNotasAsync(1, 10);
         }
-        catch (Exception ex)
+        catch
         {
-            Snackbar.Add($"Erro ao carregar dashboard: {ex.Message}", Severity.Error);
+            _erro = true;
         }
         finally
         {
@@ -105,7 +112,19 @@ else if (_dashboard != null)
         NfeSaas.Domain.Enums.SituacaoNota.Autorizada => Color.Success,
         NfeSaas.Domain.Enums.SituacaoNota.Cancelada => Color.Error,
         NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
-        NfeSaas.Domain.Enums.SituacaoNota.Enviada => Color.Info,
+        NfeSaas.Domain.Enums.SituacaoNota.Denegada  => Color.Error,
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada   => Color.Info,
         _ => Color.Default
+    };
+
+    static string NomeSituacao(NfeSaas.Domain.Enums.SituacaoNota s) => s switch
+    {
+        NfeSaas.Domain.Enums.SituacaoNota.Rascunho  => "Rascunho",
+        NfeSaas.Domain.Enums.SituacaoNota.Enviada   => "Enviada",
+        NfeSaas.Domain.Enums.SituacaoNota.Autorizada => "Autorizada",
+        NfeSaas.Domain.Enums.SituacaoNota.Cancelada => "Cancelada",
+        NfeSaas.Domain.Enums.SituacaoNota.Denegada  => "Denegada",
+        NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => "Rejeitada",
+        _ => s.ToString()
     };
 }

@@ -35,6 +35,10 @@ public class Usuario : BaseEntity
         SetUpdated();
     }
 
+    public void Atualizar(string nome, string role) { Nome = nome; Role = role; SetUpdated(); }
+    public void Desativar() { Ativo = false; SetUpdated(); }
+    public void Ativar()    { Ativo = true;  SetUpdated(); }
+
     public void AlterarSenha(string senhaHash)
     {
         SenhaHash = senhaHash;
