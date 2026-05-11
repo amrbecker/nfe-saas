@@ -1,7 +1,9 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NfeSaas.Application.Interfaces;
 using NfeSaas.Domain.Entities;
@@ -13,6 +15,7 @@ public class SefazService : ISefazService
 {
     private readonly ILogger<SefazService> _logger;
     private readonly IHttpClientFactory _httpFactory;
+    private readonly bool _useRealWebservice;
 
     private static readonly Dictionary<(string uf, AmbienteSefaz ambiente), string> _urlsAutorizacao = new()
     {
@@ -42,16 +45,25 @@ public class SefazService : ISefazService
     // States that use SVC-RS as contingency (others use SVC-AN)
     private static readonly HashSet<string> _estadosSvcRs = ["AM", "BA", "CE", "GO", "MA", "MS", "MT", "PA", "PE", "PI", "RN", "RS"];
 
-    public SefazService(ILogger<SefazService> logger, IHttpClientFactory httpFactory)
+    public SefazService(ILogger<SefazService> logger, IHttpClientFactory httpFactory, IConfiguration config)
     {
         _logger = logger;
         _httpFactory = httpFactory;
+        // Por padrão homologação usa stub (CLAUDE.md: "ISefazService: stub em dev/homologação,
+        // real em produção"). Permite override via Sefaz:UseRealWebservice=true para quem tiver
+        // credenciamento real de homologação na SEFAZ.
+        _useRealWebservice = config.GetValue<bool>("Sefaz:UseRealWebservice", false);
     }
 
     public async Task<SefazResultado> EnviarNFeAsync(NotaFiscal nota, Empresa empresa, CancellationToken ct = default)
     {
         if (empresa.CertificadoBytes == null)
             return new SefazResultado(false, null, null, null, "Certificado não configurado.", 0);
+
+        // Stub para dev/homologação — evita dependência de credenciamento real na SEFAZ.
+        // Em produção (ou quando configurado para usar webservice real) chama o serviço HTTPS.
+        if (empresa.AmbienteSefaz == AmbienteSefaz.Homologacao && !_useRealWebservice)
+            return SimularAutorizacao(nota);
 
         // Try primary SEFAZ first
         var resultado = await TentarEnvioAsync(nota, empresa, ObterUrl(empresa.Uf, empresa.AmbienteSefaz, "autorizacao"), ct);
@@ -156,17 +168,80 @@ public class SefazService : ISefazService
             var chNFe = doc.SelectSingleNode("//nfe:chNFe", ns)?.InnerText;
             var nProt = doc.SelectSingleNode("//nfe:nProt", ns)?.InnerText;
 
+            // Quando o XPath não acha cStat, o XML retornado não é o envelope esperado
+            // (provavelmente HTML de erro, SOAP fault, ou XML com namespace diferente).
+            if (doc.SelectSingleNode("//nfe:cStat", ns) == null)
+            {
+                var amostra = xml.Length > 200 ? xml[..200] + "..." : xml;
+                _logger.LogWarning("Retorno SEFAZ sem cStat. Amostra: {Amostra}", amostra);
+                return new SefazResultado(false, null, null, xml,
+                    $"Retorno da SEFAZ não contém cStat. Início: \"{amostra.Trim()}\"", 0);
+            }
+
             var codigo = int.TryParse(cStat, out var c) ? c : 0;
             var sucesso = codigo == 100; // 100 = Autorizada
 
             return new SefazResultado(sucesso, chNFe, nProt, xml,
                 sucesso ? null : $"[{cStat}] {xMotivo}", codigo);
         }
+        catch (XmlException ex)
+        {
+            // Retorno não é XML válido (HTML de erro 502/503, página de captcha, etc.).
+            var amostra = xml.Length > 200 ? xml[..200] + "..." : xml;
+            _logger.LogError(ex, "Retorno SEFAZ não é XML válido. Amostra: {Amostra}", amostra);
+            return new SefazResultado(false, null, null, null,
+                $"Resposta da SEFAZ não é XML válido. Início: \"{amostra.Trim()}\"", 0);
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao processar retorno SEFAZ");
-            return new SefazResultado(false, null, null, null, "Erro ao processar resposta da SEFAZ. O formato do retorno não era esperado.", 0);
+            _logger.LogError(ex, "Erro inesperado ao processar retorno SEFAZ");
+            return new SefazResultado(false, null, null, null,
+                $"Erro inesperado ao interpretar retorno da SEFAZ: {ex.Message}", 0);
         }
+    }
+
+    /// <summary>
+    /// Stub de autorização para ambiente de homologação. Extrai a chave de acesso do XML
+    /// gerado pelo XmlNFeService (Id="NFe{chave}") e devolve sucesso com protocolo sintético.
+    /// </summary>
+    private SefazResultado SimularAutorizacao(NotaFiscal nota)
+    {
+        var chave = ExtrairChaveAcesso(nota.XmlEnvio) ?? new string('0', 44);
+        var protocolo = $"HOM{DateTime.UtcNow:yyMMddHHmmssfff}";
+        var xmlRetorno =
+            $"""
+             <?xml version="1.0" encoding="UTF-8"?>
+             <retEnviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+               <tpAmb>2</tpAmb>
+               <verAplic>HOM_STUB</verAplic>
+               <cStat>104</cStat>
+               <xMotivo>Lote processado (simulado em homologação)</xMotivo>
+               <protNFe versao="4.00">
+                 <infProt>
+                   <tpAmb>2</tpAmb>
+                   <verAplic>HOM_STUB</verAplic>
+                   <chNFe>{chave}</chNFe>
+                   <dhRecbto>{DateTime.UtcNow:yyyy-MM-ddTHH:mm:sszzz}</dhRecbto>
+                   <nProt>{protocolo}</nProt>
+                   <digVal>STUB</digVal>
+                   <cStat>100</cStat>
+                   <xMotivo>Autorizado o uso da NF-e</xMotivo>
+                 </infProt>
+               </protNFe>
+             </retEnviNFe>
+             """;
+        _logger.LogInformation(
+            "[HOM-STUB] NF-e {Numero} simulada como autorizada. Chave: {Chave} Protocolo: {Protocolo}",
+            nota.Numero, chave, protocolo);
+        return new SefazResultado(true, chave, protocolo, xmlRetorno, null, 100);
+    }
+
+    private static string? ExtrairChaveAcesso(string? xmlEnvio)
+    {
+        if (string.IsNullOrWhiteSpace(xmlEnvio)) return null;
+        // O XmlNFeService grava Id="NFe{chave de 44 dígitos}" no elemento infNFe.
+        var match = Regex.Match(xmlEnvio, @"Id=""NFe(\d{44})""");
+        return match.Success ? match.Groups[1].Value : null;
     }
 
     private string MontarSoapEnvio(string xmlNFe, int ambiente)
