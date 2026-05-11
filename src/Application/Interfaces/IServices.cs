@@ -8,6 +8,11 @@ public interface ISefazService
     Task<SefazResultado> CancelarNFeAsync(NotaFiscal nota, Empresa empresa, string justificativa, CancellationToken ct = default);
     Task<SefazConsultaResultado> ConsultarChaveAcessoAsync(string chaveAcesso, Empresa empresa, CancellationToken ct = default);
     Task<bool> ConsultarStatusServicoAsync(Empresa empresa, CancellationToken ct = default);
+
+    // Eventos fiscais
+    Task<SefazResultado> EnviarEventoCceAsync(EventoFiscal evento, Empresa empresa, CancellationToken ct = default);
+    Task<SefazResultado> EnviarInutilizacaoAsync(EventoFiscal evento, Empresa empresa, CancellationToken ct = default);
+    Task<SefazResultado> EnviarManifestacaoAsync(EventoFiscal evento, Empresa empresa, CancellationToken ct = default);
 }
 
 public record SefazResultado(
@@ -25,12 +30,38 @@ public record SefazConsultaResultado(
     DateTime? DataAutorizacao,
     string? XmlRetorno);
 
+public interface IXsdValidationService
+{
+    bool TemSchemasCarregados { get; }
+    int TotalSchemasCarregados { get; }
+    IReadOnlyList<string> ErrosCarga { get; }
+    XsdValidacaoResultado Validar(string xml);
+}
+
+public class XsdValidacaoResultado
+{
+    public bool Valido { get; set; }
+    public bool Pulada { get; set; }
+    public List<string> Erros { get; set; } = new();
+}
+
 public interface IXmlNFeService
 {
     string GerarXmlNFe(NotaFiscal nota, Empresa empresa);
     string AssinarXml(string xml, byte[] certificadoBytes, string senha);
     string GerarXmlCancelamento(string chaveAcesso, string justificativa, Empresa empresa);
     bool ValidarXml(string xml, out IEnumerable<string> erros);
+
+    string GerarXmlCce(string chaveAcesso, int sequencial, string correcao, Empresa empresa);
+    string GerarXmlInutilizacao(Empresa empresa, int ano, NfeSaas.Domain.Enums.TipoNota tipo, int serie, int numIni, int numFin, string justificativa);
+    string GerarXmlManifestacao(string chaveAcesso, NfeSaas.Domain.Enums.TipoEventoFiscal tipo, string justificativa, Empresa empresa);
+
+    // Assinatura digital de eventos fiscais (CC-e, Manifestação) e Inutilização.
+    // Estrutura SEFAZ: para evento o <Signature> vai como filho de <evento> (irmão de <infEvento>);
+    // para inutilização vai como filho de <inutNFe> (irmão de <infInut>).
+    string AssinarEvento(string xml, byte[] certificadoBytes, string senha);
+    string AssinarInutilizacao(string xml, byte[] certificadoBytes, string senha);
+    string AssinarCancelamento(string xml, byte[] certificadoBytes, string senha);
 }
 
 public interface IDanfeService
@@ -58,7 +89,12 @@ public interface IImpostoCalculoService
     ImpostoResultado CalcularPis(decimal valorProduto, decimal aliquota);
     ImpostoResultado CalcularCofins(decimal valorProduto, decimal aliquota);
     ImpostoResultado CalcularIcmsSt(decimal valorProduto, decimal mva, decimal aliquotaInterna, decimal aliquotaInterestadual);
+    ImpostoResultado CalcularIpi(decimal valorProduto, decimal aliquota);
+    ImpostoResultado CalcularFcp(decimal baseCalculoIcms, decimal aliquota);
+    DifalResultado CalcularDifal(decimal valorProduto, decimal aliquotaInternaUfDestino, decimal aliquotaInterestadual);
 }
+
+public record DifalResultado(decimal BaseCalculo, decimal AliquotaInterna, decimal AliquotaInterestadual, decimal ValorUfDestino, decimal ValorUfRemetente);
 
 public record ImpostoResultado(decimal BaseCalculo, decimal Aliquota, decimal Valor);
 

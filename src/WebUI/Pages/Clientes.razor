@@ -1,0 +1,418 @@
+@page "/clientes"
+@attribute [Authorize]
+@using NfeSaas.Domain.Services
+@inject IClienteService ClienteService
+@inject ISnackbar Snackbar
+@inject IDialogService Dialog
+
+<MudText Typo="Typo.h5" Class="mb-4">Clientes</MudText>
+
+<MudStack Row="true" Spacing="2" Class="mb-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="AbrirCadastro" Disabled="@_mostrarForm">
+        Novo Cliente
+    </MudButton>
+    <MudCheckBox T="bool" Checked="_apenasAtivos" Label="Apenas ativos" Color="Color.Primary"
+                 CheckedChanged="@(async (bool v) => { _apenasAtivos = v; await Carregar(); })" />
+</MudStack>
+
+@if (_clientes == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_clientes.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Nenhum cliente cadastrado.</MudAlert>
+}
+else
+{
+    <MudTable Items="_clientes" Hover="true" Striped="true" Elevation="2" Dense="true">
+        <HeaderContent>
+            <MudTh>Tipo</MudTh>
+            <MudTh>CPF/CNPJ</MudTh>
+            <MudTh>Nome / Razão Social</MudTh>
+            <MudTh>UF</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh Style="width:160px">Ações</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@TipoLabel(context.TipoPessoa)</MudTd>
+            <MudTd>@(context.CpfCnpj ?? "—")</MudTd>
+            <MudTd>
+                @context.RazaoSocial
+                @if (!string.IsNullOrWhiteSpace(context.NomeFantasia))
+                {
+                    <text> </text><MudText Inline="true" Typo="Typo.caption" Style="color:#888">(@context.NomeFantasia)</MudText>
+                }
+            </MudTd>
+            <MudTd>@context.Uf</MudTd>
+            <MudTd>
+                <MudChip Size="Size.Small" Color="@(context.Ativo ? Color.Success : Color.Error)">
+                    @(context.Ativo ? "Ativo" : "Inativo")
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => Editar(context.Id))" Title="Editar" />
+                <MudIconButton Icon="@(context.Ativo ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                               Size="Size.Small" Color="@(context.Ativo ? Color.Success : Color.Default)"
+                               OnClick="@(() => ToggleAtivo(context.Id))" Title="Ativar/Desativar" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                               OnClick="@(() => Excluir(context.Id))" Title="Excluir" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@if (_mostrarForm)
+{
+    <MudCard Elevation="2" Class="mt-4 pa-4">
+        <MudText Typo="Typo.h6" Class="mb-3">@(_editandoId == null ? "Novo Cliente" : "Editar Cliente")</MudText>
+        <MudForm @ref="_form" @bind-IsValid="_formValido">
+            <MudGrid>
+                <!-- ====== IDENTIFICAÇÃO ====== -->
+                <MudItem xs="12">
+                    <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Identificação</MudText>
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="int" Value="_data.TipoPessoa" ValueChanged="TipoPessoaChanged"
+                               Label="Tipo Pessoa" Variant="Variant.Outlined">
+                        <MudSelectItem Value="1">Pessoa Física</MudSelectItem>
+                        <MudSelectItem Value="2">Pessoa Jurídica</MudSelectItem>
+                        <MudSelectItem Value="3">Estrangeiro</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    @if (_data.TipoPessoa == 2)
+                    {
+                        <CnpjInput Value="@_data.CpfCnpj"
+                                   ValueChanged="@(v => _data.CpfCnpj = v)"
+                                   EmpresaEncontrada="OnEmpresaEncontradaNaReceita"
+                                   Required="true" />
+                    }
+                    else
+                    {
+                        <MudTextField @bind-Value="_data.CpfCnpj"
+                                      Label="@CpfCnpjLabel" Variant="Variant.Outlined"
+                                      Immediate="true"
+                                      Validation="@((string s) => ValidarCpfCnpj(s))" />
+                    }
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="_data.RazaoSocial" Label="Nome / Razão Social" Variant="Variant.Outlined"
+                                  Required RequiredError="Obrigatório"
+                                  Validation="@((string s) => string.IsNullOrWhiteSpace(s) ? "Obrigatório" : null)" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField @bind-Value="_data.NomeFantasia" Label="Nome Fantasia (opcional)" Variant="Variant.Outlined" />
+                </MudItem>
+
+                <!-- ====== CONTATO ====== -->
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Contato</MudText>
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_data.Email" Label="E-mail (opcional)" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
+                                  Validation="@((string s) => ValidarEmail(s))" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_data.Telefone" Label="Telefone (opcional)" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone"
+                                  Validation="@((string s) => ValidarTelefone(s))" />
+                </MudItem>
+
+                <!-- ====== ENDEREÇO (CEP-first) ====== -->
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Endereço</MudText>
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <CepInput Value="@_data.Cep"
+                              ValueChanged="@(v => _data.Cep = v)"
+                              EnderecoEncontrado="OnCepEncontrado"
+                              Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="9">
+                    <MudTextField @bind-Value="_data.Logradouro" Label="Logradouro" Variant="Variant.Outlined"
+                                  Required RequiredError="Obrigatório" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudTextField @bind-Value="_data.Numero" Label="Número" Variant="Variant.Outlined"
+                                  Required RequiredError="Obrigatório" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_data.Complemento" Label="Complemento (opcional)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_data.Bairro" Label="Bairro" Variant="Variant.Outlined"
+                                  Required RequiredError="Obrigatório" />
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="_data.Cidade" Label="Cidade" Variant="Variant.Outlined"
+                                  Required RequiredError="Obrigatório" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudSelect T="string" Value="_data.Uf" ValueChanged="UfChanged"
+                               Label="UF" Variant="Variant.Outlined"
+                               Required RequiredError="Obrigatório">
+                        @foreach (var uf in _ufs) { <MudSelectItem Value="@uf">@uf</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="_data.CodigoMunicipio" Label="Cód. IBGE (7 dígitos)" Variant="Variant.Outlined"
+                                  Required Immediate="true" HelperText="Preenchido automaticamente pelo CEP"
+                                  Validation="@((string s) => s != null && s.Where(char.IsDigit).Count() == 7 ? null : "7 dígitos")" />
+                </MudItem>
+
+                <!-- ====== FISCAL ====== -->
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Fiscal</MudText>
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="int" Value="_data.IndicadorIe" ValueChanged="IndicadorIeChanged"
+                               Label="Indicador IE" Variant="Variant.Outlined">
+                        <MudSelectItem Value="1">1 - Contribuinte ICMS</MudSelectItem>
+                        <MudSelectItem Value="2">2 - Isento</MudSelectItem>
+                        <MudSelectItem Value="9">9 - Não contribuinte</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudTextField @bind-Value="_data.InscricaoEstadual"
+                                  Label="@(IeObrigatoria ? "Inscrição Estadual *" : "Inscrição Estadual (opcional)")"
+                                  Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Validation="@((string s) => ValidarIe(s))" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+        <MudStack Row="true" Class="mt-3" Justify="Justify.FlexEnd">
+            <MudButton OnClick="Cancelar">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="Salvar" Disabled="@(!_formValido || _salvando)">
+                @if (_salvando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Salvar
+            </MudButton>
+        </MudStack>
+    </MudCard>
+}
+
+@code {
+    private List<ClienteResumoDto>? _clientes;
+    private bool _apenasAtivos;
+    private bool _mostrarForm;
+    private bool _formValido;
+    private bool _salvando;
+    private MudForm? _form;
+    private Guid? _editandoId;
+    private FormData _data = new();
+    private static readonly List<string> _ufs = IeValidator.UfsValidas().OrderBy(u => u).ToList();
+    private static readonly System.Text.RegularExpressions.Regex _emailRegex = new(@"^[^\s@]+@[^\s@]+\.[^\s@]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    bool IeObrigatoria => _data.IndicadorIe == 1;
+    string CpfCnpjLabel => _data.TipoPessoa switch
+    {
+        1 => "CPF",
+        2 => "CNPJ",
+        _ => "CPF/CNPJ (opcional p/ estrangeiro)"
+    };
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        _clientes = null;
+        StateHasChanged();
+        _clientes = (await ClienteService.ListarAsync(_apenasAtivos)) ?? new();
+    }
+
+    void AbrirCadastro()
+    {
+        _editandoId = null;
+        _data = new FormData();
+        _formValido = false;
+        _mostrarForm = true;
+    }
+
+    async Task Editar(Guid id)
+    {
+        var c = await ClienteService.GetAsync(id);
+        if (c == null) { Snackbar.Add("Cliente não encontrado.", Severity.Error); return; }
+        _editandoId = id;
+        _data = new FormData
+        {
+            TipoPessoa = c.TipoPessoa, CpfCnpj = c.CpfCnpj ?? "",
+            RazaoSocial = c.RazaoSocial, NomeFantasia = c.NomeFantasia ?? "",
+            Email = c.Email ?? "", Telefone = c.Telefone ?? "",
+            Logradouro = c.Logradouro, Numero = c.Numero, Complemento = c.Complemento ?? "",
+            Bairro = c.Bairro, Cidade = c.Cidade, Uf = c.Uf, Cep = c.Cep,
+            CodigoMunicipio = c.CodigoMunicipio,
+            InscricaoEstadual = c.InscricaoEstadual ?? "", IndicadorIe = c.IndicadorIe
+        };
+        _formValido = true;
+        _mostrarForm = true;
+    }
+
+    void Cancelar() { _mostrarForm = false; _editandoId = null; }
+
+    async Task TipoPessoaChanged(int novo) { _data.TipoPessoa = novo; if (_form != null) await _form.Validate(); }
+    async Task UfChanged(string nova) { _data.Uf = nova; if (_form != null) await _form.Validate(); }
+    async Task IndicadorIeChanged(int novo) { _data.IndicadorIe = novo; if (_form != null) await _form.Validate(); }
+
+    async Task OnEmpresaEncontradaNaReceita(EmpresaReceita e)
+    {
+        if (string.IsNullOrWhiteSpace(_data.RazaoSocial))      _data.RazaoSocial      = e.RazaoSocial;
+        if (string.IsNullOrWhiteSpace(_data.NomeFantasia))     _data.NomeFantasia     = e.NomeFantasia;
+        if (string.IsNullOrWhiteSpace(_data.Email))            _data.Email            = e.Email;
+        if (string.IsNullOrWhiteSpace(_data.Telefone))         _data.Telefone         = e.Telefone;
+        if (string.IsNullOrWhiteSpace(_data.Logradouro))       _data.Logradouro       = e.Logradouro;
+        if (string.IsNullOrWhiteSpace(_data.Numero))           _data.Numero           = e.Numero;
+        if (string.IsNullOrWhiteSpace(_data.Complemento))      _data.Complemento      = e.Complemento;
+        if (string.IsNullOrWhiteSpace(_data.Bairro))           _data.Bairro           = e.Bairro;
+        if (string.IsNullOrWhiteSpace(_data.Cidade))           _data.Cidade           = e.Cidade;
+        if (string.IsNullOrWhiteSpace(_data.Uf))               _data.Uf               = e.Uf;
+        if (string.IsNullOrWhiteSpace(_data.Cep))              _data.Cep              = e.Cep;
+        if (string.IsNullOrWhiteSpace(_data.CodigoMunicipio))  _data.CodigoMunicipio  = e.CodigoMunicipio;
+
+        Snackbar.Add($"Dados de {e.RazaoSocial} carregados da Receita.", Severity.Success);
+        if (_form != null) await _form.Validate();
+        StateHasChanged();
+    }
+
+    async Task OnCepEncontrado(EnderecoCep e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.Logradouro))      _data.Logradouro      = e.Logradouro;
+        if (!string.IsNullOrWhiteSpace(e.Complemento) && string.IsNullOrWhiteSpace(_data.Complemento))
+                                                            _data.Complemento     = e.Complemento;
+        if (!string.IsNullOrWhiteSpace(e.Bairro))          _data.Bairro          = e.Bairro;
+        if (!string.IsNullOrWhiteSpace(e.Cidade))          _data.Cidade          = e.Cidade;
+        if (!string.IsNullOrWhiteSpace(e.Uf))              _data.Uf              = e.Uf;
+        if (!string.IsNullOrWhiteSpace(e.CodigoMunicipio)) _data.CodigoMunicipio = e.CodigoMunicipio;
+        if (_form != null) await _form.Validate();
+        StateHasChanged();
+    }
+
+    async Task Salvar()
+    {
+        if (_form != null) await _form.Validate();
+        if (!_formValido) return;
+
+        _salvando = true;
+        if (_editandoId == null)
+        {
+            var dto = MapCreateDto();
+            var (cliente, erro) = await ClienteService.CriarAsync(dto);
+            _salvando = false;
+            if (cliente == null) { Snackbar.Add(erro ?? "Erro ao criar.", Severity.Error); return; }
+            Snackbar.Add($"Cliente '{cliente.RazaoSocial}' cadastrado.", Severity.Success);
+        }
+        else
+        {
+            var dto = MapUpdateDto();
+            var (cliente, erro) = await ClienteService.AtualizarAsync(_editandoId.Value, dto);
+            _salvando = false;
+            if (cliente == null) { Snackbar.Add(erro ?? "Erro ao atualizar.", Severity.Error); return; }
+            Snackbar.Add($"Cliente '{cliente.RazaoSocial}' atualizado.", Severity.Success);
+        }
+        _mostrarForm = false;
+        await Carregar();
+    }
+
+    CreateClienteDto MapCreateDto() => new(
+        _data.TipoPessoa, NormalizarOpcional(_data.CpfCnpj),
+        _data.RazaoSocial, NormalizarOpcional(_data.NomeFantasia),
+        NormalizarOpcional(_data.Email), NormalizarOpcional(_data.Telefone),
+        _data.Logradouro, _data.Numero, NormalizarOpcional(_data.Complemento),
+        _data.Bairro, _data.Cidade, _data.Uf, _data.Cep, _data.CodigoMunicipio,
+        NormalizarOpcional(_data.InscricaoEstadual), _data.IndicadorIe);
+
+    UpdateClienteDto MapUpdateDto() => new(
+        _data.TipoPessoa, NormalizarOpcional(_data.CpfCnpj),
+        _data.RazaoSocial, NormalizarOpcional(_data.NomeFantasia),
+        NormalizarOpcional(_data.Email), NormalizarOpcional(_data.Telefone),
+        _data.Logradouro, _data.Numero, NormalizarOpcional(_data.Complemento),
+        _data.Bairro, _data.Cidade, _data.Uf, _data.Cep, _data.CodigoMunicipio,
+        NormalizarOpcional(_data.InscricaoEstadual), _data.IndicadorIe);
+
+    async Task ToggleAtivo(Guid id)
+    {
+        var cliente = await ClienteService.ToggleAtivoAsync(id);
+        if (cliente == null) { Snackbar.Add("Erro ao alterar.", Severity.Error); return; }
+        await Carregar();
+    }
+
+    async Task Excluir(Guid id)
+    {
+        var ok = await Dialog.ShowMessageBox("Confirmar exclusão",
+            "Excluir este cliente? Esta ação não pode ser desfeita.",
+            yesText: "Excluir", cancelText: "Cancelar");
+        if (ok != true) return;
+        if (await ClienteService.ExcluirAsync(id))
+        {
+            Snackbar.Add("Cliente excluído.", Severity.Success);
+            await Carregar();
+        }
+        else Snackbar.Add("Erro ao excluir.", Severity.Error);
+    }
+
+    string? ValidarCpfCnpj(string? cpfCnpj)
+    {
+        if (_data.TipoPessoa == 3)
+            return null; // Estrangeiro: opcional
+        if (string.IsNullOrWhiteSpace(cpfCnpj)) return "CPF/CNPJ é obrigatório";
+        var digits = CnpjValidator.ApenasDigitos(cpfCnpj);
+        if (digits.Length == 14) return CnpjValidator.Validar(cpfCnpj) ? null : "CNPJ inválido";
+        if (digits.Length == 11) return CnpjValidator.ValidarCpf(cpfCnpj) ? null : "CPF inválido";
+        return "Deve ter 11 ou 14 dígitos";
+    }
+
+    string? ValidarIe(string? ie)
+    {
+        if (!IeObrigatoria) return null;
+        if (string.IsNullOrWhiteSpace(ie)) return "Obrigatória para contribuintes do ICMS";
+        if (string.IsNullOrWhiteSpace(_data.Uf)) return "Selecione a UF antes";
+        return IeValidator.Validar(ie, _data.Uf) ? null : $"IE inválida para {_data.Uf}";
+    }
+
+    static string? ValidarEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+        return _emailRegex.IsMatch(email.Trim()) ? null : "E-mail inválido";
+    }
+
+    static string? ValidarTelefone(string? tel)
+    {
+        if (string.IsNullOrWhiteSpace(tel)) return null;
+        var d = tel.Where(char.IsDigit).Count();
+        return d is 10 or 11 ? null : "10 ou 11 dígitos";
+    }
+
+    static string? NormalizarOpcional(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    static string TipoLabel(int t) => t switch { 1 => "PF", 2 => "PJ", 3 => "Estr.", _ => "?" };
+
+    class FormData
+    {
+        public int TipoPessoa { get; set; } = 2;
+        public string CpfCnpj { get; set; } = "";
+        public string RazaoSocial { get; set; } = "";
+        public string NomeFantasia { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Telefone { get; set; } = "";
+        public string Logradouro { get; set; } = "";
+        public string Numero { get; set; } = "";
+        public string Complemento { get; set; } = "";
+        public string Bairro { get; set; } = "";
+        public string Cidade { get; set; } = "";
+        public string Uf { get; set; } = "";
+        public string Cep { get; set; } = "";
+        public string CodigoMunicipio { get; set; } = "";
+        public string InscricaoEstadual { get; set; } = "";
+        public int IndicadorIe { get; set; } = 9;
+    }
+}

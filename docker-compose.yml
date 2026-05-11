@@ -37,6 +37,15 @@ services:
       - Jwt__Issuer=NfeSaas
       - Jwt__Audience=NfeSaas.WebUI
       - WebUI__BaseUrl=http://localhost:5002
+      # NCM update worker — vazio = desativado. Configure conforme sua fonte oficial:
+      #   Ncm__UpdateSourceUrl: URL HTTPS de um JSON no formato Portal Único Siscomex
+      #   Ncm__LocalFilePath:   caminho dentro do container para um JSON local (ex.: volume montado)
+      #   Ncm__UpdateIntervalDays: padrão 7
+      #   Ncm__UpdateOnStartup:    padrão false
+      - Ncm__UpdateSourceUrl=
+      - Ncm__LocalFilePath=
+      - Ncm__UpdateIntervalDays=7
+      - Ncm__UpdateOnStartup=false
     depends_on:
       postgres:
         condition: service_healthy

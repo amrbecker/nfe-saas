@@ -1,6 +1,8 @@
 @page "/"
 @attribute [Authorize]
 @inject INotaFiscalService NotaService
+@inject IAuthService AuthService
+@inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
 <PageTitle>Dashboard - NfeSaas</PageTitle>
@@ -10,6 +12,20 @@
 @if (_loading)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_temEmpresa)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        <MudText Typo="Typo.subtitle1"><b>Bem-vindo ao NfeSaas!</b></MudText>
+        <MudText Typo="Typo.body2">
+            Para começar a usar o sistema, cadastre sua primeira empresa cliente.
+        </MudText>
+    </MudAlert>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Apartment"
+               OnClick="@(() => Nav.NavigateTo("/empresas"))">
+        Cadastrar primeira empresa
+    </MudButton>
 }
 else if (_erro)
 {
@@ -89,11 +105,15 @@ else if (_dashboard != null)
     private GetNotasResult? _ultimasNotas;
     private bool _loading = true;
     private bool _erro;
+    private bool _temEmpresa;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            _temEmpresa = await AuthService.HasEmpresaSelecionadaAsync();
+            if (!_temEmpresa) return;
+
             _dashboard = await NotaService.GetDashboardAsync();
             _ultimasNotas = await NotaService.GetNotasAsync(1, 10);
         }

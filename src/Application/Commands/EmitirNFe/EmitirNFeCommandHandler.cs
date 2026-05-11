@@ -62,7 +62,20 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
         if (destErro != null)
             return new EmitirNFeResult(false, null, null, null, destErro);
 
-        // Validate CFOP for each item
+        // CRT vs CST/CSOSN: Simples Nacional (CRT 1 ou 2) usa CSOSN; Regime Normal (CRT 3) usa CST.
+        var isSimples = empresa.RegimeTributario != RegimeTributario.RegimeNormal;
+        for (var i = 0; i < request.Dados.Itens.Count; i++)
+        {
+            var imp = request.Dados.Itens[i].Impostos;
+            if (isSimples && !imp.CsosnIcms.HasValue)
+                return new EmitirNFeResult(false, null, null, null,
+                    $"CSOSN obrigatório para o item {request.Dados.Itens[i].CodigoProduto} (empresa Simples Nacional).");
+            if (!isSimples && imp.CsosnIcms.HasValue)
+                return new EmitirNFeResult(false, null, null, null,
+                    $"Empresa em Regime Normal não pode emitir CSOSN no item {request.Dados.Itens[i].CodigoProduto}; use CST.");
+        }
+
+        // Validate CFOP, NCM and CST scope per item
         var isInterestadual = !string.Equals(empresa.Uf, request.Dados.Destinatario.Uf, StringComparison.OrdinalIgnoreCase);
         foreach (var item in request.Dados.Itens)
         {
@@ -73,7 +86,19 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
                 !CfopValidator.ValidarParaSaida(item.Cfop, isInterestadual))
                 return new EmitirNFeResult(false, null, null, null,
                     $"CFOP {item.Cfop} não é válido para operação de saída {(isInterestadual ? "interestadual" : "intraestadual")}");
+
+            if (!NcmValidator.Validar(item.Ncm))
+                return new EmitirNFeResult(false, null, null, null,
+                    $"NCM inválido para o item {item.CodigoProduto}: deve ter 8 dígitos.");
         }
+
+        // Dedup pré-check (UI / cliente). O índice único no banco é a proteção final em caso de race.
+        var serieCheck = request.Dados.Tipo == TipoNota.NFe ? empresa.SerieNFe : empresa.SerieNFCe;
+        var proximoNumero = (request.Dados.Tipo == TipoNota.NFe ? empresa.UltimoNumeronFe : empresa.UltimoNumeronFCe) + 1;
+        var existente = await _notaRepo.GetBySerieNumeroAsync(empresa.Id, request.Dados.Tipo, serieCheck, proximoNumero, empresa.AmbienteSefaz, cancellationToken);
+        if (existente != null)
+            return new EmitirNFeResult(false, null, null, null,
+                $"Já existe uma nota fiscal {request.Dados.Tipo} série {serieCheck} número {proximoNumero} para esta empresa neste ambiente.");
 
         await _uow.BeginTransactionAsync(cancellationToken);
         try
@@ -111,7 +136,10 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
                 var valorBase = (itemDto.Quantidade * itemDto.ValorUnitario) - itemDto.Desconto;
 
                 var icms = _impostoService.CalcularIcms(valorBase, imp.AliquotaIcms, imp.PercentualReducaoIcms);
-                item.SetIcms(imp.OrigemMercadoria, imp.CstIcms, icms.BaseCalculo, icms.Aliquota);
+                if (imp.CsosnIcms.HasValue)
+                    item.SetIcmsSimples(imp.OrigemMercadoria, imp.CsosnIcms.Value, icms.BaseCalculo, icms.Aliquota);
+                else
+                    item.SetIcms(imp.OrigemMercadoria, imp.CstIcms, icms.BaseCalculo, icms.Aliquota);
 
                 if (imp.AplicarSt && imp.MvaIcmsSt.HasValue && imp.AliquotaInternaIcmsSt.HasValue)
                 {
@@ -125,6 +153,28 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
 
                 var cofins = _impostoService.CalcularCofins(valorBase, imp.AliquotaCofins);
                 item.SetCofins(imp.CstCofins, cofins.BaseCalculo, cofins.Aliquota);
+
+                // IPI (opcional — calcula apenas se alíquota foi informada)
+                if (imp.AliquotaIpi.HasValue && imp.AliquotaIpi.Value > 0)
+                {
+                    var ipi = _impostoService.CalcularIpi(valorBase, imp.AliquotaIpi.Value);
+                    item.SetIpi(imp.CstIpi ?? "50", ipi.BaseCalculo, ipi.Aliquota);
+                }
+
+                // FCP (opcional — calcula sobre BC ICMS do item)
+                if (imp.AliquotaFcp.HasValue && imp.AliquotaFcp.Value > 0)
+                {
+                    var fcp = _impostoService.CalcularFcp(icms.BaseCalculo, imp.AliquotaFcp.Value);
+                    item.SetFcp(fcp.BaseCalculo, fcp.Aliquota);
+                }
+
+                // DIFAL (auto-detectado para operação interestadual a destinatário sem IE — não contribuinte)
+                var destSemIe = string.IsNullOrWhiteSpace(request.Dados.Destinatario.InscricaoEstadual);
+                if (isInterestadual && destSemIe && imp.AliquotaInternaUfDestino.HasValue && imp.AliquotaInternaUfDestino.Value > 0)
+                {
+                    var difal = _impostoService.CalcularDifal(valorBase, imp.AliquotaInternaUfDestino.Value, imp.AliquotaIcms);
+                    item.SetDifal(difal.BaseCalculo, difal.AliquotaInterna, difal.AliquotaInterestadual);
+                }
 
                 nota.AdicionarItem(item);
             }

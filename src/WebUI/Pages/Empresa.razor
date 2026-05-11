@@ -1,8 +1,10 @@
 @page "/empresa"
 @attribute [Authorize]
+@using NfeSaas.Domain.Enums
+@using NfeSaas.Domain.Services
+@using System.Text.RegularExpressions
 @inject IEmpresaService EmpresaService
 @inject ISnackbar Snackbar
-@using NfeSaas.Domain.Enums
 
 <PageTitle>Empresa - NfeSaas</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">Dados da Empresa</MudText>
@@ -11,57 +13,208 @@
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
+else if (_empresa == null)
+{
+    <MudAlert Severity="Severity.Error">Não foi possível carregar a empresa.</MudAlert>
+}
 else
 {
+    <AuthorizeView Roles="Admin" Context="adminCtx">
+        <NotAuthorized>
+            <MudAlert Severity="Severity.Info" Class="mb-3">
+                Apenas administradores podem editar dados cadastrais. Os campos abaixo estão em modo somente leitura.
+            </MudAlert>
+        </NotAuthorized>
+        <Authorized>
+            <MudAlert Severity="Severity.Info" Class="mb-3">
+                CNPJ e dados fiscais (chave do documento) são imutáveis. Para alterá-los, contate o suporte.
+            </MudAlert>
+        </Authorized>
+    </AuthorizeView>
+
     <MudCard Elevation="2">
         <MudCardContent>
-            <MudAlert Severity="Severity.Info" Class="mb-3">
-                Para alterar dados cadastrais, entre em contato com o suporte.
-            </MudAlert>
+            <MudForm @ref="_form" @bind-IsValid="_formValido">
+                <MudGrid>
+                    <!-- ====== IDENTIFICAÇÃO ====== -->
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Identificação</MudText>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
 
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudTextField Value="@_empresa?.RazaoSocial"
-                                  Label="Razão Social" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField Value="@_empresa?.NomeFantasia"
-                                  Label="Nome Fantasia" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField Value="@_empresa?.Cnpj"
-                                  Label="CNPJ" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField Value="@_empresa?.InscricaoEstadual"
-                                  Label="Inscrição Estadual" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField Value="@_empresa?.Email"
-                                  Label="E-mail" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField Value="@((AmbienteSefaz?)_empresa?.AmbienteSefaz == AmbienteSefaz.Producao ? "Produção" : "Homologação")"
-                                  Label="Ambiente SEFAZ" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField Value="@_empresa?.UltimoNumeronFe.ToString()"
-                                  Label="Último Número NF-e" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField Value="@_empresa?.UltimoNumeronFCe.ToString()"
-                                  Label="Último Número NFC-e" Variant="Variant.Outlined" ReadOnly="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField Value="@(_empresa?.CertificadoValido == true ? "✓ Certificado Válido" : "✗ Sem Certificado")"
-                                  Label="Certificado A1"
-                                  Variant="Variant.Outlined" ReadOnly="true"
-                                  Style="@(_empresa?.CertificadoValido == true ? "color:green" : "color:red")" />
-                </MudItem>
-            </MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField Value="@FormatarCnpj(_empresa.Cnpj)" Label="CNPJ (imutável)"
+                                      Variant="Variant.Outlined" ReadOnly="true"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Lock" />
+                    </MudItem>
+                    <MudItem xs="12" md="8">
+                        <MudTextField @bind-Value="_data.RazaoSocial" Label="Razão Social"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                      Required RequiredError="Razão social é obrigatória"
+                                      Validation="@((string s) => string.IsNullOrWhiteSpace(s) ? "Razão social é obrigatória" : null)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_data.NomeFantasia" Label="Nome Fantasia"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="_data.InscricaoEstadual" Label="Inscrição Estadual"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                      Immediate="true" HelperText="Use 'ISENTO' se não for contribuinte"
+                                      Validation="@((string s) => ValidarIe(s))" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="_data.Cnae" Label="CNAE (7 dígitos)"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                      Immediate="true"
+                                      Validation="@((string s) => ValidarCnae(s))" />
+                    </MudItem>
+
+                    <!-- ====== CONTATO ====== -->
+                    <MudItem xs="12" Class="mt-2">
+                        <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Contato</MudText>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_data.Email" Label="E-mail"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                      Immediate="true"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
+                                      Validation="@((string s) => ValidarEmail(s))" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_data.Telefone" Label="Telefone"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone" />
+                    </MudItem>
+
+                    <!-- ====== ENDEREÇO (CEP-first) ====== -->
+                    <MudItem xs="12" Class="mt-2">
+                        <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Endereço</MudText>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="3">
+                        <CepInput Value="@_data.Cep"
+                                  ValueChanged="@(v => _data.Cep = v)"
+                                  EnderecoEncontrado="OnCepEncontrado"
+                                  Required="true"
+                                  ReadOnly="@(!_canEdit)" />
+                    </MudItem>
+                    <MudItem xs="12" md="9">
+                        <MudTextField @bind-Value="_data.Logradouro" Label="Logradouro"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                      Required RequiredError="Logradouro é obrigatório" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField @bind-Value="_data.Numero" Label="Número"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)" Required />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_data.Bairro" Label="Bairro"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)" Required />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_data.Cidade" Label="Cidade"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)" Required />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudSelect T="string" Value="_data.Uf" ValueChanged="UfChanged"
+                                   Label="UF" Variant="Variant.Outlined" Disabled="@(!_canEdit)"
+                                   Required>
+                            @foreach (var uf in _ufs) { <MudSelectItem Value="@uf">@uf</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="_data.CodigoMunicipio" Label="Cód. Município (IBGE)"
+                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                      Immediate="true" HelperText="7 dígitos — preenchido automaticamente pelo CEP"
+                                      Validation="@((string s) => ValidarCodigoMunicipio(s))" />
+                    </MudItem>
+
+                    <!-- ====== TRIBUTAÇÃO ====== -->
+                    <MudItem xs="12" Class="mt-2">
+                        <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Tributação</MudText>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="_data.RegimeTributario" Label="Regime Tributário"
+                                   Variant="Variant.Outlined" Disabled="@(!_canEdit)">
+                            <MudSelectItem Value="1">Simples Nacional</MudSelectItem>
+                            <MudSelectItem Value="2">Simples Nacional - Excesso Sublimite</MudSelectItem>
+                            <MudSelectItem Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="_data.AmbienteSefaz" Label="Ambiente SEFAZ"
+                                   Variant="Variant.Outlined" Disabled="@(!_canEdit)">
+                            <MudSelectItem Value="1">Produção</MudSelectItem>
+                            <MudSelectItem Value="2">Homologação (Testes)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudExpansionPanels Elevation="0">
+                            <MudExpansionPanel Text="Configuração CSC (NFC-e QR Code)">
+                                <MudGrid>
+                                    <MudItem xs="12">
+                                        <MudAlert Severity="Severity.Info" Dense="true">
+                                            CSC (Código de Segurança do Contribuinte) é fornecido pela SEFAZ da UF e usado
+                                            para gerar o hash do QR Code da NFC-e. Cada UF emite um par diferente para
+                                            produção e homologação.
+                                        </MudAlert>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudTextField @bind-Value="_data.CscId" Label="ID Token (1-6 dígitos)"
+                                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                                      MaxLength="6" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="9">
+                                        <MudTextField @bind-Value="_data.CscToken" Label="Token CSC"
+                                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
+                                                      InputType="@(_mostrarCsc ? InputType.Text : InputType.Password)"
+                                                      Adornment="Adornment.End"
+                                                      AdornmentIcon="@(_mostrarCsc ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                                      OnAdornmentClick="@(() => _mostrarCsc = !_mostrarCsc)"
+                                                      HelperText="@(_empresa?.TemCscToken == true ? "Token já configurado — preencha apenas para substituir" : "Não configurado")" />
+                                    </MudItem>
+                                </MudGrid>
+                            </MudExpansionPanel>
+                            <MudExpansionPanel Text="Numeração e Certificado (somente leitura)">
+                                <MudGrid>
+                                    <MudItem xs="12" md="3">
+                                        <MudTextField Value="@_empresa.UltimoNumeronFe.ToString()"
+                                                      Label="Último Número NF-e" Variant="Variant.Outlined" ReadOnly="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudTextField Value="@_empresa.UltimoNumeronFCe.ToString()"
+                                                      Label="Último Número NFC-e" Variant="Variant.Outlined" ReadOnly="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField Value="@(_empresa.CertificadoValido ? "✓ Certificado Válido" : "✗ Sem certificado configurado")"
+                                                      Label="Certificado A1" Variant="Variant.Outlined" ReadOnly="true"
+                                                      Style="@(_empresa.CertificadoValido ? "color:green" : "color:red")" />
+                                    </MudItem>
+                                </MudGrid>
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
         </MudCardContent>
         <MudCardActions>
-            <MudButton Href="/certificado" StartIcon="@Icons.Material.Filled.Security" Color="Color.Primary" Variant="Variant.Outlined">
+            @if (_canEdit)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           OnClick="Salvar" Disabled="@(!_formValido || _salvando)">
+                    @if (_salvando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                    Salvar Alterações
+                </MudButton>
+            }
+            <MudButton Href="/certificado" StartIcon="@Icons.Material.Filled.Security"
+                       Color="Color.Primary" Variant="Variant.Outlined">
                 Gerenciar Certificado
             </MudButton>
         </MudCardActions>
@@ -71,11 +224,170 @@ else
 @code {
     private EmpresaDetalheDto? _empresa;
     private bool _loading = true;
+    private bool _salvando;
+    private bool _formValido = true;
+    private bool _canEdit;
+    private bool _mostrarCsc;
+    private MudForm? _form;
+    private FormData _data = new();
+    private static readonly List<string> _ufs = IeValidator.UfsValidas().OrderBy(u => u).ToList();
+    private static readonly Regex _emailRegex = new(@"^[^\s@]+@[^\s@]+\.[^\s@]+$", RegexOptions.Compiled);
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        try { _empresa = await EmpresaService.GetEmpresaAsync(); }
-        catch { Snackbar.Add("Erro ao carregar dados da empresa.", Severity.Error); }
-        finally { _loading = false; }
+        if (AuthState != null)
+        {
+            var state = await AuthState;
+            _canEdit = state.User.IsInRole("Admin");
+        }
+
+        try
+        {
+            _empresa = await EmpresaService.GetEmpresaAsync();
+            if (_empresa != null) PreencherForm(_empresa);
+        }
+        catch
+        {
+            Snackbar.Add("Erro ao carregar dados da empresa.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    void PreencherForm(EmpresaDetalheDto e)
+    {
+        _data = new FormData
+        {
+            RazaoSocial = e.RazaoSocial,
+            NomeFantasia = e.NomeFantasia,
+            InscricaoEstadual = e.InscricaoEstadual,
+            Email = e.Email,
+            Telefone = e.Telefone ?? "",
+            Logradouro = e.Logradouro,
+            Numero = e.Numero,
+            Bairro = e.Bairro,
+            Cidade = e.Cidade,
+            Uf = e.Uf,
+            Cep = e.Cep,
+            CodigoMunicipio = e.CodigoMunicipio ?? "",
+            Cnae = e.Cnae ?? "",
+            RegimeTributario = e.RegimeTributario,
+            AmbienteSefaz = e.AmbienteSefaz,
+            CscId = e.CscId ?? "",
+            CscToken = ""   // nunca devolvemos o token; usuário só preenche pra alterar
+        };
+    }
+
+    async Task UfChanged(string nova)
+    {
+        _data.Uf = nova;
+        if (_form != null) await _form.Validate();
+    }
+
+    async Task OnCepEncontrado(EnderecoCep e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.Logradouro)) _data.Logradouro = e.Logradouro;
+        if (!string.IsNullOrWhiteSpace(e.Bairro))     _data.Bairro     = e.Bairro;
+        if (!string.IsNullOrWhiteSpace(e.Cidade))     _data.Cidade     = e.Cidade;
+        if (!string.IsNullOrWhiteSpace(e.Uf))         _data.Uf         = e.Uf;
+        if (!string.IsNullOrWhiteSpace(e.CodigoMunicipio)) _data.CodigoMunicipio = e.CodigoMunicipio;
+        if (_form != null) await _form.Validate();
+        StateHasChanged();
+    }
+
+    async Task Salvar()
+    {
+        if (_form != null) await _form.Validate();
+        if (!_formValido)
+        {
+            Snackbar.Add("Corrija os campos destacados antes de salvar.", Severity.Warning);
+            return;
+        }
+
+        _salvando = true;
+        var dto = new UpdateEmpresaDto(
+            _data.RazaoSocial, _data.NomeFantasia, _data.InscricaoEstadual,
+            _data.Logradouro, _data.Numero, _data.Bairro, _data.Cidade, _data.Uf,
+            _data.Cep, _data.CodigoMunicipio, _data.Telefone, _data.Email,
+            _data.RegimeTributario, _data.AmbienteSefaz,
+            string.IsNullOrWhiteSpace(_data.Cnae) ? null : _data.Cnae,
+            string.IsNullOrWhiteSpace(_data.CscId) ? null : _data.CscId,
+            string.IsNullOrWhiteSpace(_data.CscToken) ? null : _data.CscToken);
+
+        var (ok, erro) = await EmpresaService.AtualizarEmpresaAsync(dto);
+        _salvando = false;
+
+        if (ok)
+        {
+            Snackbar.Add("Dados da empresa atualizados.", Severity.Success);
+            _empresa = await EmpresaService.GetEmpresaAsync();
+            if (_empresa != null) PreencherForm(_empresa);
+        }
+        else
+        {
+            Snackbar.Add(erro ?? "Erro ao salvar.", Severity.Error);
+        }
+    }
+
+    string? ValidarIe(string? ie)
+    {
+        if (string.IsNullOrWhiteSpace(ie)) return "Inscrição estadual é obrigatória (ou 'ISENTO')";
+        if (string.IsNullOrWhiteSpace(_data.Uf)) return "Selecione a UF antes";
+        return IeValidator.Validar(ie, _data.Uf) ? null : $"IE inválida para {_data.Uf}";
+    }
+
+    static string? ValidarCnae(string? cnae)
+    {
+        if (string.IsNullOrWhiteSpace(cnae)) return null;
+        return CnaeValidator.Validar(cnae) ? null : "CNAE deve ter 7 dígitos";
+    }
+
+    static string? ValidarEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+        return _emailRegex.IsMatch(email.Trim()) ? null : "E-mail inválido";
+    }
+
+    static string? ValidarCep(string? cep)
+    {
+        if (string.IsNullOrWhiteSpace(cep)) return "CEP é obrigatório";
+        return cep.Where(char.IsDigit).Count() == 8 ? null : "CEP deve ter 8 dígitos";
+    }
+
+    static string? ValidarCodigoMunicipio(string? codigo)
+    {
+        if (string.IsNullOrWhiteSpace(codigo)) return "Código IBGE é obrigatório";
+        return codigo.Where(char.IsDigit).Count() == 7 ? null : "Código IBGE deve ter 7 dígitos";
+    }
+
+    static string FormatarCnpj(string cnpj)
+    {
+        if (cnpj == null || cnpj.Length != 14) return cnpj ?? "";
+        return $"{cnpj[..2]}.{cnpj[2..5]}.{cnpj[5..8]}/{cnpj[8..12]}-{cnpj[12..]}";
+    }
+
+    class FormData
+    {
+        public string RazaoSocial { get; set; } = "";
+        public string NomeFantasia { get; set; } = "";
+        public string InscricaoEstadual { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Telefone { get; set; } = "";
+        public string Logradouro { get; set; } = "";
+        public string Numero { get; set; } = "";
+        public string Bairro { get; set; } = "";
+        public string Cidade { get; set; } = "";
+        public string Uf { get; set; } = "";
+        public string Cep { get; set; } = "";
+        public string CodigoMunicipio { get; set; } = "";
+        public string Cnae { get; set; } = "";
+        public int RegimeTributario { get; set; } = 1;
+        public int AmbienteSefaz { get; set; } = 2;
+        public string CscId { get; set; } = "";
+        public string CscToken { get; set; } = "";
     }
 }

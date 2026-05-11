@@ -102,10 +102,18 @@ public class DanfeService : IDanfeService
 
             if (!string.IsNullOrEmpty(nota.ChaveAcesso))
             {
-                col.Item().PaddingTop(3).Column(chave =>
+                col.Item().PaddingTop(3).Row(row =>
                 {
-                    chave.Item().Text("Chave de Acesso:").Bold().FontSize(7);
-                    chave.Item().Text(FormatarChaveAcesso(nota.ChaveAcesso!)).FontSize(7);
+                    row.RelativeItem().Column(chave =>
+                    {
+                        chave.Item().Text("Chave de Acesso:").Bold().FontSize(7);
+                        chave.Item().Text(FormatarChaveAcesso(nota.ChaveAcesso!)).FontSize(8).FontFamily("Courier New");
+                        // Code128 da chave (44 dígitos) — formato padrão para impressão de DANFE
+                        chave.Item().PaddingTop(2).Height(35)
+                            .Image(QrCodeService.GerarCode128Png(nota.ChaveAcesso!, 600, 60));
+                        chave.Item().PaddingTop(2).Text("Consulte em www.nfe.fazenda.gov.br/portal").FontSize(6);
+                    });
+                    row.ConstantItem(80).AlignRight().Image(QrCodeService.GerarQrCodePng(QrCodeService.MontarUrlConsultaNFe(nota), 6));
                 });
             }
         });
@@ -229,13 +237,32 @@ public class DanfeService : IDanfeService
 
             if (!string.IsNullOrEmpty(nota.ChaveAcesso))
             {
-                col.Item().PaddingTop(3).Text("Consulte em nfce.fazenda.gov.br").FontSize(6);
-                col.Item().Text(FormatarChaveAcesso(nota.ChaveAcesso!)).FontSize(6);
+                // QR Code obrigatório pra NFC-e (Manual de Padrões Técnicos NFC-e)
+                col.Item().PaddingTop(5).AlignCenter().Text("Consulte pela Chave de Acesso em").FontSize(7).Bold();
+                col.Item().AlignCenter().Text(EnderecoConsultaUf(empresa)).FontSize(6);
+                col.Item().AlignCenter().Text(FormatarChaveAcesso(nota.ChaveAcesso!)).FontSize(7).FontFamily("Courier New");
+
+                col.Item().PaddingTop(3).AlignCenter()
+                    .Width(200).Height(200)
+                    .Image(QrCodeService.GerarQrCodePng(QrCodeService.MontarUrlConsultaNFCe(nota, empresa), 6));
+
+                if (string.IsNullOrEmpty(empresa.CscToken))
+                    col.Item().AlignCenter().Text("(QR sem hash CSC — configure em /empresas)").FontSize(5).Italic();
             }
 
             if (!string.IsNullOrEmpty(nota.Protocolo))
-                col.Item().Text($"Protocolo: {nota.Protocolo}").FontSize(7);
+                col.Item().PaddingTop(3).AlignCenter().Text($"Protocolo: {nota.Protocolo}").FontSize(7);
         });
+    };
+
+    private static string EnderecoConsultaUf(Empresa empresa) => empresa.Uf.ToUpper() switch
+    {
+        "SP" => "www.nfce.fazenda.sp.gov.br",
+        "RJ" => "www.fazenda.rj.gov.br",
+        "MG" => "nfce.fazenda.mg.gov.br",
+        "PR" => "www.fazenda.pr.gov.br/nfce",
+        "RS" => "www.sefaz.rs.gov.br/NFCE",
+        _    => "www.svrs.rs.gov.br/nfce/consulta"
     };
 
     private static string FormatarCnpj(string cnpj)

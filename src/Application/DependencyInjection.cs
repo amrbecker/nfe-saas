@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using NfeSaas.Application.Behaviors;
+using NfeSaas.Application.Services;
 using System.Reflection;
 
 namespace NfeSaas.Application;
@@ -18,6 +19,8 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        services.AddScoped<INcmUpdater, NcmUpdater>();
 
         return services;
     }

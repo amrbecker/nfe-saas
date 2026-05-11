@@ -95,6 +95,21 @@ public enum CstIcms
     Outras = 90
 }
 
+// CSOSN — Código de Situação da Operação no Simples Nacional (Anexo III do RICMS)
+public enum CsosnIcms
+{
+    TributadaComPermissaoCredito = 101,
+    TributadaSemPermissaoCredito = 102,
+    IsencaoIcmsFaixaReceitaBruta = 103,
+    TributadaComPermissaoCreditoSt = 201,
+    TributadaSemPermissaoCreditoSt = 202,
+    IsencaoIcmsFaixaReceitaBrutaSt = 203,
+    Imune = 300,
+    NaoTributada = 400,
+    IcmsCobradoAnteriormentePorSt = 500,
+    Outros = 900
+}
+
 public enum TipoEmissao
 {
     Normal = 1,
@@ -116,4 +131,59 @@ public enum CstPisCofins
     SuspensaoContribuicao = 09,
     Outras = 49,
     NaoTributada = 99
+}
+
+public enum PerfilCliente
+{
+    PequenasEmpresasSimples = 1,
+    EmpresasMistasComSt = 2,
+    ClientesExigentesComplexos = 3
+}
+
+public enum TipoProduto
+{
+    ServicosBasicos = 1,
+    ProdutosSimples = 2,
+    ProdutosComplexos = 3
+}
+
+public enum VolumeNotas
+{
+    Ate100 = 1,
+    De101A1000 = 2,
+    MaisDe1000 = 3
+}
+
+public enum NivelAutomacao
+{
+    Manual = 1,
+    SemiAutomatico = 2,
+    Automatico = 3
+}
+
+public enum NivelRelatorio
+{
+    Basico = 1,
+    Intermediario = 2,
+    Avancado = 3
+}
+
+// Códigos tpEvento SEFAZ (Manual de Eventos NFe).
+// Inutilização não é "evento" técnico (serviço próprio NfeInutilizacao), mas modelamos junto por simplicidade.
+public enum TipoEventoFiscal
+{
+    CartaCorrecao = 110110,
+    Cancelamento = 110111,
+    Inutilizacao = 999000,                   // sintético — Inutilização tem serviço SEFAZ separado
+    ManifestacaoConfirmacao = 210200,
+    ManifestacaoCiencia = 210210,
+    ManifestacaoDesconhecimento = 210220,
+    ManifestacaoOperacaoNaoRealizada = 210240
+}
+
+public enum SituacaoEventoFiscal
+{
+    Registrado = 0,
+    Aceito = 1,
+    Rejeitado = 2
 }

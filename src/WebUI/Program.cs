@@ -31,6 +31,13 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<INotaFiscalService, NotaFiscalService>();
 builder.Services.AddScoped<IEmpresaService, EmpresaService>();
 builder.Services.AddScoped<IEscritorioService, EscritorioService>();
+builder.Services.AddScoped<IConfiguracaoEmpresaService, ConfiguracaoEmpresaService>();
+builder.Services.AddScoped<IProdutoService, ProdutoService>();
+builder.Services.AddScoped<IClienteService, ClienteService>();
+builder.Services.AddScoped<IEventoFiscalService, EventoFiscalService>();
+builder.Services.AddSingleton<IViaCepService, ViaCepService>();
+builder.Services.AddSingleton<IReceitaApiService, ReceitaApiService>();
+builder.Services.AddScoped<INcmService, NcmService>();
 builder.Services.AddScoped<ApiClient>();
 
 await builder.Build().RunAsync();

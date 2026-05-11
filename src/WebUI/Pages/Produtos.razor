@@ -1,0 +1,264 @@
+@page "/produtos"
+@attribute [Authorize]
+@using NfeSaas.Domain.Services
+@inject IProdutoService ProdutoService
+@inject ISnackbar Snackbar
+@inject IDialogService Dialog
+
+<MudText Typo="Typo.h5" Class="mb-4">Produtos</MudText>
+
+<MudStack Row="true" Spacing="2" Class="mb-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="AbrirCadastro" Disabled="@_mostrarForm">
+        Novo Produto
+    </MudButton>
+    <MudCheckBox T="bool" Checked="_apenasAtivos" Label="Apenas ativos" Color="Color.Primary"
+                 CheckedChanged="@(async (bool v) => { _apenasAtivos = v; await Carregar(); })" />
+</MudStack>
+
+@if (_produtos == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_produtos.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Nenhum produto cadastrado.</MudAlert>
+}
+else
+{
+    <MudTable Items="_produtos" Hover="true" Striped="true" Elevation="2" Dense="true">
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Descrição</MudTh>
+            <MudTh>NCM</MudTh>
+            <MudTh>Unid.</MudTh>
+            <MudTh Style="text-align:right">Valor</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh Style="width:160px">Ações</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Codigo</MudTd>
+            <MudTd>@context.Descricao</MudTd>
+            <MudTd>@context.Ncm</MudTd>
+            <MudTd>@context.UnidadeComercial</MudTd>
+            <MudTd Style="text-align:right">@context.ValorUnitarioPadrao.ToString("N2")</MudTd>
+            <MudTd>
+                <MudChip Size="Size.Small" Color="@(context.Ativo ? Color.Success : Color.Error)">
+                    @(context.Ativo ? "Ativo" : "Inativo")
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => Editar(context.Id))" Title="Editar" />
+                <MudIconButton Icon="@(context.Ativo ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                               Size="Size.Small" Color="@(context.Ativo ? Color.Success : Color.Default)"
+                               OnClick="@(() => ToggleAtivo(context.Id))" Title="Ativar/Desativar" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                               OnClick="@(() => Excluir(context.Id))" Title="Excluir" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@if (_mostrarForm)
+{
+    <MudCard Elevation="2" Class="mt-4 pa-4">
+        <MudText Typo="Typo.h6" Class="mb-3">@(_editandoId == null ? "Novo Produto" : "Editar Produto")</MudText>
+        <MudForm @ref="_form" @bind-IsValid="_formValido">
+            <MudGrid>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_data.Codigo" Label="Código interno" Variant="Variant.Outlined"
+                                  Required RequiredError="Código é obrigatório"
+                                  Validation="@((string s) => string.IsNullOrWhiteSpace(s) ? "Código é obrigatório" : null)" />
+                </MudItem>
+                <MudItem xs="12" md="9">
+                    <MudTextField @bind-Value="_data.Descricao" Label="Descrição" Variant="Variant.Outlined"
+                                  Required RequiredError="Descrição é obrigatória"
+                                  Validation="@((string s) => string.IsNullOrWhiteSpace(s) ? "Descrição é obrigatória" : null)" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <NcmAutocomplete Value="@_data.Ncm"
+                                     ValueChanged="@(v => _data.Ncm = v)"
+                                     NcmSelecionado="OnNcmSelecionado"
+                                     Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <CfopSelector Value="@_data.CfopPadrao"
+                                  ValueChanged="@(v => _data.CfopPadrao = v)"
+                                  Operacao="@NfeSaas.Domain.Enums.TipoOperacao.Saida"
+                                  AutoSugerir="false"
+                                  Required="true"
+                                  Label="CFOP padrão de saída" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudTextField @bind-Value="_data.UnidadeComercial" Label="Unidade" Variant="Variant.Outlined"
+                                  Required HelperText="UN, KG, L, etc." />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudNumericField @bind-Value="_data.ValorUnitarioPadrao" Label="Valor unitário" Variant="Variant.Outlined"
+                                     Format="N4" Min="0m" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudSelect @bind-Value="_data.OrigemMercadoria" Label="Origem" Variant="Variant.Outlined">
+                        <MudSelectItem Value="0">0 - Nacional</MudSelectItem>
+                        <MudSelectItem Value="1">1 - Estrangeira (importação)</MudSelectItem>
+                        <MudSelectItem Value="2">2 - Estrangeira (mercado interno)</MudSelectItem>
+                        <MudSelectItem Value="3">3 - Nacional (&gt;40% importado)</MudSelectItem>
+                        <MudSelectItem Value="4">4 - Nacional (PB)</MudSelectItem>
+                        <MudSelectItem Value="5">5 - Nacional (&lt;40% importado)</MudSelectItem>
+                        <MudSelectItem Value="6">6 - Estrangeira (sem similar nac.)</MudSelectItem>
+                        <MudSelectItem Value="7">7 - Estrangeira (sem similar)</MudSelectItem>
+                        <MudSelectItem Value="8">8 - Nacional (&gt;70% importado)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_data.Cest" Label="CEST (opcional, 7 díg.)" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  HelperText="Obrigatório para produtos sujeitos a ST"
+                                  Validation="@((string s) => string.IsNullOrWhiteSpace(s) || s.Where(char.IsDigit).Count() == 7 ? null : "CEST deve ter 7 dígitos")" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_data.CodigoEan" Label="GTIN/EAN (opcional)" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  HelperText="Código de barras (8/12/13/14 dígitos)"
+                                  Validation="@((string s) => string.IsNullOrWhiteSpace(s) || GtinValidator.Validar(s) ? null : "GTIN inválido (check digit)")" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_data.CodigoAnp" Label="Cód. ANP (combustíveis)" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  HelperText="Obrigatório para combustíveis (9 dígitos)"
+                                  Validation="@((string s) => string.IsNullOrWhiteSpace(s) || s.Where(char.IsDigit).Count() == 9 ? null : "Código ANP deve ter 9 dígitos")" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+        <MudStack Row="true" Class="mt-3" Justify="Justify.FlexEnd">
+            <MudButton OnClick="Cancelar">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="Salvar" Disabled="@(!_formValido || _salvando)">
+                @if (_salvando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Salvar
+            </MudButton>
+        </MudStack>
+    </MudCard>
+}
+
+@code {
+    private List<ProdutoResumoDto>? _produtos;
+    private bool _apenasAtivos;
+    private bool _mostrarForm;
+    private bool _formValido;
+    private bool _salvando;
+    private MudForm? _form;
+    private Guid? _editandoId;
+    private FormData _data = new();
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        _produtos = null;
+        StateHasChanged();
+        var lista = await ProdutoService.ListarAsync(_apenasAtivos);
+        _produtos = lista ?? new();
+    }
+
+    void AbrirCadastro()
+    {
+        _editandoId = null;
+        _data = new FormData();
+        _formValido = false;
+        _mostrarForm = true;
+    }
+
+    async Task Editar(Guid id)
+    {
+        var p = await ProdutoService.GetAsync(id);
+        if (p == null) { Snackbar.Add("Produto não encontrado.", Severity.Error); return; }
+        _editandoId = id;
+        _data = new FormData
+        {
+            Codigo = p.Codigo, Descricao = p.Descricao, Ncm = p.Ncm,
+            CfopPadrao = p.CfopPadrao, UnidadeComercial = p.UnidadeComercial,
+            OrigemMercadoria = p.OrigemMercadoria, ValorUnitarioPadrao = p.ValorUnitarioPadrao,
+            Cest = p.Cest ?? "", CodigoEan = p.CodigoEan ?? "", CodigoAnp = p.CodigoAnp ?? ""
+        };
+        _formValido = true;
+        _mostrarForm = true;
+    }
+
+    void Cancelar() { _mostrarForm = false; _editandoId = null; }
+
+    void OnNcmSelecionado(NcmDto ncm)
+    {
+        // Se NCM exige CEST e o usuário ainda não preencheu, abrimos um helper visual no Snackbar.
+        if (ncm.ExigeCest && string.IsNullOrWhiteSpace(_data.Cest))
+            Snackbar.Add($"NCM {ncm.Codigo} exige preenchimento do CEST.", Severity.Warning);
+    }
+
+    async Task Salvar()
+    {
+        if (_form != null) await _form.Validate();
+        if (!_formValido) return;
+
+        _salvando = true;
+        if (_editandoId == null)
+        {
+            var dto = new CreateProdutoDto(_data.Codigo, _data.Descricao, _data.Ncm, _data.CfopPadrao,
+                _data.UnidadeComercial, _data.OrigemMercadoria, _data.ValorUnitarioPadrao,
+                NormalizarOpcional(_data.Cest), NormalizarOpcional(_data.CodigoEan), NormalizarOpcional(_data.CodigoAnp));
+            var (produto, erro) = await ProdutoService.CriarAsync(dto);
+            _salvando = false;
+            if (produto == null) { Snackbar.Add(erro ?? "Erro ao criar produto.", Severity.Error); return; }
+            Snackbar.Add($"Produto '{produto.Descricao}' cadastrado.", Severity.Success);
+        }
+        else
+        {
+            var dto = new UpdateProdutoDto(_data.Codigo, _data.Descricao, _data.Ncm, _data.CfopPadrao,
+                _data.UnidadeComercial, _data.OrigemMercadoria, _data.ValorUnitarioPadrao,
+                NormalizarOpcional(_data.Cest), NormalizarOpcional(_data.CodigoEan), NormalizarOpcional(_data.CodigoAnp));
+            var (produto, erro) = await ProdutoService.AtualizarAsync(_editandoId.Value, dto);
+            _salvando = false;
+            if (produto == null) { Snackbar.Add(erro ?? "Erro ao atualizar.", Severity.Error); return; }
+            Snackbar.Add($"Produto '{produto.Descricao}' atualizado.", Severity.Success);
+        }
+        _mostrarForm = false;
+        await Carregar();
+    }
+
+    async Task ToggleAtivo(Guid id)
+    {
+        var produto = await ProdutoService.ToggleAtivoAsync(id);
+        if (produto == null) { Snackbar.Add("Erro ao alterar status.", Severity.Error); return; }
+        await Carregar();
+    }
+
+    async Task Excluir(Guid id)
+    {
+        var ok = await Dialog.ShowMessageBox("Confirmar exclusão",
+            "Excluir este produto? Esta ação não pode ser desfeita.",
+            yesText: "Excluir", cancelText: "Cancelar");
+        if (ok != true) return;
+        if (await ProdutoService.ExcluirAsync(id))
+        {
+            Snackbar.Add("Produto excluído.", Severity.Success);
+            await Carregar();
+        }
+        else Snackbar.Add("Erro ao excluir.", Severity.Error);
+    }
+
+    static string? NormalizarOpcional(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    class FormData
+    {
+        public string Codigo { get; set; } = "";
+        public string Descricao { get; set; } = "";
+        public string Ncm { get; set; } = "";
+        public string CfopPadrao { get; set; } = "";
+        public string UnidadeComercial { get; set; } = "UN";
+        public int OrigemMercadoria { get; set; } = 0;
+        public decimal ValorUnitarioPadrao { get; set; } = 0;
+        public string Cest { get; set; } = "";
+        public string CodigoEan { get; set; } = "";
+        public string CodigoAnp { get; set; } = "";
+    }
+}

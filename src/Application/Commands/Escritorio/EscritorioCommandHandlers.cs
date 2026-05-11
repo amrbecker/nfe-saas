@@ -73,13 +73,15 @@ public class CreateEmpresaCommandHandler : IRequestHandler<CreateEmpresaCommand,
         if (!IeValidator.UfValida(dto.Uf)) return null;
         if (!IeValidator.Validar(dto.InscricaoEstadual, dto.Uf)) return null;
         if (dto.Cep.Where(char.IsDigit).Count() != 8) return null;
+        if (!string.IsNullOrWhiteSpace(dto.Cnae) && !CnaeValidator.Validar(dto.Cnae)) return null;
 
         var empresa = Empresa.Criar(
             request.EscritorioId,
             dto.RazaoSocial, dto.NomeFantasia, dto.Cnpj, dto.InscricaoEstadual,
             dto.Logradouro, dto.Numero, dto.Bairro, dto.Cidade, dto.Uf,
             dto.Cep, dto.CodigoMunicipio, dto.Telefone, dto.Email,
-            (RegimeTributario)dto.RegimeTributario, (AmbienteSefaz)dto.AmbienteSefaz);
+            (RegimeTributario)dto.RegimeTributario, (AmbienteSefaz)dto.AmbienteSefaz,
+            string.IsNullOrWhiteSpace(dto.Cnae) ? null : dto.Cnae.Trim());
 
         await _empresaRepo.AddAsync(empresa, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);

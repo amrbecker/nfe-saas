@@ -1,0 +1,154 @@
+@page "/inutilizacoes"
+@attribute [Authorize]
+@inject IEventoFiscalService EventoService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h5" Class="mb-2">Inutilização de Numeração</MudText>
+<MudText Typo="Typo.body2" Class="mb-4" Style="color:#666">
+    Use para declarar à SEFAZ que números fiscais não foram utilizados (quebra de sequência por descarte, falha técnica, etc.).
+    Não é possível inutilizar números que já foram usados em notas emitidas.
+</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+           OnClick="@(() => _mostrarForm = true)" Class="mb-4" Disabled="@_mostrarForm">
+    Nova Inutilização
+</MudButton>
+
+@if (_inutilizacoes == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_inutilizacoes.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Nenhuma inutilização registrada.</MudAlert>
+}
+else
+{
+    <MudTable Items="_inutilizacoes" Hover="true" Striped="true" Elevation="2" Dense="true">
+        <HeaderContent>
+            <MudTh>Data</MudTh>
+            <MudTh>Ano</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Série</MudTh>
+            <MudTh>Range</MudTh>
+            <MudTh>Justificativa</MudTh>
+            <MudTh>Situação</MudTh>
+            <MudTh>Protocolo</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.DataEvento.ToString("dd/MM/yyyy HH:mm")</MudTd>
+            <MudTd>@context.AnoInutilizacao</MudTd>
+            <MudTd>@(context.TipoNotaInutilizacao == 55 ? "NF-e" : "NFC-e")</MudTd>
+            <MudTd>@context.SerieInutilizacao</MudTd>
+            <MudTd>@context.NumeroInicialInutilizacao — @context.NumeroFinalInutilizacao</MudTd>
+            <MudTd Style="max-width:300px; word-break:break-word">@TruncarTexto(context.Justificativa, 100)</MudTd>
+            <MudTd>
+                <MudChip Size="Size.Small" Color="@(context.Situacao == 1 ? Color.Success : Color.Error)">
+                    @(context.Situacao == 1 ? "Aceita" : "Rejeitada")
+                </MudChip>
+            </MudTd>
+            <MudTd>@(context.Protocolo ?? context.MotivoRejeicao ?? "—")</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@if (_mostrarForm)
+{
+    <MudCard Elevation="2" Class="mt-4 pa-4">
+        <MudText Typo="Typo.h6" Class="mb-3">Nova Inutilização</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="2">
+                <MudNumericField @bind-Value="_form.Ano" Label="Ano" Variant="Variant.Outlined" Min="2000" Max="@DateTime.Now.Year" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect @bind-Value="_form.TipoNota" Label="Tipo" Variant="Variant.Outlined">
+                    <MudSelectItem Value="55">NF-e (55)</MudSelectItem>
+                    <MudSelectItem Value="65">NFC-e (65)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudNumericField @bind-Value="_form.Serie" Label="Série" Variant="Variant.Outlined" Min="0" Max="999" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudNumericField @bind-Value="_form.NumeroInicial" Label="Nº Inicial" Variant="Variant.Outlined" Min="1" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudNumericField @bind-Value="_form.NumeroFinal" Label="Nº Final" Variant="Variant.Outlined" Min="1" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Justificativa" Label="Justificativa (mín. 15, máx. 255 chars)"
+                              Variant="Variant.Outlined" Lines="3" Counter="255" MaxLength="255" />
+            </MudItem>
+        </MudGrid>
+        <MudStack Row="true" Class="mt-3" Justify="Justify.FlexEnd">
+            <MudButton OnClick="@(() => _mostrarForm = false)">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="EnviarInutilizacao" Disabled="@_enviando">
+                @if (_enviando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Enviar à SEFAZ
+            </MudButton>
+        </MudStack>
+    </MudCard>
+}
+
+@code {
+    private List<EventoFiscalResumoDto>? _inutilizacoes;
+    private bool _mostrarForm;
+    private bool _enviando;
+    private FormData _form = NovoForm();
+
+    static FormData NovoForm() => new()
+    {
+        Ano = DateTime.Now.Year,
+        TipoNota = 55,
+        Serie = 1,
+        NumeroInicial = 1,
+        NumeroFinal = 1,
+        Justificativa = ""
+    };
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        _inutilizacoes = null;
+        StateHasChanged();
+        _inutilizacoes = (await EventoService.ListarInutilizacoesAsync()) ?? new();
+    }
+
+    async Task EnviarInutilizacao()
+    {
+        _enviando = true;
+        try
+        {
+            var dto = new InutilizarDto(_form.Ano, _form.TipoNota, _form.Serie,
+                _form.NumeroInicial, _form.NumeroFinal, _form.Justificativa ?? "");
+            var (evento, erro) = await EventoService.InutilizarAsync(dto);
+            if (evento != null && erro == null)
+            {
+                Snackbar.Add($"Inutilização aceita. Protocolo: {evento.Protocolo}", Severity.Success);
+                _mostrarForm = false;
+                _form = NovoForm();
+                await Carregar();
+            }
+            else
+            {
+                Snackbar.Add(erro ?? "Erro ao inutilizar.", Severity.Error);
+            }
+        }
+        finally { _enviando = false; }
+    }
+
+    static string TruncarTexto(string s, int max) =>
+        string.IsNullOrEmpty(s) || s.Length <= max ? s : s[..max] + "…";
+
+    class FormData
+    {
+        public int Ano { get; set; }
+        public int TipoNota { get; set; }
+        public int Serie { get; set; }
+        public int NumeroInicial { get; set; }
+        public int NumeroFinal { get; set; }
+        public string Justificativa { get; set; } = "";
+    }
+}

@@ -59,7 +59,8 @@ public class GetNotaDetalheQueryHandler : IRequestHandler<GetNotaDetalheQuery, N
             dest, itens, nota.TotalProdutos, nota.TotalDesconto, nota.TotalIcms,
             nota.TotalIcmsSt, nota.TotalPis, nota.TotalCofins, nota.TotalFrete,
             nota.TotalNota, nota.DataEmissao, nota.DataAutorizacao,
-            nota.MotivoRejeicao, nota.InformacoesAdicionais);
+            nota.MotivoRejeicao, nota.InformacoesAdicionais,
+            nota.DataDescarteAutorizado, nota.DentroPeriodoRetencao);
     }
 }
 

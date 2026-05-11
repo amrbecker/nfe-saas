@@ -63,6 +63,155 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.ToTable("audit_logs", (string)null);
                 });
 
+            modelBuilder.Entity("NfeSaas.Domain.Entities.Cliente", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Bairro")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Cep")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<string>("Cidade")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("CodigoMunicipio")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("Complemento")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("CpfCnpj")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("IndicadorIe")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("InscricaoEstadual")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Logradouro")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("NomeFantasia")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("RazaoSocial")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Telefone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("TipoPessoa")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Uf")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "CpfCnpj")
+                        .HasDatabaseName("ix_clientes_empresa_cpfcnpj");
+
+                    b.ToTable("clientes", (string)null);
+                });
+
+            modelBuilder.Entity("NfeSaas.Domain.Entities.ConfiguracaoEmpresa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ConcluidoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("EmiteParaConsumidorFinal")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("NivelAutomacao")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NivelRelatorio")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("OperaIcmsSt")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PerfilCliente")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TipoProduto")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VolumeNotas")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique();
+
+                    b.ToTable("configuracoes_empresa", (string)null);
+                });
+
             modelBuilder.Entity("NfeSaas.Domain.Entities.Empresa", b =>
                 {
                     b.Property<Guid>("Id")
@@ -104,6 +253,10 @@ namespace NfeSaas.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Cnae")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
                     b.Property<string>("Cnpj")
                         .IsRequired()
                         .HasMaxLength(14)
@@ -118,6 +271,14 @@ namespace NfeSaas.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CscId")
+                        .HasMaxLength(6)
+                        .HasColumnType("character varying(6)");
+
+                    b.Property<string>("CscToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -246,6 +407,92 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.ToTable("escritorios", (string)null);
                 });
 
+            modelBuilder.Entity("NfeSaas.Domain.Entities.EventoFiscal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Ambiente")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AnoInutilizacao")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ChaveAcesso")
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("DataEvento")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DataRetorno")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Justificativa")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("MotivoRejeicao")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("NumeroFinalInutilizacao")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("NumeroInicialInutilizacao")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Protocolo")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("SequencialCce")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SerieInutilizacao")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Situacao")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TipoNotaInutilizacao")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UsuarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("XmlEvento")
+                        .HasColumnType("text");
+
+                    b.Property<string>("XmlRetorno")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "ChaveAcesso");
+
+                    b.HasIndex("EmpresaId", "Tipo", "DataEvento");
+
+                    b.ToTable("eventos_fiscais", (string)null);
+                });
+
             modelBuilder.Entity("NfeSaas.Domain.Entities.ItemNotaFiscal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -255,10 +502,19 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.Property<decimal>("AliquotaCofins")
                         .HasColumnType("numeric");
 
+                    b.Property<decimal?>("AliquotaFcp")
+                        .HasColumnType("numeric");
+
                     b.Property<decimal>("AliquotaIcms")
                         .HasColumnType("numeric");
 
                     b.Property<decimal?>("AliquotaIcmsSt")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AliquotaInterestadual")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AliquotaInternaUfDestino")
                         .HasColumnType("numeric");
 
                     b.Property<decimal?>("AliquotaIpi")
@@ -270,6 +526,12 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.Property<decimal>("BaseCalculoCofins")
                         .HasColumnType("numeric");
 
+                    b.Property<decimal?>("BaseCalculoDifal")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("BaseCalculoFcp")
+                        .HasColumnType("numeric");
+
                     b.Property<decimal>("BaseCalculoIcms")
                         .HasPrecision(15, 2)
                         .HasColumnType("numeric(15,2)");
@@ -278,6 +540,9 @@ namespace NfeSaas.Infrastructure.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<decimal?>("BaseCalculoIcmsSt")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("BaseCalculoIpi")
                         .HasColumnType("numeric");
 
                     b.Property<decimal>("BaseCalculoPis")
@@ -301,6 +566,9 @@ namespace NfeSaas.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CsosnIcms")
+                        .HasColumnType("integer");
 
                     b.Property<int>("CstCofins")
                         .HasColumnType("integer");
@@ -355,11 +623,20 @@ namespace NfeSaas.Infrastructure.Migrations
                         .HasPrecision(15, 2)
                         .HasColumnType("numeric(15,2)");
 
+                    b.Property<decimal?>("ValorFcp")
+                        .HasColumnType("numeric");
+
                     b.Property<decimal>("ValorIcms")
                         .HasPrecision(15, 2)
                         .HasColumnType("numeric(15,2)");
 
                     b.Property<decimal?>("ValorIcmsSt")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ValorIcmsUfDestino")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ValorIcmsUfRemetente")
                         .HasColumnType("numeric");
 
                     b.Property<decimal?>("ValorIpi")
@@ -384,6 +661,55 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.ToTable("itens_nota_fiscal", (string)null);
                 });
 
+            modelBuilder.Entity("NfeSaas.Domain.Entities.Ncm", b =>
+                {
+                    b.Property<string>("Codigo")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<decimal?>("AliquotaIpiPadrao")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CategoriaCapitulo")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("ExigeCest")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Posicao")
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
+                    b.Property<string>("VersaoTabela")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Codigo");
+
+                    b.HasIndex("Ativo");
+
+                    b.HasIndex("Codigo")
+                        .HasDatabaseName("ix_ncms_codigo_prefix");
+
+                    b.HasIndex("Posicao");
+
+                    b.ToTable("ncms", (string)null);
+                });
+
             modelBuilder.Entity("NfeSaas.Domain.Entities.NotaFiscal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -401,6 +727,9 @@ namespace NfeSaas.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DataAutorizacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DataCancelamento")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("DataEmissao")
@@ -500,6 +829,9 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.Property<decimal>("TotalDesconto")
                         .HasColumnType("numeric");
 
+                    b.Property<decimal>("TotalFcp")
+                        .HasColumnType("numeric");
+
                     b.Property<decimal>("TotalFrete")
                         .HasColumnType("numeric");
 
@@ -508,6 +840,15 @@ namespace NfeSaas.Infrastructure.Migrations
                         .HasColumnType("numeric(15,2)");
 
                     b.Property<decimal>("TotalIcmsSt")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TotalIcmsUfDestino")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TotalIcmsUfRemetente")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("TotalIpi")
                         .HasColumnType("numeric");
 
                     b.Property<decimal>("TotalNota")
@@ -552,9 +893,85 @@ namespace NfeSaas.Infrastructure.Migrations
 
                     b.HasIndex("ChaveAcesso");
 
-                    b.HasIndex("EmpresaId");
+                    b.HasIndex("EmpresaId", "Tipo", "Serie", "Numero", "Ambiente")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notas_fiscais_dedup");
 
                     b.ToTable("notas_fiscais", (string)null);
+                });
+
+            modelBuilder.Entity("NfeSaas.Domain.Entities.Produto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Cest")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("CfopPadrao")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("CodigoAnp")
+                        .HasMaxLength(9)
+                        .HasColumnType("character varying(9)");
+
+                    b.Property<string>("CodigoEan")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Ncm")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int>("OrigemMercadoria")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UnidadeComercial")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("character varying(6)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ValorUnitarioPadrao")
+                        .HasPrecision(15, 4)
+                        .HasColumnType("numeric(15,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Codigo")
+                        .IsUnique()
+                        .HasDatabaseName("ix_produtos_empresa_codigo");
+
+                    b.ToTable("produtos", (string)null);
                 });
 
             modelBuilder.Entity("NfeSaas.Domain.Entities.Usuario", b =>
@@ -615,6 +1032,28 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.ToTable("usuarios", (string)null);
                 });
 
+            modelBuilder.Entity("NfeSaas.Domain.Entities.Cliente", b =>
+                {
+                    b.HasOne("NfeSaas.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NfeSaas.Domain.Entities.ConfiguracaoEmpresa", b =>
+                {
+                    b.HasOne("NfeSaas.Domain.Entities.Empresa", "Empresa")
+                        .WithOne()
+                        .HasForeignKey("NfeSaas.Domain.Entities.ConfiguracaoEmpresa", "EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("NfeSaas.Domain.Entities.Empresa", b =>
                 {
                     b.HasOne("NfeSaas.Domain.Entities.Escritorio", "Escritorio")
@@ -624,6 +1063,17 @@ namespace NfeSaas.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Escritorio");
+                });
+
+            modelBuilder.Entity("NfeSaas.Domain.Entities.EventoFiscal", b =>
+                {
+                    b.HasOne("NfeSaas.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
                 });
 
             modelBuilder.Entity("NfeSaas.Domain.Entities.ItemNotaFiscal", b =>
@@ -641,6 +1091,17 @@ namespace NfeSaas.Infrastructure.Migrations
                 {
                     b.HasOne("NfeSaas.Domain.Entities.Empresa", "Empresa")
                         .WithMany("Notas")
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NfeSaas.Domain.Entities.Produto", b =>
+                {
+                    b.HasOne("NfeSaas.Domain.Entities.Empresa", "Empresa")
+                        .WithMany()
                         .HasForeignKey("EmpresaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

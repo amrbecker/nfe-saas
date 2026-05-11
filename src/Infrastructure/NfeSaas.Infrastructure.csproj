@@ -9,6 +9,9 @@
     <ProjectReference Include="..\Application\NfeSaas.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Schemas\*.xsd" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -19,6 +22,8 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.3.1" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="7.3.1" />
     <PackageReference Include="QuestPDF" Version="2024.3.3" />
+    <PackageReference Include="QRCoder" Version="1.4.3" />
+    <PackageReference Include="BarcodeLib" Version="3.0.0" />
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />

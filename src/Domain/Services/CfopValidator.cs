@@ -1,3 +1,5 @@
+using NfeSaas.Domain.Enums;
+
 namespace NfeSaas.Domain.Services;
 
 public static class CfopValidator
@@ -103,6 +105,120 @@ public static class CfopValidator
         if (string.IsNullOrWhiteSpace(cfop) || cfop.Length < 1) return false;
         return cfop[0] is '2' or '6' or '3' or '7';
     }
+
+    /// <summary>
+    /// Lista todos os CFOPs do catálogo com seus metadados.
+    /// </summary>
+    public static IReadOnlyDictionary<string, CfopInfo> ListarTodos() => _cfops;
+
+    /// <summary>
+    /// Lista CFOPs filtrados por sentido (saída/entrada) e abrangência (intra/interestadual).
+    /// Por padrão exclui CFOPs de exterior (3xxx/7xxx) — passe <paramref name="exterior"/>=true para incluí-los.
+    /// </summary>
+    public static IEnumerable<CfopOpcao> Listar(bool saida, bool interestadual, bool exterior = false) =>
+        _cfops
+            .Where(kv => kv.Value.Saida == saida && kv.Value.Entrada == !saida && kv.Value.Interestadual == interestadual)
+            .Where(kv => exterior
+                ? kv.Key.StartsWith(saida ? "7" : "3")
+                : !kv.Key.StartsWith("7") && !kv.Key.StartsWith("3"))
+            .Select(kv => new CfopOpcao(kv.Key, kv.Value.Descricao, kv.Value.Interestadual, kv.Value.Saida))
+            .OrderBy(c => c.Codigo);
+
+    /// <summary>
+    /// Sugere CFOPs ordenados por relevância dado o contexto fiscal da operação.
+    /// O primeiro item da lista é a sugestão padrão (~80% dos casos comuns).
+    /// </summary>
+    /// <param name="ufEmitente">UF do emissor (ex.: "SP")</param>
+    /// <param name="ufDestino">UF do destinatário</param>
+    /// <param name="operacao">Saída (venda) ou Entrada (compra/recebimento)</param>
+    /// <param name="finalidade">Normal, Devolução, Complementar, Ajuste</param>
+    /// <param name="exterior">true se a operação é com país estrangeiro (3xxx/7xxx)</param>
+    public static IEnumerable<CfopOpcao> Sugerir(
+        string? ufEmitente, string? ufDestino, TipoOperacao operacao,
+        FinalidadeNota finalidade = FinalidadeNota.Normal, bool exterior = false)
+    {
+        var interestadual = !string.IsNullOrWhiteSpace(ufEmitente) && !string.IsNullOrWhiteSpace(ufDestino)
+                            && !string.Equals(ufEmitente, ufDestino, StringComparison.OrdinalIgnoreCase);
+        var saida = operacao == TipoOperacao.Saida;
+
+        // Define primeiro dígito conforme matriz oficial:
+        //   Saída intra=5, inter=6, exterior=7
+        //   Entrada intra=1, inter=2, exterior=3
+        char prefixo = (saida, interestadual, exterior) switch
+        {
+            (true,  _,    true)  => '7',
+            (true,  true, false) => '6',
+            (true,  false, _)    => '5',
+            (false, _,    true)  => '3',
+            (false, true, false) => '2',
+            (false, false, _)    => '1'
+        };
+
+        // Lista candidatos do prefixo correto.
+        var candidatos = _cfops
+            .Where(kv => kv.Key[0] == prefixo)
+            .Where(kv => saida ? kv.Value.Saida : kv.Value.Entrada)
+            .Select(kv => new CfopOpcao(kv.Key, kv.Value.Descricao, kv.Value.Interestadual, kv.Value.Saida))
+            .ToList();
+
+        // Ordenação por relevância contextual:
+        //   - Devolução prioriza CFOPs da família "2xx" (devolução compra) ou "20x" (devolução venda).
+        //   - Saída normal prioriza venda de mercadoria adquirida (5/6 102) — caso mais frequente.
+        return candidatos.OrderBy(c => RankCfop(c.Codigo, operacao, finalidade)).ThenBy(c => c.Codigo);
+    }
+
+    /// <summary>
+    /// Rank de prioridade do CFOP no contexto da operação — menor = mais provável.
+    /// Match exato por código para evitar ambiguidade entre CFOPs do mesmo grupo (ex.: 5101 vs 5102).
+    /// </summary>
+    private static int RankCfop(string cfop, TipoOperacao op, FinalidadeNota fin)
+    {
+        if (fin == FinalidadeNota.Devolucao)
+        {
+            return cfop switch
+            {
+                // SAÍDA — empresa devolve compra ao fornecedor
+                "5202" or "6202" or "7202" => 0, // Devolução de compra para comercialização (top)
+                "5201" or "6201" or "7201" => 1, // Devolução de compra para industrialização
+                "5411" or "6411"           => 2, // Devolução compra industrialização ZFM
+
+                // ENTRADA — cliente devolve venda à empresa
+                "1202" or "2202" or "3202" => 0, // Devolução de venda de mercadoria
+                "1201" or "2201" or "3201" => 1, // Devolução de venda de produção
+
+                _ => 50
+            };
+        }
+
+        // Operação normal — venda/compra de mercadoria adquirida é o caso esmagador.
+        return cfop switch
+        {
+            // SAÍDA mais comum: revenda de mercadoria adquirida
+            "5102" or "6102" or "7102" => 0,
+            "5101" or "6101" or "7101" => 1,  // venda produção própria
+            "5403" or "6403"           => 2,  // venda c/ ST
+            "5405" or "6405"           => 3,  // venda mercadoria ST adquirida
+            "5910" or "6910"           => 4,  // remessa bonificação
+            "5911" or "6911"           => 5,  // remessa amostra
+            "5551" or "6551"           => 6,  // venda ativo imobilizado
+
+            // ENTRADA mais comum: compra para comercialização
+            "1102" or "2102" or "3102" => 0,
+            "1101" or "2101" or "3101" => 1,  // compra para industrialização
+            "1403" or "2403"           => 2,  // compra c/ ST
+
+            _ => 50
+        };
+    }
 }
 
 public record CfopInfo(string Descricao, bool Saida, bool Entrada, bool Interestadual);
+
+/// <summary>
+/// Representação leve de um CFOP para apresentação na UI.
+/// </summary>
+public record CfopOpcao(string Codigo, string Descricao, bool Interestadual, bool Saida)
+{
+    /// <summary>Texto formatado para exibição: "5.102 — Venda de mercadoria adquirida..."</summary>
+    public string Display => $"{Codigo[..1]}.{Codigo[1..]} — {Descricao}";
+}

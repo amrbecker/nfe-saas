@@ -1,5 +1,7 @@
 @page "/empresas"
 @attribute [Authorize(Roles = "Admin")]
+@using NfeSaas.Domain.Services
+@using System.Text.RegularExpressions
 @inject IEscritorioService EscritorioService
 @inject IAuthService AuthService
 @inject ISnackbar Snackbar
@@ -49,63 +51,109 @@ else
 {
     <MudCard Elevation="2" Class="mt-4 pa-4">
         <MudText Typo="Typo.h6" Class="mb-3">Cadastrar Nova Empresa</MudText>
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_form.RazaoSocial" Label="Razão Social" Variant="Variant.Outlined" Required />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_form.NomeFantasia" Label="Nome Fantasia" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_form.Cnpj" Label="CNPJ (só números)" Variant="Variant.Outlined" Required />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_form.InscricaoEstadual" Label="Inscrição Estadual" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_form.Email" Label="E-mail" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_form.Logradouro" Label="Logradouro" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="2">
-                <MudTextField @bind-Value="_form.Numero" Label="Número" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_form.Bairro" Label="Bairro" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="5">
-                <MudTextField @bind-Value="_form.Cidade" Label="Cidade" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="2">
-                <MudTextField @bind-Value="_form.Uf" Label="UF" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_form.Cep" Label="CEP" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_form.Telefone" Label="Telefone" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_form.CodigoMunicipio" Label="Cód. Município (IBGE)" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudSelect @bind-Value="_form.RegimeTributario" Label="Regime Tributário" Variant="Variant.Outlined">
-                    <MudSelectItem Value="1">Simples Nacional</MudSelectItem>
-                    <MudSelectItem Value="2">Simples Nacional - Excesso</MudSelectItem>
-                    <MudSelectItem Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudSelect @bind-Value="_form.AmbienteSefaz" Label="Ambiente SEFAZ" Variant="Variant.Outlined">
-                    <MudSelectItem Value="1">Produção</MudSelectItem>
-                    <MudSelectItem Value="2">Homologação (Testes)</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-        </MudGrid>
+        <MudForm @ref="_mudForm" @bind-IsValid="_formValido">
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_formData.RazaoSocial" Label="Razão Social" Variant="Variant.Outlined"
+                                  Required RequiredError="Razão social é obrigatória"
+                                  Immediate="true"
+                                  Validation="@((string s) => ValidarObrigatorio(s, "Razão social"))" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_formData.NomeFantasia" Label="Nome Fantasia" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <CnpjInput Value="@_formData.Cnpj"
+                               ValueChanged="@(v => _formData.Cnpj = v)"
+                               EmpresaEncontrada="OnEmpresaEncontradaNaReceita"
+                               Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_formData.InscricaoEstadual" Label="Inscrição Estadual" Variant="Variant.Outlined"
+                                  Required RequiredError="Inscrição estadual é obrigatória (ou 'ISENTO')"
+                                  Immediate="true"
+                                  HelperText="Use 'ISENTO' se a empresa não for contribuinte de ICMS"
+                                  Validation="@((string s) => ValidarIe(s))" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_formData.Email" Label="E-mail" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Validation="@((string s) => ValidarEmail(s))" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_formData.Logradouro" Label="Logradouro" Variant="Variant.Outlined"
+                                  Required RequiredError="Logradouro é obrigatório"
+                                  Validation="@((string s) => ValidarObrigatorio(s, "Logradouro"))" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudTextField @bind-Value="_formData.Numero" Label="Número" Variant="Variant.Outlined"
+                                  Required RequiredError="Número é obrigatório"
+                                  Validation="@((string s) => ValidarObrigatorio(s, "Número"))" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_formData.Bairro" Label="Bairro" Variant="Variant.Outlined"
+                                  Required RequiredError="Bairro é obrigatório"
+                                  Validation="@((string s) => ValidarObrigatorio(s, "Bairro"))" />
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="_formData.Cidade" Label="Cidade" Variant="Variant.Outlined"
+                                  Required RequiredError="Cidade é obrigatória"
+                                  Validation="@((string s) => ValidarObrigatorio(s, "Cidade"))" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudSelect T="string" Value="_formData.Uf" ValueChanged="UfChanged"
+                               Label="UF" Variant="Variant.Outlined"
+                               Required RequiredError="UF é obrigatória"
+                               Validation="@((string s) => ValidarUf(s))">
+                        @foreach (var uf in _ufs)
+                        {
+                            <MudSelectItem Value="@uf">@uf</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_formData.Cep" Label="CEP (só números)" Variant="Variant.Outlined"
+                                  Required RequiredError="CEP é obrigatório"
+                                  Immediate="true"
+                                  Validation="@((string s) => ValidarCep(s))" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_formData.Telefone" Label="Telefone" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  HelperText="10 ou 11 dígitos (com DDD)"
+                                  Validation="@((string s) => ValidarTelefone(s))" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_formData.CodigoMunicipio" Label="Cód. Município (IBGE)" Variant="Variant.Outlined"
+                                  Required RequiredError="Código do município é obrigatório"
+                                  Immediate="true"
+                                  Validation="@((string s) => ValidarCodigoMunicipio(s))" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_formData.Cnae" Label="CNAE (7 dígitos)" Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  HelperText="Código de atividade econômica (opcional)"
+                                  Validation="@((string s) => ValidarCnae(s))" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect @bind-Value="_formData.RegimeTributario" Label="Regime Tributário" Variant="Variant.Outlined">
+                        <MudSelectItem Value="1">Simples Nacional</MudSelectItem>
+                        <MudSelectItem Value="2">Simples Nacional - Excesso</MudSelectItem>
+                        <MudSelectItem Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect @bind-Value="_formData.AmbienteSefaz" Label="Ambiente SEFAZ" Variant="Variant.Outlined">
+                        <MudSelectItem Value="1">Produção</MudSelectItem>
+                        <MudSelectItem Value="2">Homologação (Testes)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
         <MudStack Row="true" Class="mt-3" Justify="Justify.FlexEnd">
             <MudButton OnClick="@(() => _mostrarForm = false)">Cancelar</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Salvar" Disabled="@_salvando">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Salvar"
+                       Disabled="@(_salvando || !_formValido)">
                 @if (_salvando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
                 Salvar
             </MudButton>
@@ -117,7 +165,11 @@ else
     private List<EmpresaResumoDto>? _empresas;
     private bool _mostrarForm;
     private bool _salvando;
-    private FormModel _form = new();
+    private bool _formValido;
+    private MudForm? _mudForm;
+    private FormModel _formData = new();
+    private static readonly List<string> _ufs = IeValidator.UfsValidas().OrderBy(u => u).ToList();
+    private static readonly Regex _emailRegex = new(@"^[^\s@]+@[^\s@]+\.[^\s@]+$", RegexOptions.Compiled);
 
     protected override async Task OnInitializedAsync()
     {
@@ -131,18 +183,54 @@ else
 
     void AbrirCadastro()
     {
-        _form = new FormModel { RegimeTributario = 1, AmbienteSefaz = 2 };
+        _formData = new FormModel { RegimeTributario = 1, AmbienteSefaz = 2 };
+        _formValido = false;
         _mostrarForm = true;
+    }
+
+    async Task UfChanged(string novaUf)
+    {
+        _formData.Uf = novaUf;
+        if (_mudForm != null) await _mudForm.Validate();
+    }
+
+    async Task OnEmpresaEncontradaNaReceita(EmpresaReceita e)
+    {
+        // Não sobrescreve o que o usuário já preencheu manualmente.
+        if (string.IsNullOrWhiteSpace(_formData.RazaoSocial))    _formData.RazaoSocial    = e.RazaoSocial;
+        if (string.IsNullOrWhiteSpace(_formData.NomeFantasia))   _formData.NomeFantasia   = e.NomeFantasia;
+        if (string.IsNullOrWhiteSpace(_formData.Email))          _formData.Email          = e.Email;
+        if (string.IsNullOrWhiteSpace(_formData.Telefone))       _formData.Telefone       = e.Telefone;
+        if (string.IsNullOrWhiteSpace(_formData.Cnae))           _formData.Cnae           = e.Cnae;
+        if (string.IsNullOrWhiteSpace(_formData.Logradouro))     _formData.Logradouro     = e.Logradouro;
+        if (string.IsNullOrWhiteSpace(_formData.Numero))         _formData.Numero         = e.Numero;
+        if (string.IsNullOrWhiteSpace(_formData.Bairro))         _formData.Bairro         = e.Bairro;
+        if (string.IsNullOrWhiteSpace(_formData.Cidade))         _formData.Cidade         = e.Cidade;
+        if (string.IsNullOrWhiteSpace(_formData.Uf))             _formData.Uf             = e.Uf;
+        if (string.IsNullOrWhiteSpace(_formData.Cep))            _formData.Cep            = e.Cep;
+        if (string.IsNullOrWhiteSpace(_formData.CodigoMunicipio)) _formData.CodigoMunicipio = e.CodigoMunicipio;
+
+        Snackbar.Add($"Dados de {e.RazaoSocial} carregados da Receita.", Severity.Success);
+        if (_mudForm != null) await _mudForm.Validate();
+        StateHasChanged();
     }
 
     async Task Salvar()
     {
+        if (_mudForm != null) await _mudForm.Validate();
+        if (!_formValido)
+        {
+            Snackbar.Add("Corrija os campos destacados antes de salvar.", Severity.Warning);
+            return;
+        }
+
         _salvando = true;
         var dto = new CreateEmpresaDto(
-            _form.RazaoSocial, _form.NomeFantasia, _form.Cnpj, _form.InscricaoEstadual,
-            _form.Logradouro, _form.Numero, _form.Bairro, _form.Cidade, _form.Uf,
-            _form.Cep, _form.CodigoMunicipio, _form.Telefone, _form.Email,
-            _form.RegimeTributario, _form.AmbienteSefaz);
+            _formData.RazaoSocial, _formData.NomeFantasia, _formData.Cnpj, _formData.InscricaoEstadual,
+            _formData.Logradouro, _formData.Numero, _formData.Bairro, _formData.Cidade, _formData.Uf,
+            _formData.Cep, _formData.CodigoMunicipio, _formData.Telefone, _formData.Email,
+            _formData.RegimeTributario, _formData.AmbienteSefaz,
+            string.IsNullOrWhiteSpace(_formData.Cnae) ? null : _formData.Cnae);
 
         var (result, erro) = await EscritorioService.CriarEmpresaComResultadoAsync(dto);
         _salvando = false;
@@ -172,6 +260,67 @@ else
         Nav.NavigateTo("/", forceLoad: true);
     }
 
+    static string? ValidarObrigatorio(string? valor, string nomeCampo) =>
+        string.IsNullOrWhiteSpace(valor) ? $"{nomeCampo} é obrigatório" : null;
+
+    static string? ValidarCnpj(string? cnpj)
+    {
+        if (string.IsNullOrWhiteSpace(cnpj)) return "CNPJ é obrigatório";
+        var digitos = CnpjValidator.ApenasDigitos(cnpj);
+        if (digitos.Length != 14) return "CNPJ deve ter 14 dígitos";
+        if (!CnpjValidator.Validar(cnpj)) return "CNPJ inválido (dígitos verificadores não conferem)";
+        return null;
+    }
+
+    string? ValidarIe(string? ie)
+    {
+        if (string.IsNullOrWhiteSpace(ie)) return "Inscrição estadual é obrigatória (ou 'ISENTO')";
+        if (string.IsNullOrWhiteSpace(_formData.Uf)) return "Selecione a UF antes da inscrição estadual";
+        if (!IeValidator.Validar(ie, _formData.Uf))
+            return $"Inscrição estadual inválida para {_formData.Uf}";
+        return null;
+    }
+
+    static string? ValidarUf(string? uf)
+    {
+        if (string.IsNullOrWhiteSpace(uf)) return "UF é obrigatória";
+        if (!IeValidator.UfValida(uf)) return "UF inválida";
+        return null;
+    }
+
+    static string? ValidarEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+        return _emailRegex.IsMatch(email.Trim()) ? null : "E-mail em formato inválido";
+    }
+
+    static string? ValidarCep(string? cep)
+    {
+        if (string.IsNullOrWhiteSpace(cep)) return "CEP é obrigatório";
+        var digitos = new string(cep.Where(char.IsDigit).ToArray());
+        return digitos.Length == 8 ? null : "CEP deve ter 8 dígitos";
+    }
+
+    static string? ValidarTelefone(string? telefone)
+    {
+        if (string.IsNullOrWhiteSpace(telefone)) return null;
+        var digitos = new string(telefone.Where(char.IsDigit).ToArray());
+        return digitos.Length is 10 or 11 ? null : "Telefone deve ter 10 ou 11 dígitos (com DDD)";
+    }
+
+    static string? ValidarCodigoMunicipio(string? codigo)
+    {
+        if (string.IsNullOrWhiteSpace(codigo)) return "Código do município é obrigatório";
+        var digitos = new string(codigo.Where(char.IsDigit).ToArray());
+        return digitos.Length == 7 ? null : "Código IBGE deve ter 7 dígitos";
+    }
+
+    static string? ValidarCnae(string? cnae)
+    {
+        if (string.IsNullOrWhiteSpace(cnae)) return null;
+        return CnaeValidator.Validar(cnae) ? null : "CNAE deve ter 7 dígitos";
+    }
+
     class FormModel
     {
         public string RazaoSocial { get; set; } = "";
@@ -187,6 +336,7 @@ else
         public string CodigoMunicipio { get; set; } = "";
         public string Telefone { get; set; } = "";
         public string Email { get; set; } = "";
+        public string Cnae { get; set; } = "";
         public int RegimeTributario { get; set; } = 1;
         public int AmbienteSefaz { get; set; } = 2;
     }

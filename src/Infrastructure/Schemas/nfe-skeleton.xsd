@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema "skeleton" para NFe versão 4.00 — valida estrutura de alto nível:
+  - Raiz nfeProc ou NFe
+  - infNFe com Id obrigatório (string longa) e versao
+  - Tags obrigatórias: ide, emit, dest, det (1+), total, transp
+  - <det> com atributo nItem obrigatório
+  Conteúdo dos blocos é xs:any (procContents="skip") — não substitui XSDs oficiais SEFAZ.
+
+  Para conformidade fiscal completa, baixe os XSDs oficiais em:
+  https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=/fwLvLUSmU8=
+  e substitua os arquivos *-skeleton.xsd nesta pasta.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns="http://www.portalfiscal.inf.br/nfe"
+           targetNamespace="http://www.portalfiscal.inf.br/nfe"
+           elementFormDefault="qualified">
+
+  <xs:element name="NFe">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="infNFe">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ide">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="emit">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="dest">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="det" minOccurs="1" maxOccurs="990">
+                <xs:complexType>
+                  <xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence>
+                  <xs:attribute name="nItem" type="xs:positiveInteger" use="required"/>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="total">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="transp">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="cobr" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="pag" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="infIntermed" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="infAdic" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="exporta" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="compra" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="cana" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+              <xs:element name="infRespTec" minOccurs="0">
+                <xs:complexType><xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence></xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="versao" use="required">
+              <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="[1-9]\.[0-9]{2}"/></xs:restriction></xs:simpleType>
+            </xs:attribute>
+            <xs:attribute name="Id" use="required">
+              <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="NFe[0-9]{44}"/></xs:restriction></xs:simpleType>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+        <xs:any namespace="http://www.w3.org/2000/09/xmldsig#" processContents="skip" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="nfeProc">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="NFe"/>
+        <xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="versao" use="required">
+        <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="[1-9]\.[0-9]{2}"/></xs:restriction></xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

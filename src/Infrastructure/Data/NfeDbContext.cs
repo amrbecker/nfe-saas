@@ -13,6 +13,11 @@ public class NfeDbContext : DbContext
     public DbSet<NotaFiscal> NotasFiscais => Set<NotaFiscal>();
     public DbSet<ItemNotaFiscal> ItensNotaFiscal => Set<ItemNotaFiscal>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ConfiguracaoEmpresa> ConfiguracoesEmpresa => Set<ConfiguracaoEmpresa>();
+    public DbSet<Produto> Produtos => Set<Produto>();
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+    public DbSet<EventoFiscal> EventosFiscais => Set<EventoFiscal>();
+    public DbSet<Ncm> Ncms => Set<Ncm>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,6 +29,10 @@ public class NfeDbContext : DbContext
         modelBuilder.Entity<Usuario>().HasQueryFilter(u => !u.IsDeleted);
         modelBuilder.Entity<NotaFiscal>().HasQueryFilter(n => !n.IsDeleted);
         modelBuilder.Entity<ItemNotaFiscal>().HasQueryFilter(i => !i.IsDeleted);
+        modelBuilder.Entity<ConfiguracaoEmpresa>().HasQueryFilter(c => !c.IsDeleted);
+        modelBuilder.Entity<Produto>().HasQueryFilter(p => !p.IsDeleted);
+        modelBuilder.Entity<Cliente>().HasQueryFilter(c => !c.IsDeleted);
+        modelBuilder.Entity<EventoFiscal>().HasQueryFilter(e => !e.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)

@@ -1,0 +1,348 @@
+@page "/configuracao-inicial"
+@attribute [Authorize]
+@using NfeSaas.Domain.Enums
+@inject IConfiguracaoEmpresaService ConfigService
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Configuração Inicial - NfeSaas</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="pa-2 pa-sm-4">
+    <MudText Typo="Typo.h5" Class="mb-2">Configuração Inicial</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+        Responda 7 perguntas rápidas para personalizar sua experiência.
+    </MudText>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (!_temEmpresa)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-3">
+            <MudText Typo="Typo.subtitle1"><b>Nenhuma empresa selecionada</b></MudText>
+            <MudText Typo="Typo.body2">
+                Para personalizar o sistema você precisa primeiro cadastrar uma empresa cliente
+                e selecioná-la no topo da tela.
+            </MudText>
+        </MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Apartment"
+                   OnClick="@(() => Nav.NavigateTo("/empresas"))">
+            Cadastrar minha primeira empresa
+        </MudButton>
+    }
+    else
+    {
+        <div class="mb-4">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Passo @(_passoAtual + 1) de @_passos.Count
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Primary">
+                    @((int)Progresso)%
+                </MudText>
+            </div>
+            <MudProgressLinear Value="Progresso" Color="Color.Primary" Rounded="true" Size="Size.Medium" />
+        </div>
+
+        <MudCard Elevation="3" Class="mb-4">
+            <MudCardContent>
+                @{
+                    var passoCorrente = _passos[_passoAtual];
+                    var pergunta = ObterPergunta(passoCorrente);
+                    var selecionado = ObterSelecionado(passoCorrente);
+                }
+                <MudText Typo="Typo.h6" Class="mb-1">@pergunta.Titulo</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@pergunta.Descricao</MudText>
+
+                <div style="display:flex; flex-direction:column; gap:10px">
+                    @foreach (var opt in pergunta.Opcoes)
+                    {
+                        var ativo = selecionado == opt.Valor;
+                        var corBorda = opt.Cor switch
+                        {
+                            Color.Success => "#43a047",
+                            Color.Warning => "#fb8c00",
+                            Color.Error   => "#e53935",
+                            _ => "#1565C0"
+                        };
+                        var capturedValor = opt.Valor;
+                        var capturedPasso = passoCorrente;
+
+                        <MudPaper Elevation="@(ativo ? 4 : 0)"
+                                  Outlined="@(!ativo)"
+                                  Class="pa-3 opcao-card"
+                                  Style="@($"cursor:pointer; transition:all .15s; {(ativo ? $"border:2px solid {corBorda}; background:rgba(21,101,192,0.04)" : "border:1px solid rgba(0,0,0,0.12)")}")"
+                                  @onclick="@(() => DefinirResposta(capturedPasso, capturedValor))">
+                            <div style="display:flex; align-items:center; gap:14px">
+                                <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@opt.Cor" Size="Size.Medium" />
+                                <div style="flex:1; min-width:0">
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight:600">@opt.Titulo</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@opt.Subtitulo</MudText>
+                                </div>
+                                @if (ativo)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Primary" />
+                                }
+                            </div>
+                        </MudPaper>
+                    }
+                </div>
+            </MudCardContent>
+        </MudCard>
+
+        <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       Disabled="@(_passoAtual == 0 || _salvando)"
+                       OnClick="Voltar">
+                Voltar
+            </MudButton>
+
+            @if (_passoAtual < _passos.Count - 1)
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           EndIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="Proximo">
+                    Próximo
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           EndIcon="@Icons.Material.Filled.Check"
+                           Disabled="_salvando"
+                           OnClick="Finalizar">
+                    @(_salvando ? "Salvando..." : "Finalizar")
+                </MudButton>
+            }
+        </div>
+    }
+</MudContainer>
+
+@code {
+    enum Passo { Perfil, TipoProduto, Volume, Automacao, ConsumidorFinal, Icms, Relatorios }
+
+    record OpcaoPergunta(int Valor, Color Cor, string Titulo, string Subtitulo);
+    record PerguntaConfig(string Titulo, string Descricao, List<OpcaoPergunta> Opcoes);
+
+    bool _loading = true;
+    bool _salvando;
+    bool _temEmpresa;
+    int _passoAtual;
+
+    PerfilCliente _perfilCliente = PerfilCliente.PequenasEmpresasSimples;
+    TipoProduto _tipoProduto = TipoProduto.ServicosBasicos;
+    VolumeNotas _volumeNotas = VolumeNotas.Ate100;
+    NivelAutomacao _nivelAutomacao = NivelAutomacao.Manual;
+    bool _emiteParaConsumidorFinal;
+    bool _operaIcmsSt;
+    NivelRelatorio _nivelRelatorio = NivelRelatorio.Basico;
+
+    List<Passo> _passos = new();
+    double Progresso => _passos.Count == 0 ? 0 : (_passoAtual + 1) * 100.0 / _passos.Count;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _temEmpresa = await AuthService.HasEmpresaSelecionadaAsync();
+            if (!_temEmpresa) return;
+
+            try
+            {
+                var existing = await ConfigService.GetAsync();
+                if (existing != null)
+                {
+                    _perfilCliente = (PerfilCliente)existing.PerfilCliente;
+                    _tipoProduto = (TipoProduto)existing.TipoProduto;
+                    _volumeNotas = (VolumeNotas)existing.VolumeNotas;
+                    _nivelAutomacao = (NivelAutomacao)existing.NivelAutomacao;
+                    _emiteParaConsumidorFinal = existing.EmiteParaConsumidorFinal;
+                    _operaIcmsSt = existing.OperaIcmsSt;
+                    _nivelRelatorio = (NivelRelatorio)existing.NivelRelatorio;
+                }
+            }
+            catch { /* configuração ainda não existe — segue com defaults */ }
+
+            ReconstruirPassos();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    void ReconstruirPassos()
+    {
+        _passos.Clear();
+        _passos.Add(Passo.Perfil);
+        _passos.Add(Passo.TipoProduto);
+        _passos.Add(Passo.Volume);
+        _passos.Add(Passo.Automacao);
+        _passos.Add(Passo.ConsumidorFinal);
+        if (DeveExibirIcmsSt())
+            _passos.Add(Passo.Icms);
+        _passos.Add(Passo.Relatorios);
+
+        if (_passoAtual >= _passos.Count) _passoAtual = _passos.Count - 1;
+        if (_passoAtual < 0) _passoAtual = 0;
+    }
+
+    bool DeveExibirIcmsSt() =>
+        _perfilCliente == PerfilCliente.EmpresasMistasComSt ||
+        _perfilCliente == PerfilCliente.ClientesExigentesComplexos ||
+        _tipoProduto == TipoProduto.ProdutosComplexos;
+
+    PerguntaConfig ObterPergunta(Passo passo) => passo switch
+    {
+        Passo.Perfil => new(
+            "Qual o perfil médio dos seus clientes?",
+            "Isso ajuda a determinar o nível de complexidade tributária necessário.",
+            new() {
+                new(1, Color.Success, "Empresas pequenas", "Apenas CNPJ, regime Simples Nacional"),
+                new(2, Color.Warning, "Empresas mistas", "Alguns precisam de ICMS-ST"),
+                new(3, Color.Error,   "Clientes exigentes", "Operações complexas, ST, exterior")
+            }),
+
+        Passo.TipoProduto => new(
+            "Que tipo de produto/serviço você mais emite nota?",
+            "Diferentes tipos de operação exigem campos e tributação distintos.",
+            new() {
+                new(1, Color.Success, "Serviços básicos", "Consultoria, escritório"),
+                new(2, Color.Warning, "Produtos simples", "Comércio local"),
+                new(3, Color.Error,   "Produtos complexos", "Indústria, ST, vários NCMs")
+            }),
+
+        Passo.Volume => new(
+            "Quantas notas fiscais você emite por mês aproximadamente?",
+            "Influencia a recomendação de plano e nível de automação.",
+            new() {
+                new(1, Color.Success, "Até 100 notas", "Volume baixo"),
+                new(2, Color.Warning, "101 a 1.000 notas", "Volume médio"),
+                new(3, Color.Error,   "Mais de 1.000 notas", "Volume alto")
+            }),
+
+        Passo.Automacao => new(
+            "Como você quer emitir notas?",
+            "Define se vamos focar em formulário manual ou integrações.",
+            new() {
+                new(1, Color.Success, "Manual", "Nota por nota, no sistema"),
+                new(2, Color.Warning, "Semi-automático", "Alguns dados salvos para reuso"),
+                new(3, Color.Error,   "Automático", "Integrado com seu sistema (API)")
+            }),
+
+        Passo.ConsumidorFinal => new(
+            "Precisa emitir nota para consumidor final (pessoa física)?",
+            "NFC-e é necessária para vendas a consumidor final no varejo.",
+            new() {
+                new(0, Color.Success, "Não, só para empresas", "Apenas NF-e (modelo 55)"),
+                new(1, Color.Error,   "Sim, também para pessoas físicas", "Emitir NFC-e (modelo 65)")
+            }),
+
+        Passo.Icms => new(
+            "Opera com Substituição Tributária (ICMS-ST)?",
+            "ST exige campos adicionais como MVA, CEST e cálculos específicos.",
+            new() {
+                new(0, Color.Success, "Não", "Operação simples sem ST"),
+                new(1, Color.Error,   "Sim", "Calcular MVA, CEST e ICMS-ST")
+            }),
+
+        Passo.Relatorios => new(
+            "Qual nível de relatório você precisa?",
+            "Define quais módulos de relatório serão exibidos no sistema.",
+            new() {
+                new(1, Color.Success, "Básico", "Ver notas emitidas"),
+                new(2, Color.Warning, "Intermediário", "Relatórios mensais"),
+                new(3, Color.Error,   "Avançado", "SPED, obrigações acessórias")
+            }),
+
+        _ => new("", "", new())
+    };
+
+    int ObterSelecionado(Passo passo) => passo switch
+    {
+        Passo.Perfil           => (int)_perfilCliente,
+        Passo.TipoProduto      => (int)_tipoProduto,
+        Passo.Volume           => (int)_volumeNotas,
+        Passo.Automacao        => (int)_nivelAutomacao,
+        Passo.ConsumidorFinal  => _emiteParaConsumidorFinal ? 1 : 0,
+        Passo.Icms             => _operaIcmsSt ? 1 : 0,
+        Passo.Relatorios       => (int)_nivelRelatorio,
+        _ => 0
+    };
+
+    void DefinirResposta(Passo passo, int valor)
+    {
+        switch (passo)
+        {
+            case Passo.Perfil:           _perfilCliente = (PerfilCliente)valor; break;
+            case Passo.TipoProduto:      _tipoProduto = (TipoProduto)valor; break;
+            case Passo.Volume:           _volumeNotas = (VolumeNotas)valor; break;
+            case Passo.Automacao:        _nivelAutomacao = (NivelAutomacao)valor; break;
+            case Passo.ConsumidorFinal:  _emiteParaConsumidorFinal = valor == 1; break;
+            case Passo.Icms:             _operaIcmsSt = valor == 1; break;
+            case Passo.Relatorios:       _nivelRelatorio = (NivelRelatorio)valor; break;
+        }
+        ReconstruirPassos();
+    }
+
+    void Voltar()
+    {
+        if (_passoAtual > 0) _passoAtual--;
+    }
+
+    void Proximo()
+    {
+        ReconstruirPassos();
+        if (_passoAtual < _passos.Count - 1) _passoAtual++;
+    }
+
+    async Task Finalizar()
+    {
+        _salvando = true;
+        try
+        {
+            if (!DeveExibirIcmsSt()) _operaIcmsSt = false;
+
+            var dto = new ConfiguracaoEmpresaDto(
+                (int)_perfilCliente,
+                (int)_tipoProduto,
+                (int)_volumeNotas,
+                (int)_nivelAutomacao,
+                _emiteParaConsumidorFinal,
+                _operaIcmsSt,
+                (int)_nivelRelatorio,
+                null);
+
+            try
+            {
+                var (result, erro) = await ConfigService.SalvarAsync(dto);
+                if (result == null)
+                {
+                    Snackbar.Add(erro ?? "Não foi possível salvar a configuração.", Severity.Error);
+                    return;
+                }
+                Snackbar.Add("Configuração salva com sucesso!", Severity.Success);
+                Nav.NavigateTo("/");
+            }
+            catch (HttpRequestException ex)
+            {
+                Snackbar.Add($"Falha de comunicação com o servidor: {ex.Message}", Severity.Error);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Erro ao salvar: {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _salvando = false;
+        }
+    }
+}

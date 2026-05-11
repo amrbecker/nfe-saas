@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NfeSaas.Application.Commands.CancelarNFe;
 using NfeSaas.Application.Commands.EmitirNFe;
+using NfeSaas.Application.Commands.EventosFiscaisCommands;
 using NfeSaas.Application.DTOs;
 using NfeSaas.Application.Interfaces;
 using NfeSaas.Application.Queries;
@@ -75,6 +76,61 @@ public class NotaFiscalController : BaseApiController
 
         var bytes = System.Text.Encoding.UTF8.GetBytes(nota.XmlRetorno ?? nota.XmlEnvio);
         return File(bytes, "application/xml", $"NFe_{nota.ChaveAcesso ?? nota.Numero.ToString()}.xml");
+    }
+
+    [HttpPost("{id:guid}/cce")]
+    public async Task<IActionResult> EmitirCce(Guid id, [FromBody] EmitirCceDto dto)
+    {
+        var result = await Mediator.Send(new EmitirCartaCorrecaoCommand(EmpresaId, UserId, id, dto.Correcao));
+        if (result.Evento == null) return BadRequest(new { message = result.Erro });
+        if (result.Erro != null) return BadRequest(new { message = result.Erro, evento = result.Evento });
+        return Ok(result.Evento);
+    }
+
+    [HttpPost("{id:guid}/manifestar")]
+    public async Task<IActionResult> Manifestar(Guid id, [FromBody] ManifestarDto dto,
+        [FromServices] INotaFiscalRepository notaRepo)
+    {
+        var nota = await notaRepo.GetByIdAsync(id);
+        if (nota == null || nota.EmpresaId != EmpresaId) return NotFound();
+        if (string.IsNullOrEmpty(nota.ChaveAcesso))
+            return BadRequest(new { message = "Nota não possui chave de acesso." });
+
+        var result = await Mediator.Send(new ManifestarDestinatarioCommand(EmpresaId, UserId, nota.ChaveAcesso, dto));
+        if (result.Evento == null) return BadRequest(new { message = result.Erro });
+        if (result.Erro != null) return BadRequest(new { message = result.Erro, evento = result.Evento });
+        return Ok(result.Evento);
+    }
+
+    [HttpGet("{id:guid}/eventos")]
+    public async Task<IActionResult> GetEventos(Guid id, [FromServices] INotaFiscalRepository notaRepo)
+    {
+        var nota = await notaRepo.GetByIdAsync(id);
+        if (nota == null || nota.EmpresaId != EmpresaId) return NotFound();
+        if (string.IsNullOrEmpty(nota.ChaveAcesso)) return Ok(new List<EventoFiscalResumoDto>());
+
+        var eventos = await Mediator.Send(new GetEventosPorChaveQuery(EmpresaId, nota.ChaveAcesso));
+        return Ok(eventos);
+    }
+
+    [HttpGet("elegiveis-descarte")]
+    public async Task<IActionResult> GetElegiveisDescarte([FromServices] INotaFiscalRepository notaRepo)
+    {
+        var notas = await notaRepo.GetElegiveisDescarteAsync(EmpresaId);
+        var resultado = notas.Select(n => new
+        {
+            n.Id,
+            n.Tipo,
+            n.Serie,
+            n.Numero,
+            n.ChaveAcesso,
+            n.Situacao,
+            n.DataEmissao,
+            n.DataAutorizacao,
+            n.DataCancelamento,
+            DataDescarteAutorizado = n.DataDescarteAutorizado
+        });
+        return Ok(resultado);
     }
 
     [HttpGet("dashboard")]

@@ -1,6 +1,7 @@
 @page "/notas/{Id:guid}"
 @attribute [Authorize]
 @inject INotaFiscalService NotaService
+@inject IEventoFiscalService EventoService
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
@@ -35,6 +36,13 @@ else
                         {
                             <MudChip Color="Color.Warning" Size="Size.Small">HOMOLOGAÇÃO</MudChip>
                         }
+                        @if (_nota.DentroPeriodoRetencao && _nota.DataDescarteAutorizado.HasValue)
+                        {
+                            <MudChip Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Lock"
+                                     Title="@($"Documento fiscal sob retenção legal até {_nota.DataDescarteAutorizado:dd/MM/yyyy}")">
+                                Imutável
+                            </MudChip>
+                        }
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -66,6 +74,10 @@ else
                     {
                         <MudButton StartIcon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error"
                                    OnClick="DownloadDanfe" Variant="Variant.Outlined">DANFE PDF</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.EditNote" Color="Color.Primary"
+                                   OnClick="@(() => _mostrarDialogCce = true)" Variant="Variant.Outlined">Carta de Correção</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.HowToVote" Color="Color.Secondary"
+                                   OnClick="@(() => _mostrarDialogManif = true)" Variant="Variant.Outlined">Manifestar</MudButton>
                     }
                     <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Href="/notas" Variant="Variant.Text">Voltar</MudButton>
                 </MudCardActions>
@@ -111,6 +123,40 @@ else
             </MudCard>
         </MudItem>
 
+        <!-- Eventos fiscais -->
+        @if (_eventos != null && _eventos.Count > 0)
+        {
+            <MudItem xs="12">
+                <MudCard Elevation="2">
+                    <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1"><b>Eventos Fiscais</b></MudText></CardHeaderContent></MudCardHeader>
+                    <MudCardContent>
+                        <MudTable Items="_eventos" Dense="true" Striped="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Data</MudTh>
+                                <MudTh>Tipo</MudTh>
+                                <MudTh>Sequencial</MudTh>
+                                <MudTh>Descrição/Justificativa</MudTh>
+                                <MudTh>Situação</MudTh>
+                                <MudTh>Protocolo</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.DataEvento.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                                <MudTd>@NomeTipoEvento(context.Tipo)</MudTd>
+                                <MudTd>@(context.SequencialCce?.ToString() ?? "—")</MudTd>
+                                <MudTd Style="max-width:400px; word-break:break-word">@TruncarTexto(context.Justificativa, 120)</MudTd>
+                                <MudTd>
+                                    <MudChip Size="Size.Small" Color="@(context.Situacao == 1 ? Color.Success : Color.Error)">
+                                        @(context.Situacao == 1 ? "Aceito" : "Rejeitado")
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>@(context.Protocolo ?? context.MotivoRejeicao ?? "—")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+
         <!-- Itens -->
         <MudItem xs="12">
             <MudCard Elevation="2">
@@ -152,13 +198,75 @@ else
             </MudCard>
         </MudItem>
     </MudGrid>
+
+    <!-- Dialog CC-e -->
+    <MudDialog @bind-IsVisible="_mostrarDialogCce" Options="@(new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true })">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Carta de Correção (CC-e)</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudAlert Severity="Severity.Warning" Class="mb-3" Dense="true">
+                <b>Permitido corrigir:</b> CFOP (sem alterar natureza da operação), endereço do destinatário, dados complementares.<br/>
+                <b>NÃO permitido:</b> valores fiscais (base de cálculo, alíquota, valor de imposto), CNPJ do destinatário, quantidade, data de emissão.
+            </MudAlert>
+            <MudTextField @bind-Value="_cceCorrecao" Label="Texto da correção (mín. 15, máx. 1000 caracteres)"
+                          Variant="Variant.Outlined" Lines="6" Counter="1000" MaxLength="1000"
+                          Immediate="true" />
+            <MudText Typo="Typo.caption" Color="Color.Default" Class="mt-2">
+                Limite: 20 CC-e por NF-e, dentro de 30 dias após autorização.
+            </MudText>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _mostrarDialogCce = false)">Cancelar</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                       OnClick="EnviarCce" Disabled="@(_enviandoEvento || (_cceCorrecao?.Trim().Length ?? 0) < 15)">
+                @if (_enviandoEvento) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Enviar à SEFAZ
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+
+    <!-- Dialog Manifestação -->
+    <MudDialog @bind-IsVisible="_mostrarDialogManif" Options="@(new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true })">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Manifestação do Destinatário</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudSelect @bind-Value="_manifTipo" Label="Tipo de manifestação" Variant="Variant.Outlined">
+                <MudSelectItem Value="210200">Confirmação da Operação</MudSelectItem>
+                <MudSelectItem Value="210210">Ciência da Operação</MudSelectItem>
+                <MudSelectItem Value="210220">Desconhecimento da Operação</MudSelectItem>
+                <MudSelectItem Value="210240">Operação Não Realizada</MudSelectItem>
+            </MudSelect>
+            @if (_manifTipo == 210240)
+            {
+                <MudTextField @bind-Value="_manifJust" Label="Justificativa (obrigatória, 15-255 chars)"
+                              Variant="Variant.Outlined" Lines="3" Counter="255" MaxLength="255" Class="mt-3" />
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _mostrarDialogManif = false)">Cancelar</MudButton>
+            <MudButton Color="Color.Secondary" Variant="Variant.Filled"
+                       OnClick="EnviarManifestacao" Disabled="@_enviandoEvento">
+                @if (_enviandoEvento) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Enviar
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
 }
 
 @code {
     [Parameter] public Guid Id { get; set; }
 
     private NfeSaas.Application.DTOs.NotaFiscalDetalheDto? _nota;
+    private List<EventoFiscalResumoDto>? _eventos;
     private bool _loading = true;
+    private bool _mostrarDialogCce;
+    private bool _mostrarDialogManif;
+    private bool _enviandoEvento;
+    private string _cceCorrecao = "";
+    private int _manifTipo = 210210; // Ciência por padrão
+    private string _manifJust = "";
 
     private List<BreadcrumbItem> _breadcrumbs = new()
     {
@@ -172,6 +280,7 @@ else
         try
         {
             _nota = await NotaService.GetNotaAsync(Id);
+            _eventos = await EventoService.ListarPorNotaAsync(Id);
         }
         catch
         {
@@ -182,6 +291,71 @@ else
             _loading = false;
         }
     }
+
+    async Task EnviarCce()
+    {
+        var texto = _cceCorrecao?.Trim() ?? "";
+        if (texto.Length < 15) { Snackbar.Add("Mínimo 15 caracteres.", Severity.Warning); return; }
+        _enviandoEvento = true;
+        try
+        {
+            var (evento, erro) = await EventoService.EmitirCceAsync(Id, new EmitirCceDto(texto));
+            if (evento != null && erro == null)
+            {
+                Snackbar.Add($"CC-e #{evento.SequencialCce} aceita. Protocolo: {evento.Protocolo}", Severity.Success);
+                _mostrarDialogCce = false;
+                _cceCorrecao = "";
+                _eventos = await EventoService.ListarPorNotaAsync(Id);
+            }
+            else
+            {
+                Snackbar.Add(erro ?? "Erro ao enviar CC-e.", Severity.Error);
+            }
+        }
+        finally { _enviandoEvento = false; }
+    }
+
+    async Task EnviarManifestacao()
+    {
+        if (_manifTipo == 210240 && (_manifJust?.Trim().Length ?? 0) < 15)
+        {
+            Snackbar.Add("Justificativa obrigatória (mín. 15 chars) para Operação Não Realizada.", Severity.Warning);
+            return;
+        }
+        _enviandoEvento = true;
+        try
+        {
+            var dto = new ManifestarDto(_manifTipo, _manifJust);
+            var (evento, erro) = await EventoService.ManifestarAsync(Id, dto);
+            if (evento != null && erro == null)
+            {
+                Snackbar.Add($"Manifestação registrada. Protocolo: {evento.Protocolo}", Severity.Success);
+                _mostrarDialogManif = false;
+                _manifJust = "";
+                _eventos = await EventoService.ListarPorNotaAsync(Id);
+            }
+            else
+            {
+                Snackbar.Add(erro ?? "Erro ao manifestar.", Severity.Error);
+            }
+        }
+        finally { _enviandoEvento = false; }
+    }
+
+    static string NomeTipoEvento(int tipo) => tipo switch
+    {
+        110110 => "Carta de Correção",
+        110111 => "Cancelamento",
+        999000 => "Inutilização",
+        210200 => "Manif: Confirmação",
+        210210 => "Manif: Ciência",
+        210220 => "Manif: Desconhecimento",
+        210240 => "Manif: Não Realizada",
+        _ => $"Evento {tipo}"
+    };
+
+    static string TruncarTexto(string s, int max) =>
+        string.IsNullOrEmpty(s) || s.Length <= max ? s : s[..max] + "…";
 
     async Task DownloadDanfe()
     {

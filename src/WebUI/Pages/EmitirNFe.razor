@@ -1,6 +1,9 @@
 @page "/emitir"
 @attribute [Authorize]
 @inject INotaFiscalService NotaService
+@inject IEmpresaService EmpresaService
+@inject IClienteService ClienteService
+@inject IProdutoService ProdutoService
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
@@ -37,7 +40,30 @@
     <!-- STEP 2: Destinatário -->
     <MudTabPanel Text="Destinatário" Icon="@Icons.Material.Filled.Person">
         <MudGrid>
-            <MudItem xs="12" md="4">
+            <MudItem xs="12">
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Color="Color.Primary" />
+                    <MudAutocomplete T="ClienteResumoDto" Label="Selecionar cliente cadastrado (ou preencha manualmente abaixo)"
+                                     Value="_clienteSelecionado"
+                                     ValueChanged="OnClienteSelecionado"
+                                     SearchFunc="@BuscarClientes"
+                                     ToStringFunc="@(c => c == null ? "" : (string.IsNullOrWhiteSpace(c.NomeFantasia) ? c.RazaoSocial : $"{c.NomeFantasia} — {c.RazaoSocial}") + (string.IsNullOrWhiteSpace(c.CpfCnpj) ? "" : $" ({c.CpfCnpj})"))"
+                                     Variant="Variant.Outlined" Clearable="true" ResetValueOnEmptyText="true"
+                                     MinCharacters="0" CoerceValue="false" CoerceText="false" />
+                    @if (_clienteSelecionado != null)
+                    {
+                        <MudButton Size="Size.Small" Color="Color.Default" OnClick="LimparDestinatario"
+                                   StartIcon="@Icons.Material.Filled.Clear">Limpar</MudButton>
+                    }
+                </MudStack>
+            </MudItem>
+
+            <!-- ====== IDENTIFICAÇÃO ====== -->
+            <MudItem xs="12" Class="mt-2">
+                <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Identificação</MudText>
+                <MudDivider Class="mb-2" />
+            </MudItem>
+            <MudItem xs="12" md="3">
                 <MudSelect @bind-Value="_tipoPessoa" Label="Tipo de Pessoa" Variant="Variant.Outlined">
                     <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoPessoa.PessoaFisica">Pessoa Física (CPF)</MudSelectItem>
                     <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoPessoa.PessoaJuridica">Pessoa Jurídica (CNPJ)</MudSelectItem>
@@ -48,16 +74,37 @@
                               Label="@(_tipoPessoa == NfeSaas.Domain.Enums.TipoPessoa.PessoaFisica ? "CPF" : "CNPJ")"
                               Variant="Variant.Outlined" />
             </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_destEmail" Label="E-mail" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="6">
+            <MudItem xs="12" md="5">
                 <MudTextField @bind-Value="_destNome" Label="Nome / Razão Social" Variant="Variant.Outlined" Required />
             </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_destIe" Label="Inscrição Estadual" Variant="Variant.Outlined" />
+
+            <!-- ====== CONTATO ====== -->
+            <MudItem xs="12" Class="mt-2">
+                <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Contato</MudText>
+                <MudDivider Class="mb-2" />
             </MudItem>
             <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_destEmail" Label="E-mail" Variant="Variant.Outlined"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_destIe" Label="Inscrição Estadual"
+                              Variant="Variant.Outlined"
+                              HelperText="Em branco se não contribuinte" />
+            </MudItem>
+
+            <!-- ====== ENDEREÇO (CEP-first) ====== -->
+            <MudItem xs="12" Class="mt-2">
+                <MudText Typo="Typo.overline" Style="color:#1565C0;letter-spacing:1px">Endereço</MudText>
+                <MudDivider Class="mb-2" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <CepInput Value="@_destCep"
+                          ValueChanged="@(v => _destCep = v)"
+                          EnderecoEncontrado="OnCepDestinatarioEncontrado"
+                          Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="9">
                 <MudTextField @bind-Value="_destLogradouro" Label="Logradouro" Variant="Variant.Outlined" />
             </MudItem>
             <MudItem xs="12" md="2">
@@ -72,11 +119,10 @@
             <MudItem xs="12" md="2">
                 <MudTextField @bind-Value="_destUf" Label="UF" Variant="Variant.Outlined" MaxLength="2" />
             </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_destCep" Label="CEP" Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_destCodigoMun" Label="Código Município (IBGE)" Variant="Variant.Outlined" />
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_destCodigoMun" Label="Código Município (IBGE)"
+                              Variant="Variant.Outlined"
+                              HelperText="7 dígitos — preenchido automaticamente pelo CEP" />
             </MudItem>
         </MudGrid>
     </MudTabPanel>
@@ -92,9 +138,20 @@
             <MudCard Elevation="1" Class="mb-3 pa-3">
                 <MudGrid>
                     <MudItem xs="12">
-                        <MudText Typo="Typo.subtitle2">Item @(idx + 1)</MudText>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                       OnClick="@(() => RemoverItem(idx))" />
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.subtitle2">Item @(idx + 1)</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                           OnClick="@(() => RemoverItem(idx))" />
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudAutocomplete T="ProdutoResumoDto" Label="Selecionar produto cadastrado (ou preencha manualmente)"
+                                         Value="item.ProdutoSelecionado"
+                                         ValueChanged="@(async p => await OnProdutoSelecionado(item, p))"
+                                         SearchFunc="@BuscarProdutos"
+                                         ToStringFunc="@(p => p == null ? "" : $"{p.Codigo} — {p.Descricao}")"
+                                         Variant="Variant.Outlined" Clearable="true" ResetValueOnEmptyText="true"
+                                         MinCharacters="0" CoerceValue="false" CoerceText="false" />
                     </MudItem>
                     <MudItem xs="12" md="3">
                         <MudTextField @bind-Value="item.CodigoProduto" Label="Código" Variant="Variant.Outlined" Required />
@@ -102,12 +159,29 @@
                     <MudItem xs="12" md="5">
                         <MudTextField @bind-Value="item.Descricao" Label="Descrição" Variant="Variant.Outlined" Required />
                     </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudTextField @bind-Value="item.Ncm" Label="NCM" Variant="Variant.Outlined" Required />
+                    <MudItem xs="12" md="4">
+                        <NcmAutocomplete Value="@item.Ncm"
+                                         ValueChanged="@(v => { item.Ncm = v; ValidarConsistenciaItem(item); })"
+                                         NcmSelecionado="@(n => OnNcmDoItem(item, n))"
+                                         Required="true" />
                     </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudTextField @bind-Value="item.Cfop" Label="CFOP" Variant="Variant.Outlined" Required />
+                    <MudItem xs="12" md="3">
+                        <CfopSelector Value="@item.Cfop"
+                                      ValueChanged="@(v => { item.Cfop = v; ValidarConsistenciaItem(item); })"
+                                      UfEmitente="@(_empresa?.Uf ?? "")"
+                                      UfDestino="@_destUf"
+                                      Operacao="@_tipoOperacao"
+                                      Finalidade="@_finalidade"
+                                      Required="true" />
                     </MudItem>
+                    @if (!string.IsNullOrEmpty(item.AvisoConsistencia))
+                    {
+                        <MudItem xs="12">
+                            <MudAlert Severity="Severity.Warning" Dense="true" Class="my-1">
+                                <MudText Typo="Typo.caption"><b>Item @(idx + 1):</b> @item.AvisoConsistencia</MudText>
+                            </MudAlert>
+                        </MudItem>
+                    }
                     <MudItem xs="12" md="2">
                         <MudTextField @bind-Value="item.Unidade" Label="UN" Variant="Variant.Outlined" />
                     </MudItem>
@@ -124,6 +198,38 @@
                         <MudText Typo="Typo.body2" Class="mt-3">Total: R$ @((item.Quantidade * item.ValorUnitario - item.Desconto).ToString("N2"))</MudText>
                     </MudItem>
                     <!-- Impostos -->
+                    <MudItem xs="12" md="3">
+                        @if (_isSimples)
+                        {
+                            <MudSelect @bind-Value="item.CsosnIcms" Label="CSOSN" Variant="Variant.Outlined">
+                                <MudSelectItem Value="@(101)">101 - Tributada c/ crédito</MudSelectItem>
+                                <MudSelectItem Value="@(102)">102 - Tributada s/ crédito</MudSelectItem>
+                                <MudSelectItem Value="@(103)">103 - Isenção (faixa receita)</MudSelectItem>
+                                <MudSelectItem Value="@(201)">201 - Tributada c/ crédito + ST</MudSelectItem>
+                                <MudSelectItem Value="@(202)">202 - Tributada s/ crédito + ST</MudSelectItem>
+                                <MudSelectItem Value="@(203)">203 - Isenção + ST</MudSelectItem>
+                                <MudSelectItem Value="@(300)">300 - Imune</MudSelectItem>
+                                <MudSelectItem Value="@(400)">400 - Não tributada</MudSelectItem>
+                                <MudSelectItem Value="@(500)">500 - ICMS-ST cobrado anteriormente</MudSelectItem>
+                                <MudSelectItem Value="@(900)">900 - Outros</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudSelect @bind-Value="item.CstIcms" Label="CST ICMS" Variant="Variant.Outlined">
+                                <MudSelectItem Value="@(0)">00 - Tributada integralmente</MudSelectItem>
+                                <MudSelectItem Value="@(10)">10 - Tributada e ST</MudSelectItem>
+                                <MudSelectItem Value="@(20)">20 - Com redução de BC</MudSelectItem>
+                                <MudSelectItem Value="@(30)">30 - Isenta ou não tributada e ST</MudSelectItem>
+                                <MudSelectItem Value="@(40)">40 - Isenta</MudSelectItem>
+                                <MudSelectItem Value="@(50)">50 - Suspensão</MudSelectItem>
+                                <MudSelectItem Value="@(51)">51 - Diferimento</MudSelectItem>
+                                <MudSelectItem Value="@(60)">60 - ICMS-ST cobrado anteriormente</MudSelectItem>
+                                <MudSelectItem Value="@(70)">70 - Com redução de BC e ST</MudSelectItem>
+                                <MudSelectItem Value="@(90)">90 - Outras</MudSelectItem>
+                            </MudSelect>
+                        }
+                    </MudItem>
                     <MudItem xs="12" md="2">
                         <MudNumericField @bind-Value="item.AliquotaIcms" Label="Alíq. ICMS %" Variant="Variant.Outlined" Min="0m" Max="100m" />
                     </MudItem>
@@ -132,6 +238,28 @@
                     </MudItem>
                     <MudItem xs="12" md="2">
                         <MudNumericField @bind-Value="item.AliquotaCofins" Label="Alíq. COFINS %" Variant="Variant.Outlined" Min="0m" Max="100m" />
+                    </MudItem>
+                    <!-- Tributação avançada -->
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.AliquotaIpi" Label="Alíq. IPI %" Variant="Variant.Outlined" Min="0m" Max="100m"
+                                         HelperText="0 = sem IPI" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudSelect @bind-Value="item.CstIpi" Label="CST IPI" Variant="Variant.Outlined" Disabled="@(item.AliquotaIpi <= 0)">
+                            <MudSelectItem Value="@("50")">50 - Saída tributada</MudSelectItem>
+                            <MudSelectItem Value="@("49")">49 - Outras entradas</MudSelectItem>
+                            <MudSelectItem Value="@("99")">99 - Outras saídas</MudSelectItem>
+                            <MudSelectItem Value="@("00")">00 - Entrada c/ recup. crédito</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField @bind-Value="item.AliquotaFcp" Label="Alíq. FCP %" Variant="Variant.Outlined" Min="0m" Max="10m"
+                                         HelperText="CE/RJ típico 2%" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField @bind-Value="item.AliquotaInternaUfDestino"
+                                         Label="Alíq. interna UF destino % (DIFAL)" Variant="Variant.Outlined" Min="0m" Max="100m"
+                                         HelperText="Preencha para interestadual a não-contribuinte" />
                     </MudItem>
                 </MudGrid>
             </MudCard>
@@ -184,6 +312,17 @@
         <MudAlert Severity="Severity.Info" Class="mb-3">
             Revise os dados antes de emitir. Após a autorização pela SEFAZ, a nota não pode ser editada.
         </MudAlert>
+        @if (!string.IsNullOrEmpty(_erroEmissao))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3" ShowCloseIcon="true"
+                      CloseIconClicked="@(() => _erroEmissao = null)">
+                <MudText Typo="Typo.subtitle2"><b>Não foi possível emitir a nota fiscal</b></MudText>
+                <MudText Typo="Typo.body2" Style="white-space:pre-wrap; word-break:break-word">@_erroEmissao</MudText>
+                <MudText Typo="Typo.caption" Class="mt-2" Style="color:#555">
+                    Corrija o(s) dado(s) indicado(s) acima e tente emitir novamente.
+                </MudText>
+            </MudAlert>
+        }
         <MudGrid>
             <MudItem xs="12" md="6">
                 <MudText><b>Tipo:</b> @NomeTipo(_tipo) | <b>Operação:</b> @NomeOperacao(_tipoOperacao) | <b>Finalidade:</b> @NomeFinalidade(_finalidade)</MudText>
@@ -242,15 +381,153 @@
     private string _formaPagamento = "01";
     private string _infoAdicionais = "";
     private bool _emitindo;
+    private string? _erroEmissao;
 
     // Itens
     private List<ItemForm> _itens = new();
 
-    void AdicionarItem() => _itens.Add(new ItemForm());
+    // Cadastros master
+    private List<ClienteResumoDto> _clientes = new();
+    private List<ProdutoResumoDto> _produtos = new();
+    private ClienteResumoDto? _clienteSelecionado;
+    private EmpresaDetalheDto? _empresa;
+    private bool _isSimples;
+    // CSOSN default por regime — 102 (tributada s/ crédito) é a mais comum em Simples
+    private const int CsosnPadraoSimples = 102;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var empresaTask = EmpresaService.GetEmpresaAsync();
+        var clientesTask = ClienteService.ListarAsync(apenasAtivos: true);
+        var produtosTask = ProdutoService.ListarAsync(apenasAtivos: true);
+        await Task.WhenAll(empresaTask, clientesTask, produtosTask);
+        _empresa = empresaTask.Result;
+        _clientes = clientesTask.Result ?? new();
+        _produtos = produtosTask.Result ?? new();
+        // RegimeTributario: 1=Simples, 2=Simples Excesso Sublimite, 3=Regime Normal
+        _isSimples = _empresa != null && _empresa.RegimeTributario != 3;
+    }
+
+    Task<IEnumerable<ClienteResumoDto>> BuscarClientes(string? termo)
+    {
+        if (string.IsNullOrWhiteSpace(termo))
+            return Task.FromResult<IEnumerable<ClienteResumoDto>>(_clientes.Take(20));
+        var t = termo.Trim();
+        return Task.FromResult(_clientes.Where(c =>
+            (c.RazaoSocial?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (c.NomeFantasia?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (c.CpfCnpj?.Contains(t) ?? false)).Take(20));
+    }
+
+    Task<IEnumerable<ProdutoResumoDto>> BuscarProdutos(string? termo)
+    {
+        if (string.IsNullOrWhiteSpace(termo))
+            return Task.FromResult<IEnumerable<ProdutoResumoDto>>(_produtos.Take(20));
+        var t = termo.Trim();
+        return Task.FromResult(_produtos.Where(p =>
+            p.Codigo.Contains(t, StringComparison.OrdinalIgnoreCase) ||
+            p.Descricao.Contains(t, StringComparison.OrdinalIgnoreCase) ||
+            p.Ncm.Contains(t)).Take(20));
+    }
+
+    async Task OnClienteSelecionado(ClienteResumoDto? cliente)
+    {
+        _clienteSelecionado = cliente;
+        if (cliente == null) return;
+
+        var detalhe = await ClienteService.GetAsync(cliente.Id);
+        if (detalhe == null) { Snackbar.Add("Erro ao carregar cliente.", Severity.Error); return; }
+
+        _tipoPessoa = (NfeSaas.Domain.Enums.TipoPessoa)detalhe.TipoPessoa;
+        _destCpfCnpj = detalhe.CpfCnpj ?? "";
+        _destNome = detalhe.RazaoSocial;
+        _destEmail = detalhe.Email ?? "";
+        _destIe = detalhe.InscricaoEstadual ?? "";
+        _destLogradouro = detalhe.Logradouro;
+        _destNumero = detalhe.Numero;
+        _destBairro = detalhe.Bairro;
+        _destCidade = detalhe.Cidade;
+        _destUf = detalhe.Uf;
+        _destCep = detalhe.Cep;
+        _destCodigoMun = detalhe.CodigoMunicipio;
+
+        Snackbar.Add($"Cliente '{detalhe.RazaoSocial}' carregado.", Severity.Success);
+    }
+
+    void LimparDestinatario()
+    {
+        _clienteSelecionado = null;
+        _destCpfCnpj = ""; _destNome = ""; _destEmail = ""; _destIe = "";
+        _destLogradouro = ""; _destNumero = ""; _destBairro = "";
+        _destCidade = ""; _destUf = ""; _destCep = ""; _destCodigoMun = "";
+    }
+
+    void OnNcmDoItem(ItemForm item, NcmDto ncm)
+    {
+        item.NcmInfo = ncm;
+        // Se NCM exige CEST e o item ainda não tem, propõe o aviso (não preenche
+        // automaticamente porque o código CEST depende do segmento — usuário decide).
+        if (ncm.ExigeCest && string.IsNullOrWhiteSpace(item.Cest))
+        {
+            // Nada — o aviso geral abaixo cobre.
+        }
+        ValidarConsistenciaItem(item);
+    }
+
+    void ValidarConsistenciaItem(ItemForm item)
+    {
+        if (string.IsNullOrWhiteSpace(item.Cfop) || item.NcmInfo == null)
+        {
+            item.AvisoConsistencia = null;
+            return;
+        }
+        var r = NfeSaas.Domain.Services.CfopNcmConsistencia.Verificar(
+            item.Cfop, item.NcmInfo.ExigeCest, item.Cest);
+        item.AvisoConsistencia = r.Consistente ? null : r.Mensagem;
+    }
+
+    void OnCepDestinatarioEncontrado(EnderecoCep e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.Logradouro))      _destLogradouro = e.Logradouro;
+        if (!string.IsNullOrWhiteSpace(e.Bairro))          _destBairro     = e.Bairro;
+        if (!string.IsNullOrWhiteSpace(e.Cidade))          _destCidade     = e.Cidade;
+        if (!string.IsNullOrWhiteSpace(e.Uf))              _destUf         = e.Uf;
+        if (!string.IsNullOrWhiteSpace(e.CodigoMunicipio)) _destCodigoMun  = e.CodigoMunicipio;
+        StateHasChanged();
+    }
+
+    async Task OnProdutoSelecionado(ItemForm item, ProdutoResumoDto? produto)
+    {
+        item.ProdutoSelecionado = produto;
+        if (produto == null) return;
+
+        var detalhe = await ProdutoService.GetAsync(produto.Id);
+        if (detalhe == null) { Snackbar.Add("Erro ao carregar produto.", Severity.Error); return; }
+
+        item.CodigoProduto = detalhe.Codigo;
+        item.Descricao = detalhe.Descricao;
+        item.Ncm = detalhe.Ncm;
+        item.Cfop = detalhe.CfopPadrao;
+        item.Unidade = detalhe.UnidadeComercial;
+        item.ValorUnitario = detalhe.ValorUnitarioPadrao;
+        item.Cest = detalhe.Cest;
+        item.CodigoEan = detalhe.CodigoEan;
+        item.OrigemMercadoria = (NfeSaas.Domain.Enums.OrigemMercadoria)detalhe.OrigemMercadoria;
+    }
+
+    void AdicionarItem()
+    {
+        var item = new ItemForm();
+        if (_isSimples) item.CsosnIcms = CsosnPadraoSimples;
+        _itens.Add(item);
+    }
+
     void RemoverItem(int idx) => _itens.RemoveAt(idx);
 
     async Task EmitirNota()
     {
+        _erroEmissao = null;
+
         if (!_itens.Any())
         {
             Snackbar.Add("Adicione ao menos um produto.", Severity.Warning);
@@ -269,14 +546,19 @@
                     _destLogradouro, _destNumero, null, _destBairro,
                     _destCidade, _destUf, _destCep, _destCodigoMun, _destIe),
                 _itens.Select(i => new NfeSaas.Application.DTOs.ItemNotaDto(
-                    i.CodigoProduto, i.Descricao, i.Ncm, null, i.Cfop, i.Unidade,
-                    i.Quantidade, i.ValorUnitario, i.Desconto, null,
+                    i.CodigoProduto, i.Descricao, i.Ncm, i.Cest, i.Cfop, i.Unidade,
+                    i.Quantidade, i.ValorUnitario, i.Desconto, i.CodigoEan,
                     new NfeSaas.Application.DTOs.ImpostosItemDto(
-                        NfeSaas.Domain.Enums.OrigemMercadoria.Nacional,
-                        NfeSaas.Domain.Enums.CstIcms.Tributada,
+                        i.OrigemMercadoria,
+                        (NfeSaas.Domain.Enums.CstIcms)i.CstIcms,
                         i.AliquotaIcms, null, false, null, null,
                         NfeSaas.Domain.Enums.CstPisCofins.TributadaAliquotaBasica, i.AliquotaPis,
-                        NfeSaas.Domain.Enums.CstPisCofins.TributadaAliquotaBasica, i.AliquotaCofins))).ToList(),
+                        NfeSaas.Domain.Enums.CstPisCofins.TributadaAliquotaBasica, i.AliquotaCofins,
+                        _isSimples ? (NfeSaas.Domain.Enums.CsosnIcms?)i.CsosnIcms : null,
+                        i.AliquotaIpi > 0 ? i.AliquotaIpi : null,
+                        i.AliquotaIpi > 0 ? i.CstIpi : null,
+                        i.AliquotaFcp > 0 ? i.AliquotaFcp : null,
+                        i.AliquotaInternaUfDestino > 0 ? i.AliquotaInternaUfDestino : null))).ToList(),
                 new NfeSaas.Application.DTOs.TransporteDto(_modalidadeFrete, null, null, _valorFrete, _valorSeguro),
                 new NfeSaas.Application.DTOs.PagamentoDto(_formaPagamento, totalNota),
                 _infoAdicionais);
@@ -289,8 +571,20 @@
             }
             else
             {
-                Snackbar.Add($"Erro: {result?.MensagemErro ?? "Falha na emissão."}", Severity.Error);
+                _erroEmissao = result?.MensagemErro
+                    ?? "Não foi possível contatar a API para emitir a nota. Verifique sua conexão e tente novamente.";
+                Snackbar.Add(_erroEmissao, Severity.Error, cfg =>
+                {
+                    cfg.VisibleStateDuration = 10000;
+                    cfg.HideTransitionDuration = 500;
+                    cfg.ShowCloseIcon = true;
+                });
             }
+        }
+        catch (Exception ex)
+        {
+            _erroEmissao = $"Erro inesperado ao emitir: {ex.Message}";
+            Snackbar.Add(_erroEmissao, Severity.Error);
         }
         finally
         {
@@ -318,16 +612,31 @@
 
     class ItemForm
     {
+        public ProdutoResumoDto? ProdutoSelecionado { get; set; }
         public string CodigoProduto { get; set; } = "";
         public string Descricao { get; set; } = "";
         public string Ncm { get; set; } = "";
+        /// <summary>NCM completo carregado da tabela oficial — usado para cruzar com CFOP/CEST.</summary>
+        public NcmDto? NcmInfo { get; set; }
+        /// <summary>Aviso de inconsistência CFOP × NCM × CEST (warning, não bloqueia emissão).</summary>
+        public string? AvisoConsistencia { get; set; }
+        public string? Cest { get; set; }
+        public string? CodigoEan { get; set; }
         public string Cfop { get; set; } = "5102";
         public string Unidade { get; set; } = "UN";
         public decimal Quantidade { get; set; } = 1;
         public decimal ValorUnitario { get; set; }
         public decimal Desconto { get; set; }
+        public NfeSaas.Domain.Enums.OrigemMercadoria OrigemMercadoria { get; set; } = NfeSaas.Domain.Enums.OrigemMercadoria.Nacional;
+        public int CstIcms { get; set; } = 0;        // Regime Normal — default 00 (Tributada)
+        public int CsosnIcms { get; set; } = 102;    // Simples Nacional — default 102 (Tributada s/ crédito)
         public decimal AliquotaIcms { get; set; } = 12;
         public decimal AliquotaPis { get; set; } = 0.65m;
         public decimal AliquotaCofins { get; set; } = 3;
+        // Tributação avançada
+        public decimal AliquotaIpi { get; set; } = 0;
+        public string CstIpi { get; set; } = "50";
+        public decimal AliquotaFcp { get; set; } = 0;
+        public decimal AliquotaInternaUfDestino { get; set; } = 0;
     }
 }

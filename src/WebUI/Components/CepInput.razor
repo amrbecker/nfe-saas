@@ -1,0 +1,141 @@
+@inject IViaCepService ViaCep
+@implements IDisposable
+
+<MudTextField T="string" Value="@_display" ValueChanged="OnTyped"
+              Label="@Label"
+              Placeholder="00000-000"
+              Variant="Variant.Outlined"
+              MaxLength="9"
+              ReadOnly="@ReadOnly"
+              Disabled="@Disabled"
+              Required="@Required"
+              Immediate="true"
+              HelperText="@HelperText"
+              Error="@(!string.IsNullOrEmpty(ErroExterno) || !string.IsNullOrEmpty(_erroInterno))"
+              ErrorText="@(ErroExterno ?? _erroInterno)"
+              Adornment="Adornment.End"
+              AdornmentIcon="@_icone"
+              AdornmentColor="@_corIcone"
+              OnAdornmentClick="BuscarManualmente"
+              Class="@Class" />
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public EventCallback<EnderecoCep> EnderecoEncontrado { get; set; }
+    [Parameter] public string Label { get; set; } = "CEP";
+    [Parameter] public string? HelperText { get; set; } = "Preencha o CEP para autocompletar o endereço";
+    [Parameter] public string? ErroExterno { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string _display = "";
+    private string _ultimoBuscado = "";
+    private bool _buscando;
+    private string? _erroInterno;
+    private CancellationTokenSource? _cts;
+
+    private string _icone =>
+        _buscando ? Icons.Material.Filled.HourglassEmpty :
+        _ultimoEnderecoOk ? Icons.Material.Filled.CheckCircle :
+        Icons.Material.Filled.Search;
+
+    private Color _corIcone =>
+        _buscando ? Color.Default :
+        _ultimoEnderecoOk ? Color.Success :
+        !string.IsNullOrEmpty(_erroInterno) ? Color.Error :
+        Color.Primary;
+
+    private bool _ultimoEnderecoOk;
+
+    protected override void OnParametersSet()
+    {
+        var formatado = ViaCep.Formatar(Value);
+        if (formatado != _display)
+        {
+            _display = formatado;
+            var digitos = ViaCep.ApenasDigitos(Value);
+            if (digitos.Length == 8 && digitos == _ultimoBuscado)
+                _ultimoEnderecoOk = true;
+        }
+    }
+
+    async Task OnTyped(string novoValor)
+    {
+        var digitos = ViaCep.ApenasDigitos(novoValor);
+        _display = digitos.Length switch
+        {
+            > 5 => $"{digitos[..5]}-{digitos[5..Math.Min(digitos.Length, 8)]}",
+            _ => digitos
+        };
+
+        await ValueChanged.InvokeAsync(digitos);
+
+        if (digitos.Length < 8)
+        {
+            _erroInterno = null;
+            _ultimoEnderecoOk = false;
+            return;
+        }
+
+        if (digitos == _ultimoBuscado)
+            return;
+
+        await DispararBusca(digitos);
+    }
+
+    async Task BuscarManualmente()
+    {
+        var digitos = ViaCep.ApenasDigitos(_display);
+        if (digitos.Length != 8) return;
+        _ultimoBuscado = ""; // força nova consulta
+        await DispararBusca(digitos);
+    }
+
+    async Task DispararBusca(string digitos)
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        _buscando = true;
+        _erroInterno = null;
+        _ultimoEnderecoOk = false;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await ViaCep.ConsultarAsync(digitos, token);
+            if (token.IsCancellationRequested) return;
+
+            _ultimoBuscado = digitos;
+            if (resultado.Sucesso)
+            {
+                _ultimoEnderecoOk = true;
+                _erroInterno = null;
+                await EnderecoEncontrado.InvokeAsync(resultado.Endereco!);
+            }
+            else
+            {
+                _ultimoEnderecoOk = false;
+                _erroInterno = resultado.MensagemErro;
+            }
+        }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                _buscando = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

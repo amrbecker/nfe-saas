@@ -24,6 +24,7 @@ public class ItemNotaFiscal : BaseEntity
     // ICMS
     public OrigemMercadoria OrigemMercadoria { get; private set; }
     public CstIcms CstIcms { get; private set; }
+    public CsosnIcms? CsosnIcms { get; private set; }   // Simples Nacional — quando setado, prevalece sobre CstIcms
     public decimal BaseCalculoIcms { get; private set; }
     public decimal AliquotaIcms { get; private set; }
     public decimal ValorIcms { get; private set; }
@@ -46,8 +47,21 @@ public class ItemNotaFiscal : BaseEntity
 
     // IPI (opcional)
     public string? CstIpi { get; private set; }
+    public decimal? BaseCalculoIpi { get; private set; }
     public decimal? AliquotaIpi { get; private set; }
     public decimal? ValorIpi { get; private set; }
+
+    // FCP — Fundo de Combate à Pobreza (% adicional sobre ICMS em algumas UFs)
+    public decimal? BaseCalculoFcp { get; private set; }
+    public decimal? AliquotaFcp { get; private set; }
+    public decimal? ValorFcp { get; private set; }
+
+    // DIFAL — Diferencial de Alíquota (operação interestadual a consumidor final não contribuinte)
+    public decimal? BaseCalculoDifal { get; private set; }
+    public decimal? AliquotaInternaUfDestino { get; private set; }
+    public decimal? AliquotaInterestadual { get; private set; }
+    public decimal? ValorIcmsUfDestino { get; private set; }
+    public decimal? ValorIcmsUfRemetente { get; private set; }
 
     protected ItemNotaFiscal() { }
 
@@ -77,9 +91,22 @@ public class ItemNotaFiscal : BaseEntity
     {
         OrigemMercadoria = origem;
         CstIcms = cst;
+        CsosnIcms = null;
         BaseCalculoIcms = baseCalculo;
         AliquotaIcms = aliquota;
         ValorIcms = Math.Round(baseCalculo * (aliquota / 100), 2);
+    }
+
+    public void SetIcmsSimples(OrigemMercadoria origem, CsosnIcms csosn, decimal baseCalculo, decimal aliquota)
+    {
+        OrigemMercadoria = origem;
+        CsosnIcms = csosn;
+        BaseCalculoIcms = baseCalculo;
+        AliquotaIcms = aliquota;
+        // Apenas CSOSN 900 calcula ICMS próprio na nota. Demais (101, 102, 103, 300, 400, 500, 201, 202, 203) zeram.
+        ValorIcms = csosn == NfeSaas.Domain.Enums.CsosnIcms.Outros
+            ? Math.Round(baseCalculo * (aliquota / 100), 2)
+            : 0;
     }
 
     public void SetIcmsSt(decimal baseCalculo, decimal aliquota)
@@ -107,4 +134,30 @@ public class ItemNotaFiscal : BaseEntity
 
     public void SetCodigoEan(string ean) => CodigoEan = ean;
     public void SetCest(string cest) => Cest = cest;
+
+    public void SetIpi(string cst, decimal baseCalculo, decimal aliquota)
+    {
+        CstIpi = cst;
+        BaseCalculoIpi = baseCalculo;
+        AliquotaIpi = aliquota;
+        ValorIpi = Math.Round(baseCalculo * (aliquota / 100m), 2);
+    }
+
+    public void SetFcp(decimal baseCalculo, decimal aliquota)
+    {
+        BaseCalculoFcp = baseCalculo;
+        AliquotaFcp = aliquota;
+        ValorFcp = Math.Round(baseCalculo * (aliquota / 100m), 2);
+    }
+
+    public void SetDifal(decimal baseCalculo, decimal aliquotaInternaUfDestino, decimal aliquotaInterestadual)
+    {
+        BaseCalculoDifal = baseCalculo;
+        AliquotaInternaUfDestino = aliquotaInternaUfDestino;
+        AliquotaInterestadual = aliquotaInterestadual;
+        // EC 87/2015 — Convênio ICMS 93/2015: a partilha foi gradual (2016-2018) e em 2019+ vai 100% pra UF destino.
+        var diferenca = Math.Max(0, aliquotaInternaUfDestino - aliquotaInterestadual);
+        ValorIcmsUfDestino = Math.Round(baseCalculo * (diferenca / 100m), 2);
+        ValorIcmsUfRemetente = 0; // Partilha 100% destino desde 2019
+    }
 }

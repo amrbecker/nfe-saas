@@ -43,6 +43,10 @@ public class NotaFiscal : BaseEntity
     public decimal TotalIcmsSt { get; private set; }
     public decimal TotalPis { get; private set; }
     public decimal TotalCofins { get; private set; }
+    public decimal TotalIpi { get; private set; }
+    public decimal TotalFcp { get; private set; }
+    public decimal TotalIcmsUfDestino { get; private set; }   // DIFAL — parcela UF destino
+    public decimal TotalIcmsUfRemetente { get; private set; } // DIFAL — parcela UF origem (zerada desde 2019)
     public decimal TotalFrete { get; private set; }
     public decimal TotalSeguro { get; private set; }
     public decimal TotalOutrasDespesas { get; private set; }
@@ -65,6 +69,33 @@ public class NotaFiscal : BaseEntity
     public string? InformacoesAdicionais { get; private set; }
 
     public DateTime DataEmissao { get; private set; } = DateTime.UtcNow;
+    public DateTime? DataCancelamento { get; private set; }
+
+    // Período legal de retenção fiscal (5 anos a partir da autorização ou cancelamento — Lei nº 10.522/02 e CTN art. 173).
+    private const int AnosRetencaoFiscal = 5;
+    public DateTime? DataDescarteAutorizado
+    {
+        get
+        {
+            if (Situacao == SituacaoNota.Cancelada && DataCancelamento.HasValue)
+                return DataCancelamento.Value.AddYears(AnosRetencaoFiscal);
+            if (Situacao == SituacaoNota.Autorizada && DataAutorizacao.HasValue)
+                return DataAutorizacao.Value.AddYears(AnosRetencaoFiscal);
+            return null;
+        }
+    }
+    public bool DentroPeriodoRetencao =>
+        DataDescarteAutorizado.HasValue && DataDescarteAutorizado.Value > DateTime.UtcNow;
+    private bool IsImutavel =>
+        Situacao == SituacaoNota.Autorizada || Situacao == SituacaoNota.Cancelada;
+
+    private void EnsureMutavel(string operacao)
+    {
+        if (IsImutavel)
+            throw new InvalidOperationException(
+                $"Não é permitido {operacao} em uma NFe {Situacao}. " +
+                $"Documento fiscal autorizado é imutável conforme legislação.");
+    }
 
     private readonly List<ItemNotaFiscal> _itens = new();
     public IReadOnlyCollection<ItemNotaFiscal> Itens => _itens.AsReadOnly();
@@ -92,6 +123,7 @@ public class NotaFiscal : BaseEntity
         string? logradouro, string? numero, string? bairro, string? cidade,
         string? uf, string? cep, string? codigoMunicipio, string? ie = null)
     {
+        EnsureMutavel("alterar destinatário");
         DestinatarioCpfCnpj = cpfCnpj;
         DestinatarioRazaoSocial = razaoSocial;
         DestinatarioEmail = email;
@@ -108,6 +140,7 @@ public class NotaFiscal : BaseEntity
 
     public void AdicionarItem(ItemNotaFiscal item)
     {
+        EnsureMutavel("adicionar item");
         _itens.Add(item);
         RecalcularTotais();
     }
@@ -115,6 +148,7 @@ public class NotaFiscal : BaseEntity
     public void SetTransporte(ModalidadeFrete modalidade, string? cnpj = null, string? razaoSocial = null,
         decimal frete = 0, decimal seguro = 0)
     {
+        EnsureMutavel("alterar transporte");
         ModalidadeFrete = modalidade;
         TransportadoraCpfCnpj = cnpj;
         TransportadoraRazaoSocial = razaoSocial;
@@ -125,11 +159,16 @@ public class NotaFiscal : BaseEntity
 
     public void SetPagamento(string formaPagamento, decimal valor)
     {
+        EnsureMutavel("alterar pagamento");
         FormaPagemento = formaPagamento;
         ValorPagamento = valor;
     }
 
-    public void SetInformacoesAdicionais(string? info) => InformacoesAdicionais = info;
+    public void SetInformacoesAdicionais(string? info)
+    {
+        EnsureMutavel("alterar informações adicionais");
+        InformacoesAdicionais = info;
+    }
 
     public void Autorizar(string chaveAcesso, string protocolo, string xmlRetorno)
     {
@@ -157,17 +196,35 @@ public class NotaFiscal : BaseEntity
 
     public void Cancelar(string xmlCancelamento)
     {
+        if (Situacao != SituacaoNota.Autorizada)
+            throw new InvalidOperationException("Apenas notas autorizadas podem ser canceladas.");
         XmlCancelamento = xmlCancelamento;
         Situacao = SituacaoNota.Cancelada;
+        DataCancelamento = DateTime.UtcNow;
         SetUpdated();
     }
 
-    public void SetXmlEnvio(string xml) => XmlEnvio = xml;
+    public void SetXmlEnvio(string xml)
+    {
+        EnsureMutavel("alterar XML de envio");
+        XmlEnvio = xml;
+    }
 
     public void MarcarContingencia(TipoEmissao tipo)
     {
+        EnsureMutavel("marcar contingência");
         TipoEmissao = tipo;
         SetUpdated();
+    }
+
+    public override void Delete()
+    {
+        // Nota fiscal autorizada/cancelada está sob retenção legal de 5 anos.
+        if (DentroPeriodoRetencao)
+            throw new InvalidOperationException(
+                $"Esta nota fiscal está sob retenção fiscal até {DataDescarteAutorizado:dd/MM/yyyy}. " +
+                "Documentos fiscais autorizados ou cancelados não podem ser excluídos antes desse prazo.");
+        base.Delete();
     }
 
     private void RecalcularTotais()
@@ -178,6 +235,12 @@ public class NotaFiscal : BaseEntity
         TotalIcmsSt = _itens.Sum(i => i.ValorIcmsSt) ?? 0m;
         TotalPis = _itens.Sum(i => i.ValorPis);
         TotalCofins = _itens.Sum(i => i.ValorCofins);
-        TotalNota = TotalProdutos - TotalDesconto + TotalIcmsSt + TotalFrete + TotalSeguro + TotalOutrasDespesas;
+        TotalIpi = _itens.Sum(i => i.ValorIpi ?? 0m);
+        TotalFcp = _itens.Sum(i => i.ValorFcp ?? 0m);
+        TotalIcmsUfDestino = _itens.Sum(i => i.ValorIcmsUfDestino ?? 0m);
+        TotalIcmsUfRemetente = _itens.Sum(i => i.ValorIcmsUfRemetente ?? 0m);
+        // vNF inclui IPI e FCP (FCP-ST inclusive). DIFAL é informativo e não soma em vNF.
+        TotalNota = TotalProdutos - TotalDesconto + TotalIcmsSt + TotalFrete + TotalSeguro
+                  + TotalOutrasDespesas + TotalIpi + TotalFcp;
     }
 }

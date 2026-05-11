@@ -28,8 +28,8 @@ postgres_data/
 logs/
 *.log
 
-## Claude Code local settings
-.claude/settings.local.json
+## Claude Code local settings (sessões, transcripts, etc.)
+.claude/
 
 ## OS
 .DS_Store
@@ -47,3 +47,8 @@ Thumbs.db
 ## Test results
 TestResults/
 coverage/
+
+## Artefatos gerados pelos scripts de carga (regenerar a partir da fonte oficial)
+scripts/ncm_full_seed.sql
+migration*.sql
+*.bak.sql

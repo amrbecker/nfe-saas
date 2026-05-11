@@ -197,7 +197,8 @@
 
         if (result.Empresas.Count == 0)
         {
-            Snackbar.Add("Nenhuma empresa cadastrada. Acesse o painel e cadastre a primeira.", Severity.Warning);
+            Snackbar.Add("Nenhuma empresa cadastrada. Cadastre a primeira para começar.", Severity.Info);
+            Nav.NavigateTo("/empresas", forceLoad: true);
             return;
         }
 
@@ -259,8 +260,9 @@
 
         if (result != null)
         {
-            Snackbar.Add($"Bem-vindo ao NfeSaas! Escritório criado com sucesso.", Severity.Success);
-            Nav.NavigateTo("/", forceLoad: true);
+            // Escritório recém-criado não tem empresas ainda → manda direto cadastrar a primeira
+            Snackbar.Add("Bem-vindo! Cadastre sua primeira empresa cliente para começar.", Severity.Success);
+            Nav.NavigateTo("/empresas", forceLoad: true);
         }
         else
         {

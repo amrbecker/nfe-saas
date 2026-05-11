@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema "skeleton" para envio de eventos NF-e v1.00 (CC-e, Manifestação, Cancelamento via evento).
+  Valida estrutura mínima: envEvento → idLote + evento → infEvento[Id, tpEvento, chNFe] + detEvento.
+  Não substitui XSDs oficiais SEFAZ.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns="http://www.portalfiscal.inf.br/nfe"
+           targetNamespace="http://www.portalfiscal.inf.br/nfe"
+           elementFormDefault="qualified">
+
+  <xs:element name="envEvento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="idLote" type="xs:string"/>
+        <xs:element name="evento" minOccurs="1" maxOccurs="20">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="infEvento">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="cOrgao" type="xs:string"/>
+                    <xs:element name="tpAmb">
+                      <xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="1"/><xs:enumeration value="2"/></xs:restriction></xs:simpleType>
+                    </xs:element>
+                    <xs:choice>
+                      <xs:element name="CNPJ"><xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="[0-9]{14}"/></xs:restriction></xs:simpleType></xs:element>
+                      <xs:element name="CPF"><xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="[0-9]{11}"/></xs:restriction></xs:simpleType></xs:element>
+                    </xs:choice>
+                    <xs:element name="chNFe">
+                      <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="[0-9]{44}"/></xs:restriction></xs:simpleType>
+                    </xs:element>
+                    <xs:element name="dhEvento" type="xs:string"/>
+                    <xs:element name="tpEvento">
+                      <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="[0-9]{6}"/></xs:restriction></xs:simpleType>
+                    </xs:element>
+                    <xs:element name="nSeqEvento" type="xs:positiveInteger"/>
+                    <xs:element name="verEvento" type="xs:string"/>
+                    <xs:element name="detEvento">
+                      <xs:complexType>
+                        <xs:sequence><xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/></xs:sequence>
+                        <xs:attribute name="versao" type="xs:string" use="required"/>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="Id" use="required">
+                    <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="ID[0-9]{52}"/></xs:restriction></xs:simpleType>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+              <xs:any namespace="http://www.w3.org/2000/09/xmldsig#" processContents="skip" minOccurs="0"/>
+            </xs:sequence>
+            <xs:attribute name="versao" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

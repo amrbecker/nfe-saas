@@ -94,6 +94,12 @@ public class ApiClient
         return await response.Content.ReadFromJsonAsync<TResponse>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }
 
+    public async Task<HttpResponseMessage> PutRawAsync<T>(string url, T data)
+    {
+        await SetAuthHeader();
+        return await _http.PutAsJsonAsync(url, data);
+    }
+
     public async Task<TResponse?> PatchAsync<TResponse>(string url)
     {
         await SetAuthHeader();
@@ -303,8 +309,18 @@ public class NotaFiscalService : INotaFiscalService
     public async Task<NotaFiscalDetalheDto?> GetNotaAsync(Guid id) =>
         await _api.GetAsync<NotaFiscalDetalheDto>($"api/notas-fiscais/{id}");
 
-    public async Task<EmitirNFeResult?> EmitirAsync(EmitirNotaFiscalDto dto) =>
-        await _api.PostAsync<EmitirNotaFiscalDto, EmitirNFeResult>("api/notas-fiscais/emitir", dto);
+    public async Task<EmitirNFeResult?> EmitirAsync(EmitirNotaFiscalDto dto)
+    {
+        var response = await _api.PostRawAsync("api/notas-fiscais/emitir", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<EmitirNFeResult>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+
+        var erro = await ApiHelper.ExtrairMensagemErro(response);
+        return new EmitirNFeResult(false, null, null, null, erro);
+    }
 
     public async Task<bool> CancelarAsync(Guid id, string justificativa)
     {
@@ -328,6 +344,7 @@ public interface IEmpresaService
 {
     Task<EmpresaDetalheDto?> GetEmpresaAsync();
     Task<CertificadoStatusDto?> GetCertificadoStatusAsync();
+    Task<(bool Sucesso, string? Erro)> AtualizarEmpresaAsync(UpdateEmpresaDto dto);
 }
 
 public class EmpresaService : IEmpresaService
@@ -341,7 +358,264 @@ public class EmpresaService : IEmpresaService
 
     public async Task<CertificadoStatusDto?> GetCertificadoStatusAsync() =>
         await _api.GetAsync<CertificadoStatusDto>("api/empresa/certificado/status");
+
+    public async Task<(bool Sucesso, string? Erro)> AtualizarEmpresaAsync(UpdateEmpresaDto dto)
+    {
+        var resp = await _api.PutRawAsync("api/empresa", dto);
+        if (resp.IsSuccessStatusCode) return (true, null);
+        return (false, await ApiHelper.ExtrairMensagemErro(resp));
+    }
+}
+
+// === CONFIGURAÇÃO EMPRESA SERVICE ===
+public interface IConfiguracaoEmpresaService
+{
+    Task<ConfiguracaoEmpresaDto?> GetAsync();
+    Task<(ConfiguracaoEmpresaDto? Configuracao, string? Erro)> SalvarAsync(ConfiguracaoEmpresaDto dto);
+}
+
+public class ConfiguracaoEmpresaService : IConfiguracaoEmpresaService
+{
+    private readonly ApiClient _api;
+
+    public ConfiguracaoEmpresaService(ApiClient api) => _api = api;
+
+    public async Task<ConfiguracaoEmpresaDto?> GetAsync() =>
+        await _api.GetAsync<ConfiguracaoEmpresaDto>("api/empresa/configuracao");
+
+    public async Task<(ConfiguracaoEmpresaDto? Configuracao, string? Erro)> SalvarAsync(ConfiguracaoEmpresaDto dto)
+    {
+        var response = await _api.PostRawAsync("api/empresa/configuracao", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<ConfiguracaoEmpresaDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (result, null);
+        }
+        var erro = await ApiHelper.ExtrairMensagemErro(response);
+        return (null, erro);
+    }
 }
 
 public record EmitirNFeResult(bool Sucesso, Guid? NotaFiscalId, string? ChaveAcesso, string? Protocolo, string? MensagemErro);
 public record GetNotasResult(IEnumerable<NotaFiscalResumoDto> Notas, int Total, int Pagina, int TamanhoPagina);
+
+// === NCM SERVICE ===
+public record NcmDto(string Codigo, string Descricao, string? Capitulo, string? Posicao,
+    decimal? AliquotaIpiPadrao, bool ExigeCest);
+public record NcmStatusDto(int TotalAtivos, string? VersaoTabela);
+
+public interface INcmService
+{
+    Task<List<NcmDto>> BuscarAsync(string termo, int limite = 10);
+    Task<NcmDto?> ValidarAsync(string codigo);
+    Task<NcmStatusDto?> StatusAsync();
+}
+
+public class NcmService : INcmService
+{
+    private readonly ApiClient _api;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<NcmDto>> _cacheBusca = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, NcmDto?> _cacheValidar = new();
+
+    public NcmService(ApiClient api) => _api = api;
+
+    public async Task<List<NcmDto>> BuscarAsync(string termo, int limite = 10)
+    {
+        if (string.IsNullOrWhiteSpace(termo) || termo.Trim().Length < 2)
+            return new();
+
+        var chave = $"{termo.Trim().ToLowerInvariant()}|{limite}";
+        if (_cacheBusca.TryGetValue(chave, out var cached)) return cached;
+
+        var result = await _api.GetAsync<List<NcmDto>>(
+            $"api/ncm/buscar?termo={Uri.EscapeDataString(termo)}&limite={limite}") ?? new();
+
+        _cacheBusca[chave] = result;
+        return result;
+    }
+
+    public async Task<NcmDto?> ValidarAsync(string codigo)
+    {
+        var d = new string((codigo ?? "").Where(char.IsDigit).ToArray());
+        if (d.Length != 8) return null;
+
+        if (_cacheValidar.TryGetValue(d, out var cached)) return cached;
+
+        var result = await _api.GetAsync<NcmDto>($"api/ncm/{d}");
+        _cacheValidar[d] = result;
+        return result;
+    }
+
+    public Task<NcmStatusDto?> StatusAsync() => _api.GetAsync<NcmStatusDto>("api/ncm/status");
+}
+
+// === EVENTOS FISCAIS SERVICE ===
+public interface IEventoFiscalService
+{
+    Task<List<EventoFiscalResumoDto>?> ListarPorNotaAsync(Guid notaId);
+    Task<(EventoFiscalResumoDto? Evento, string? Erro)> EmitirCceAsync(Guid notaId, EmitirCceDto dto);
+    Task<(EventoFiscalResumoDto? Evento, string? Erro)> ManifestarAsync(Guid notaId, ManifestarDto dto);
+    Task<List<EventoFiscalResumoDto>?> ListarInutilizacoesAsync();
+    Task<(EventoFiscalResumoDto? Evento, string? Erro)> InutilizarAsync(InutilizarDto dto);
+}
+
+public class EventoFiscalService : IEventoFiscalService
+{
+    private readonly ApiClient _api;
+    public EventoFiscalService(ApiClient api) => _api = api;
+
+    public Task<List<EventoFiscalResumoDto>?> ListarPorNotaAsync(Guid notaId) =>
+        _api.GetAsync<List<EventoFiscalResumoDto>>($"api/notas-fiscais/{notaId}/eventos");
+
+    public async Task<(EventoFiscalResumoDto? Evento, string? Erro)> EmitirCceAsync(Guid notaId, EmitirCceDto dto)
+    {
+        var response = await _api.PostRawAsync($"api/notas-fiscais/{notaId}/cce", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var ev = await response.Content.ReadFromJsonAsync<EventoFiscalResumoDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (ev, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(response));
+    }
+
+    public async Task<(EventoFiscalResumoDto? Evento, string? Erro)> ManifestarAsync(Guid notaId, ManifestarDto dto)
+    {
+        var response = await _api.PostRawAsync($"api/notas-fiscais/{notaId}/manifestar", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var ev = await response.Content.ReadFromJsonAsync<EventoFiscalResumoDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (ev, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(response));
+    }
+
+    public Task<List<EventoFiscalResumoDto>?> ListarInutilizacoesAsync() =>
+        _api.GetAsync<List<EventoFiscalResumoDto>>("api/inutilizacoes");
+
+    public async Task<(EventoFiscalResumoDto? Evento, string? Erro)> InutilizarAsync(InutilizarDto dto)
+    {
+        var response = await _api.PostRawAsync("api/inutilizacoes", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var ev = await response.Content.ReadFromJsonAsync<EventoFiscalResumoDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (ev, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(response));
+    }
+}
+
+// === PRODUTO SERVICE ===
+public interface IProdutoService
+{
+    Task<List<ProdutoResumoDto>?> ListarAsync(bool apenasAtivos = false);
+    Task<ProdutoDetalheDto?> GetAsync(Guid id);
+    Task<(ProdutoDetalheDto? Produto, string? Erro)> CriarAsync(CreateProdutoDto dto);
+    Task<(ProdutoDetalheDto? Produto, string? Erro)> AtualizarAsync(Guid id, UpdateProdutoDto dto);
+    Task<ProdutoDetalheDto?> ToggleAtivoAsync(Guid id);
+    Task<bool> ExcluirAsync(Guid id);
+}
+
+public class ProdutoService : IProdutoService
+{
+    private readonly ApiClient _api;
+    public ProdutoService(ApiClient api) => _api = api;
+
+    public Task<List<ProdutoResumoDto>?> ListarAsync(bool apenasAtivos = false) =>
+        _api.GetAsync<List<ProdutoResumoDto>>($"api/produtos?apenasAtivos={apenasAtivos}");
+
+    public Task<ProdutoDetalheDto?> GetAsync(Guid id) =>
+        _api.GetAsync<ProdutoDetalheDto>($"api/produtos/{id}");
+
+    public async Task<(ProdutoDetalheDto? Produto, string? Erro)> CriarAsync(CreateProdutoDto dto)
+    {
+        var response = await _api.PostRawAsync("api/produtos", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var produto = await response.Content.ReadFromJsonAsync<ProdutoDetalheDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (produto, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(response));
+    }
+
+    public async Task<(ProdutoDetalheDto? Produto, string? Erro)> AtualizarAsync(Guid id, UpdateProdutoDto dto)
+    {
+        var response = await _api.PutRawAsync($"api/produtos/{id}", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var produto = await response.Content.ReadFromJsonAsync<ProdutoDetalheDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (produto, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(response));
+    }
+
+    public Task<ProdutoDetalheDto?> ToggleAtivoAsync(Guid id) =>
+        _api.PatchAsync<ProdutoDetalheDto>($"api/produtos/{id}/toggle-ativo");
+
+    public async Task<bool> ExcluirAsync(Guid id)
+    {
+        var resp = await _api.DeleteAsync($"api/produtos/{id}");
+        return resp.IsSuccessStatusCode;
+    }
+}
+
+// === CLIENTE SERVICE ===
+public interface IClienteService
+{
+    Task<List<ClienteResumoDto>?> ListarAsync(bool apenasAtivos = false);
+    Task<ClienteDetalheDto?> GetAsync(Guid id);
+    Task<(ClienteDetalheDto? Cliente, string? Erro)> CriarAsync(CreateClienteDto dto);
+    Task<(ClienteDetalheDto? Cliente, string? Erro)> AtualizarAsync(Guid id, UpdateClienteDto dto);
+    Task<ClienteDetalheDto?> ToggleAtivoAsync(Guid id);
+    Task<bool> ExcluirAsync(Guid id);
+}
+
+public class ClienteService : IClienteService
+{
+    private readonly ApiClient _api;
+    public ClienteService(ApiClient api) => _api = api;
+
+    public Task<List<ClienteResumoDto>?> ListarAsync(bool apenasAtivos = false) =>
+        _api.GetAsync<List<ClienteResumoDto>>($"api/clientes?apenasAtivos={apenasAtivos}");
+
+    public Task<ClienteDetalheDto?> GetAsync(Guid id) =>
+        _api.GetAsync<ClienteDetalheDto>($"api/clientes/{id}");
+
+    public async Task<(ClienteDetalheDto? Cliente, string? Erro)> CriarAsync(CreateClienteDto dto)
+    {
+        var response = await _api.PostRawAsync("api/clientes", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var cliente = await response.Content.ReadFromJsonAsync<ClienteDetalheDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (cliente, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(response));
+    }
+
+    public async Task<(ClienteDetalheDto? Cliente, string? Erro)> AtualizarAsync(Guid id, UpdateClienteDto dto)
+    {
+        var response = await _api.PutRawAsync($"api/clientes/{id}", dto);
+        if (response.IsSuccessStatusCode)
+        {
+            var cliente = await response.Content.ReadFromJsonAsync<ClienteDetalheDto>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return (cliente, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(response));
+    }
+
+    public Task<ClienteDetalheDto?> ToggleAtivoAsync(Guid id) =>
+        _api.PatchAsync<ClienteDetalheDto>($"api/clientes/{id}/toggle-ativo");
+
+    public async Task<bool> ExcluirAsync(Guid id)
+    {
+        var resp = await _api.DeleteAsync($"api/clientes/{id}");
+        return resp.IsSuccessStatusCode;
+    }
+}

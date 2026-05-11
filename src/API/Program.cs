@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using NfeSaas.API.Workers;
 using NfeSaas.Application;
 using NfeSaas.Infrastructure;
 using NfeSaas.Infrastructure.Data;
@@ -80,6 +81,10 @@ builder.Services.AddSwaggerGen(c =>
 
 // Health Checks
 builder.Services.AddHealthChecks();
+
+// Worker de atualização semanal da tabela NCM (configurado via seção `Ncm`).
+builder.Services.Configure<NcmUpdateWorkerOptions>(builder.Configuration.GetSection("Ncm"));
+builder.Services.AddHostedService<NcmUpdateWorker>();
 
 var app = builder.Build();
 

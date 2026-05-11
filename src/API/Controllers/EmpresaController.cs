@@ -1,5 +1,8 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NfeSaas.Application.Commands.ConfiguracaoEmpresaCommands;
+using NfeSaas.Application.Commands.EmpresaCommands;
 using NfeSaas.Application.DTOs;
 using NfeSaas.Application.Interfaces;
 using NfeSaas.Domain.Interfaces;
@@ -42,15 +45,38 @@ public class EmpresaController : BaseApiController
             empresa.Cidade,
             empresa.Uf,
             empresa.Cep,
+            empresa.Cnae,
+            empresa.CodigoMunicipio,
             empresa.RegimeTributario,
             empresa.AmbienteSefaz,
             empresa.UltimoNumeronFe,
             empresa.UltimoNumeronFCe,
             certificadoValidade = empresa.CertificadoValidade,
             certificadoCnpj = empresa.CertificadoCnpj,
-            certificadoValido = empresa.CertificadoValido()
+            certificadoValido = empresa.CertificadoValido(),
+            cscId = empresa.CscId,
+            temCscToken = !string.IsNullOrEmpty(empresa.CscToken)
         });
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut]
+    public async Task<IActionResult> Atualizar([FromBody] UpdateEmpresaDto dto)
+    {
+        var result = await Mediator.Send(new UpdateEmpresaCommand(EmpresaId, dto));
+        if (!result.Sucesso) return BadRequest(new { message = result.Erro });
+        return NoContent();
+    }
+
+    [HttpGet("/api/diagnostics/xsd")]
+    [AllowAnonymous]
+    public IActionResult GetXsdStatus([FromServices] IXsdValidationService xsd) =>
+        Ok(new
+        {
+            xsd.TemSchemasCarregados,
+            xsd.TotalSchemasCarregados,
+            xsd.ErrosCarga
+        });
 
     [HttpGet("certificado/status")]
     public async Task<IActionResult> GetCertificadoStatus()
@@ -91,5 +117,21 @@ public class EmpresaController : BaseApiController
         await _uow.SaveChangesAsync();
 
         return Ok(new CertificadoStatusDto(true, info.NomeTitular, info.Cnpj, info.Validade, null));
+    }
+
+    [HttpGet("configuracao")]
+    public async Task<IActionResult> GetConfiguracao()
+    {
+        var result = await Mediator.Send(new GetConfiguracaoEmpresaQuery(EmpresaId));
+        if (result == null) return NoContent();
+        return Ok(result);
+    }
+
+    [HttpPost("configuracao")]
+    public async Task<IActionResult> SalvarConfiguracao([FromBody] ConfiguracaoEmpresaDto dto)
+    {
+        var result = await Mediator.Send(new SalvarConfiguracaoEmpresaCommand(EmpresaId, dto));
+        if (result == null) return BadRequest(new { message = "Não foi possível salvar a configuração." });
+        return Ok(result);
     }
 }

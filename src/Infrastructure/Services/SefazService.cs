@@ -203,6 +203,40 @@ public class SefazService : ISefazService
         return _urlsSvcAn.TryGetValue(ambiente, out var anUrl) ? anUrl : _urlsSvcAn[AmbienteSefaz.Homologacao];
     }
 
+    // Stubs de eventos fiscais. Em produção, cada um chama seu próprio web service SEFAZ
+    // (RecepcaoEvento para CC-e e Manifestação; NfeInutilizacao para Inutilização).
+    // Aqui registramos no log e retornamos sucesso em homologação/dev.
+    public async Task<SefazResultado> EnviarEventoCceAsync(EventoFiscal evento, Empresa empresa, CancellationToken ct = default)
+    {
+        await Task.Delay(50, ct);
+        if (empresa.AmbienteSefaz == AmbienteSefaz.Producao)
+            return new SefazResultado(false, evento.ChaveAcesso, null, null,
+                "Envio real de CC-e à SEFAZ ainda não implementado em produção.", 0);
+        _logger.LogInformation("CC-e simulada para chave {Chave} sequencial {Seq}", evento.ChaveAcesso, evento.SequencialCce);
+        return new SefazResultado(true, evento.ChaveAcesso, $"CCE{DateTime.Now:yyMMddHHmmss}", null, null, 135);
+    }
+
+    public async Task<SefazResultado> EnviarInutilizacaoAsync(EventoFiscal evento, Empresa empresa, CancellationToken ct = default)
+    {
+        await Task.Delay(50, ct);
+        if (empresa.AmbienteSefaz == AmbienteSefaz.Producao)
+            return new SefazResultado(false, null, null, null,
+                "Envio real de inutilização à SEFAZ ainda não implementado em produção.", 0);
+        _logger.LogInformation("Inutilização simulada — empresa {Cnpj} série {Serie} {Ini}-{Fin}",
+            empresa.Cnpj, evento.SerieInutilizacao, evento.NumeroInicialInutilizacao, evento.NumeroFinalInutilizacao);
+        return new SefazResultado(true, null, $"INU{DateTime.Now:yyMMddHHmmss}", null, null, 102);
+    }
+
+    public async Task<SefazResultado> EnviarManifestacaoAsync(EventoFiscal evento, Empresa empresa, CancellationToken ct = default)
+    {
+        await Task.Delay(50, ct);
+        if (empresa.AmbienteSefaz == AmbienteSefaz.Producao)
+            return new SefazResultado(false, evento.ChaveAcesso, null, null,
+                "Envio real de manifestação à SEFAZ ainda não implementado em produção.", 0);
+        _logger.LogInformation("Manifestação simulada — chave {Chave} tipo {Tipo}", evento.ChaveAcesso, evento.Tipo);
+        return new SefazResultado(true, evento.ChaveAcesso, $"MAN{DateTime.Now:yyMMddHHmmss}", null, null, 135);
+    }
+
     public async Task<bool> ConsultarStatusServicoAsync(Empresa empresa, CancellationToken ct = default)
     {
         // Override the existing stub with a real connectivity check

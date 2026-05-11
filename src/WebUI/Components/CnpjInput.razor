@@ -1,0 +1,141 @@
+@inject IReceitaApiService Receita
+@implements IDisposable
+
+<MudTextField T="string" Value="@_display" ValueChanged="OnTyped"
+              Label="@Label"
+              Placeholder="00.000.000/0000-00"
+              Variant="Variant.Outlined"
+              MaxLength="18"
+              ReadOnly="@ReadOnly"
+              Disabled="@Disabled"
+              Required="@Required"
+              Immediate="true"
+              HelperText="@HelperText"
+              Error="@(!string.IsNullOrEmpty(ErroExterno) || !string.IsNullOrEmpty(_erroInterno))"
+              ErrorText="@(ErroExterno ?? _erroInterno)"
+              Adornment="Adornment.End"
+              AdornmentIcon="@_icone"
+              AdornmentColor="@_corIcone"
+              OnAdornmentClick="BuscarManualmente"
+              Class="@Class" />
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public EventCallback<EmpresaReceita> EmpresaEncontrada { get; set; }
+    [Parameter] public string Label { get; set; } = "CNPJ";
+    [Parameter] public string? HelperText { get; set; } = "Preencha o CNPJ para autocompletar os dados cadastrais";
+    [Parameter] public string? ErroExterno { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string _display = "";
+    private string _ultimoBuscado = "";
+    private bool _buscando;
+    private bool _ultimoSucesso;
+    private string? _erroInterno;
+    private CancellationTokenSource? _cts;
+
+    private string _icone =>
+        _buscando ? Icons.Material.Filled.HourglassEmpty :
+        _ultimoSucesso ? Icons.Material.Filled.CheckCircle :
+        Icons.Material.Filled.Search;
+
+    private Color _corIcone =>
+        _buscando ? Color.Default :
+        _ultimoSucesso ? Color.Success :
+        !string.IsNullOrEmpty(_erroInterno) ? Color.Error :
+        Color.Primary;
+
+    protected override void OnParametersSet()
+    {
+        var formatado = Receita.Formatar(Value);
+        if (formatado != _display)
+        {
+            _display = formatado;
+            var d = Receita.ApenasDigitos(Value);
+            if (d.Length == 14 && d == _ultimoBuscado) _ultimoSucesso = true;
+        }
+    }
+
+    async Task OnTyped(string? novoValor)
+    {
+        var d = Receita.ApenasDigitos(novoValor);
+        _display = Formatar(d);
+        await ValueChanged.InvokeAsync(d);
+
+        if (d.Length < 14)
+        {
+            _erroInterno = null;
+            _ultimoSucesso = false;
+            return;
+        }
+
+        if (d == _ultimoBuscado) return;
+        await DispararBusca(d);
+    }
+
+    async Task BuscarManualmente()
+    {
+        var d = Receita.ApenasDigitos(_display);
+        if (d.Length != 14) return;
+        _ultimoBuscado = "";
+        await DispararBusca(d);
+    }
+
+    async Task DispararBusca(string digitos)
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        _buscando = true;
+        _erroInterno = null;
+        _ultimoSucesso = false;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await Receita.ConsultarAsync(digitos, token);
+            if (token.IsCancellationRequested) return;
+
+            _ultimoBuscado = digitos;
+            if (resultado.Sucesso)
+            {
+                _ultimoSucesso = true;
+                _erroInterno = null;
+                await EmpresaEncontrada.InvokeAsync(resultado.Empresa!);
+            }
+            else
+            {
+                _ultimoSucesso = false;
+                _erroInterno = resultado.MensagemErro;
+            }
+        }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                _buscando = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    static string Formatar(string d) => d.Length switch
+    {
+        <= 2  => d,
+        <= 5  => $"{d[..2]}.{d[2..]}",
+        <= 8  => $"{d[..2]}.{d[2..5]}.{d[5..]}",
+        <= 12 => $"{d[..2]}.{d[2..5]}.{d[5..8]}/{d[8..]}",
+        _     => $"{d[..2]}.{d[2..5]}.{d[5..8]}/{d[8..12]}-{d[12..Math.Min(d.Length, 14)]}"
+    };
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

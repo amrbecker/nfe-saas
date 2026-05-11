@@ -54,7 +54,12 @@ public record ImpostosItemDto(
     CstPisCofins CstPis,
     decimal AliquotaPis,
     CstPisCofins CstCofins,
-    decimal AliquotaCofins
+    decimal AliquotaCofins,
+    CsosnIcms? CsosnIcms = null,           // Simples Nacional — quando preenchido, prevalece sobre CstIcms
+    decimal? AliquotaIpi = null,           // IPI — % (0-100). null/zero = sem IPI.
+    string? CstIpi = null,                 // CST IPI (string 2-dig: 50, 49, 99…). Default "50" quando AliquotaIpi > 0.
+    decimal? AliquotaFcp = null,           // FCP — % adicional sobre BC ICMS (0 a ~4 dependendo da UF/produto)
+    decimal? AliquotaInternaUfDestino = null  // DIFAL — alíquota interna da UF de destino (usada quando interestadual a não-contribuinte)
 );
 
 public record TransporteDto(
@@ -108,7 +113,9 @@ public record NotaFiscalDetalheDto(
     DateTime DataEmissao,
     DateTime? DataAutorizacao,
     string? MotivoRejeicao,
-    string? InformacoesAdicionais
+    string? InformacoesAdicionais,
+    DateTime? DataDescarteAutorizado = null,
+    bool DentroPeriodoRetencao = false
 );
 
 public record ItemNotaResumoDto(
@@ -184,11 +191,188 @@ public record CreateEmpresaDto(
     string Telefone,
     string Email,
     int RegimeTributario,
-    int AmbienteSefaz
+    int AmbienteSefaz,
+    string? Cnae = null
+);
+
+// === EVENTOS FISCAIS ===
+public record EmitirCceDto(string Correcao);
+public record ManifestarDto(int Tipo, string? Justificativa);
+public record InutilizarDto(int Ano, int TipoNota, int Serie, int NumeroInicial, int NumeroFinal, string Justificativa);
+
+public record EventoFiscalResumoDto(
+    Guid Id,
+    int Tipo,
+    string? ChaveAcesso,
+    int? SequencialCce,
+    int? AnoInutilizacao,
+    int? TipoNotaInutilizacao,
+    int? SerieInutilizacao,
+    int? NumeroInicialInutilizacao,
+    int? NumeroFinalInutilizacao,
+    string Justificativa,
+    int Situacao,
+    string? Protocolo,
+    string? MotivoRejeicao,
+    DateTime DataEvento,
+    DateTime? DataRetorno
+);
+
+// === PRODUTO ===
+public record CreateProdutoDto(
+    string Codigo,
+    string Descricao,
+    string Ncm,
+    string CfopPadrao,
+    string UnidadeComercial,
+    int OrigemMercadoria,
+    decimal ValorUnitarioPadrao,
+    string? Cest = null,
+    string? CodigoEan = null,
+    string? CodigoAnp = null
+);
+
+public record UpdateProdutoDto(
+    string Codigo,
+    string Descricao,
+    string Ncm,
+    string CfopPadrao,
+    string UnidadeComercial,
+    int OrigemMercadoria,
+    decimal ValorUnitarioPadrao,
+    string? Cest,
+    string? CodigoEan,
+    string? CodigoAnp
+);
+
+public record ProdutoResumoDto(
+    Guid Id,
+    string Codigo,
+    string Descricao,
+    string Ncm,
+    string UnidadeComercial,
+    decimal ValorUnitarioPadrao,
+    bool Ativo
+);
+
+public record ProdutoDetalheDto(
+    Guid Id,
+    string Codigo,
+    string Descricao,
+    string Ncm,
+    string? Cest,
+    string CfopPadrao,
+    string UnidadeComercial,
+    int OrigemMercadoria,
+    decimal ValorUnitarioPadrao,
+    string? CodigoEan,
+    string? CodigoAnp,
+    bool Ativo
+);
+
+// === CLIENTE ===
+public record CreateClienteDto(
+    int TipoPessoa,
+    string? CpfCnpj,
+    string RazaoSocial,
+    string? NomeFantasia,
+    string? Email,
+    string? Telefone,
+    string Logradouro,
+    string Numero,
+    string? Complemento,
+    string Bairro,
+    string Cidade,
+    string Uf,
+    string Cep,
+    string CodigoMunicipio,
+    string? InscricaoEstadual,
+    int IndicadorIe
+);
+
+public record UpdateClienteDto(
+    int TipoPessoa,
+    string? CpfCnpj,
+    string RazaoSocial,
+    string? NomeFantasia,
+    string? Email,
+    string? Telefone,
+    string Logradouro,
+    string Numero,
+    string? Complemento,
+    string Bairro,
+    string Cidade,
+    string Uf,
+    string Cep,
+    string CodigoMunicipio,
+    string? InscricaoEstadual,
+    int IndicadorIe
+);
+
+public record ClienteResumoDto(
+    Guid Id,
+    int TipoPessoa,
+    string? CpfCnpj,
+    string RazaoSocial,
+    string? NomeFantasia,
+    string Uf,
+    bool Ativo
+);
+
+public record ClienteDetalheDto(
+    Guid Id,
+    int TipoPessoa,
+    string? CpfCnpj,
+    string RazaoSocial,
+    string? NomeFantasia,
+    string? Email,
+    string? Telefone,
+    string Logradouro,
+    string Numero,
+    string? Complemento,
+    string Bairro,
+    string Cidade,
+    string Uf,
+    string Cep,
+    string CodigoMunicipio,
+    string? InscricaoEstadual,
+    int IndicadorIe,
+    bool Ativo
+);
+
+public record UpdateEmpresaDto(
+    string RazaoSocial,
+    string NomeFantasia,
+    string InscricaoEstadual,
+    string Logradouro,
+    string Numero,
+    string Bairro,
+    string Cidade,
+    string Uf,
+    string Cep,
+    string CodigoMunicipio,
+    string Telefone,
+    string Email,
+    int RegimeTributario,
+    int AmbienteSefaz,
+    string? Cnae = null,
+    string? CscId = null,
+    string? CscToken = null
 );
 
 public record UploadCertificadoDto(string Senha);
 public record CertificadoStatusDto(bool Valido, string? NomeTitular, string? Cnpj, DateTime? Validade, string? Mensagem);
+
+public record ConfiguracaoEmpresaDto(
+    int PerfilCliente,
+    int TipoProduto,
+    int VolumeNotas,
+    int NivelAutomacao,
+    bool EmiteParaConsumidorFinal,
+    bool OperaIcmsSt,
+    int NivelRelatorio,
+    DateTime? ConcluidoEm
+);
 
 public record EmpresaDetalheDto(
     Guid Id,
@@ -210,5 +394,9 @@ public record EmpresaDetalheDto(
     int UltimoNumeronFCe,
     DateTime? CertificadoValidade,
     string? CertificadoCnpj,
-    bool CertificadoValido
+    bool CertificadoValido,
+    string? Cnae = null,
+    string? CodigoMunicipio = null,
+    string? CscId = null,
+    bool TemCscToken = false  // não expomos o token; apenas se está configurado
 );

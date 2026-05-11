@@ -8,5 +8,5 @@ public abstract class BaseEntity
     public bool IsDeleted { get; protected set; }
 
     public void SetUpdated() => UpdatedAt = DateTime.UtcNow;
-    public void Delete() => IsDeleted = true;
+    public virtual void Delete() => IsDeleted = true;
 }
