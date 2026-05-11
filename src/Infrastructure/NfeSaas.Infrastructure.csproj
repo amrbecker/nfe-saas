@@ -22,6 +22,9 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.3.1" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="7.3.1" />
     <PackageReference Include="QuestPDF" Version="2024.3.3" />
+    <!-- QuestPDF 2024.3.3 puxa SkiaSharp 2.88.3 + assets macOS/Win32, mas não os de Linux.
+         Sem este pacote, a imagem Docker (Debian) lança DllNotFoundException ao gerar PDF. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.3" />
     <PackageReference Include="QRCoder" Version="1.4.3" />
     <PackageReference Include="BarcodeLib" Version="3.0.0" />
     <PackageReference Include="Serilog" Version="3.1.1" />

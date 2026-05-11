@@ -18,8 +18,12 @@ RUN dotnet publish src/API/NfeSaas.API.csproj -c Release -o /app/publish --no-re
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Pacotes runtime:
+#   curl          → healthcheck do compose
+#   libfontconfig1 → exigido pelo SkiaSharp/QuestPDF para renderização do DANFE em PDF
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl libfontconfig1 \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 
