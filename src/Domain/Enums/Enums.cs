@@ -1,11 +1,21 @@
 namespace NfeSaas.Domain.Enums;
 
+// Não existe plano gratuito. Todo novo escritório recebe trial de 30 dias do plano escolhido;
+// após o trial, o login é bloqueado até pagamento e ativação (ver Escritorio.AtivarPlanoPago).
 public enum PlanoSaas
 {
-    Free = 0,
     Basico = 1,
     Profissional = 2,
     Enterprise = 3
+}
+
+// Estado de cobrança do escritório, derivado de TrialFimEm + PlanoAtivoAteEm.
+public enum StatusAssinaturaEscritorio
+{
+    TrialAtivo = 1,
+    Pago = 2,
+    TrialExpirado = 3,
+    Suspenso = 4
 }
 
 public enum TipoNota

@@ -124,13 +124,16 @@ public class ApiClient
 // === AUTH SERVICE ===
 public interface IAuthService
 {
-    Task<LoginResultDto?> LoginAsync(string email, string senha);
+    Task<LoginAttemptResult> LoginAsync(string email, string senha);
     Task<bool> SelecionarEmpresaAsync(Guid empresaId);
     Task LogoutAsync();
     Task<string?> GetTokenAsync();
     Task<bool> IsAuthenticatedAsync();
     Task<bool> HasEmpresaSelecionadaAsync();
 }
+
+// Resultado do login: Sucesso ou falha detalhada (TrialExpirado, EscritorioSuspenso, Credencial).
+public record LoginAttemptResult(LoginResultDto? Sucesso, string? Codigo, string? Mensagem, AssinaturaDto? Assinatura);
 
 public class AuthService : IAuthService
 {
@@ -143,28 +146,50 @@ public class AuthService : IAuthService
         _storage = storage;
     }
 
-    public async Task<LoginResultDto?> LoginAsync(string email, string senha)
+    public async Task<LoginAttemptResult> LoginAsync(string email, string senha)
     {
-        var result = await _api.PostAsync<LoginDto, LoginResultDto>(
-            "api/auth/login", new LoginDto(email, senha));
+        var resp = await _api.PostRawAsync("api/auth/login", new LoginDto(email, senha));
 
-        if (result == null) return null;
+        if (resp.IsSuccessStatusCode)
+        {
+            var result = await resp.Content.ReadFromJsonAsync<LoginResultDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (result == null)
+                return new(null, "RespostaInvalida", "Servidor retornou resposta inválida.", null);
 
-        await _storage.SetItemAsStringAsync("access_token", result.AccessToken);
-        await _storage.SetItemAsStringAsync("refresh_token", result.RefreshToken);
-        await _storage.SetItemAsStringAsync("user_name", result.NomeUsuario);
-        await _storage.SetItemAsStringAsync("user_role", result.Role);
-        await _storage.SetItemAsStringAsync("escritorio_id", result.EscritorioId.ToString());
+            await _storage.SetItemAsStringAsync("access_token", result.AccessToken);
+            await _storage.SetItemAsStringAsync("refresh_token", result.RefreshToken);
+            await _storage.SetItemAsStringAsync("user_name", result.NomeUsuario);
+            await _storage.SetItemAsStringAsync("user_role", result.Role);
+            await _storage.SetItemAsStringAsync("escritorio_id", result.EscritorioId.ToString());
 
-        // Store empresas list for selection
-        var empresasJson = System.Text.Json.JsonSerializer.Serialize(result.Empresas);
-        await _storage.SetItemAsStringAsync("empresas", empresasJson);
+            var empresasJson = System.Text.Json.JsonSerializer.Serialize(result.Empresas);
+            await _storage.SetItemAsStringAsync("empresas", empresasJson);
+            await _storage.SetItemAsStringAsync("assinatura", System.Text.Json.JsonSerializer.Serialize(result.Assinatura));
 
-        // Auto-select if only one empresa
-        if (result.Empresas.Count == 1)
-            await SelecionarEmpresaAsync(result.Empresas[0].Id);
+            if (result.Empresas.Count == 1)
+                await SelecionarEmpresaAsync(result.Empresas[0].Id);
 
-        return result;
+            return new(result, null, null, result.Assinatura);
+        }
+
+        // Falha estruturada: 401 (credencial), 402 (trial expirado), 403 (suspenso)
+        try
+        {
+            var body = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(body);
+            var codigo = doc.RootElement.TryGetProperty("codigo", out var c) ? c.GetString() : null;
+            var mensagem = doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() : null;
+            AssinaturaDto? assinatura = null;
+            if (doc.RootElement.TryGetProperty("assinatura", out var a) && a.ValueKind == JsonValueKind.Object)
+            {
+                assinatura = a.Deserialize<AssinaturaDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            }
+            return new(null, codigo, mensagem, assinatura);
+        }
+        catch
+        {
+            return new(null, "Erro", await ApiHelper.ExtrairMensagemErro(resp), null);
+        }
     }
 
     public async Task<bool> SelecionarEmpresaAsync(Guid empresaId)
@@ -190,6 +215,7 @@ public class AuthService : IAuthService
         await _storage.RemoveItemAsync("escritorio_id");
         await _storage.RemoveItemAsync("empresa_id");
         await _storage.RemoveItemAsync("empresas");
+        await _storage.RemoveItemAsync("assinatura");
     }
 
     public async Task<string?> GetTokenAsync() =>
@@ -214,6 +240,8 @@ public interface IEscritorioService
     Task<UsuarioResumoDto?> ToggleAtivoUsuarioAsync(Guid id);
     Task<bool> ExcluirUsuarioAsync(Guid id);
     Task<EscritorioDto?> RegistrarAsync(CreateEscritorioDto dto);
+    Task<(EmpresaResumoDto? Empresa, string? Erro)> CadastrarComoEmpresaAsync(CadastrarEscritorioComoEmpresaDto dto);
+    Task<(bool Sucesso, string? Erro)> AtivarPlanoAsync(AtivarPlanoPagoDto dto);
 }
 
 public class EscritorioService : IEscritorioService
@@ -284,6 +312,25 @@ public class EscritorioService : IEscritorioService
 
     public async Task<EscritorioDto?> RegistrarAsync(CreateEscritorioDto dto) =>
         await _api.PostAsync<CreateEscritorioDto, EscritorioDto>("api/escritorio/registrar", dto);
+
+    public async Task<(EmpresaResumoDto? Empresa, string? Erro)> CadastrarComoEmpresaAsync(CadastrarEscritorioComoEmpresaDto dto)
+    {
+        var resp = await _api.PostRawAsync("api/escritorio/cadastrar-como-empresa", dto);
+        if (resp.IsSuccessStatusCode)
+        {
+            var empresa = await resp.Content.ReadFromJsonAsync<EmpresaResumoDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (empresa != null) await _storage.RemoveItemAsync("empresas");
+            return (empresa, null);
+        }
+        return (null, await ApiHelper.ExtrairMensagemErro(resp));
+    }
+
+    public async Task<(bool Sucesso, string? Erro)> AtivarPlanoAsync(AtivarPlanoPagoDto dto)
+    {
+        var resp = await _api.PostRawAsync("api/escritorio/ativar-plano", dto);
+        if (resp.IsSuccessStatusCode) return (true, null);
+        return (false, await ApiHelper.ExtrairMensagemErro(resp));
+    }
 }
 
 // === NOTA FISCAL SERVICE ===

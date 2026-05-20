@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject IAuthService AuthService
 @inject IEscritorioService EscritorioService
+@inject IPersonalizacaoService Personalizacao
 @inject NavigationManager Nav
 @inject ILocalStorageService Storage
 @inject AuthenticationStateProvider AuthStateProvider
@@ -59,10 +60,22 @@
                     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
                     <MudNavLink Href="/emitir" Icon="@Icons.Material.Filled.NoteAdd">Emitir NF-e</MudNavLink>
                     <MudNavLink Href="/notas" Icon="@Icons.Material.Filled.Receipt">Notas Emitidas</MudNavLink>
-                    <MudDivider />
-                    <MudNavLink Href="/produtos" Icon="@Icons.Material.Filled.Inventory">Produtos</MudNavLink>
-                    <MudNavLink Href="/clientes" Icon="@Icons.Material.Filled.PeopleAlt">Destinatários</MudNavLink>
-                    <MudNavLink Href="/inutilizacoes" Icon="@Icons.Material.Filled.Block">Inutilizações</MudNavLink>
+                    @if (_perfil.MostrarCadastroProdutos || _perfil.MostrarCadastroClientes || _perfil.MostrarInutilizacoes)
+                    {
+                        <MudDivider />
+                    }
+                    @if (_perfil.MostrarCadastroProdutos)
+                    {
+                        <MudNavLink Href="/produtos" Icon="@Icons.Material.Filled.Inventory">Produtos</MudNavLink>
+                    }
+                    @if (_perfil.MostrarCadastroClientes)
+                    {
+                        <MudNavLink Href="/clientes" Icon="@Icons.Material.Filled.PeopleAlt">Destinatários</MudNavLink>
+                    }
+                    @if (_perfil.MostrarInutilizacoes)
+                    {
+                        <MudNavLink Href="/inutilizacoes" Icon="@Icons.Material.Filled.Block">Inutilizações</MudNavLink>
+                    }
                     <MudDivider />
                     <MudNavLink Href="/empresa" Icon="@Icons.Material.Filled.Business">Config. Empresa</MudNavLink>
                     <MudNavLink Href="/configuracao-inicial" Icon="@Icons.Material.Filled.Tune">Personalização</MudNavLink>
@@ -95,6 +108,7 @@
     private List<EmpresaResumoDto>? _empresas;
     private Guid _empresaIdSelecionada;
     private EmpresaResumoDto? _empresaSelecionada;
+    private PerfilSimplificado _perfil = PerfilSimplificado.Default();
 
     string NomeExibicao(EmpresaResumoDto? e) =>
         string.IsNullOrWhiteSpace(e?.NomeFantasia) ? e?.RazaoSocial ?? "" : e.NomeFantasia;
@@ -119,6 +133,7 @@
             _empresaIdSelecionada = eid;
             _empresaSelecionada = _empresas?.FirstOrDefault(e => e.Id == eid);
         }
+        _perfil = await Personalizacao.ObterPerfilAsync();
     }
 
     void ToggleDrawer() => _drawerOpen = !_drawerOpen;
@@ -128,6 +143,7 @@
         _empresaIdSelecionada = empresaId;
         _empresaSelecionada = _empresas?.FirstOrDefault(e => e.Id == empresaId);
         await AuthService.SelecionarEmpresaAsync(empresaId);
+        await Personalizacao.InvalidarAsync(); // cada empresa tem sua personalização
         ((JwtAuthStateProvider)AuthStateProvider).NotifyAuthStateChanged();
         Nav.NavigateTo("/", forceLoad: true);
     }

@@ -4,6 +4,7 @@
 @inject IEmpresaService EmpresaService
 @inject IClienteService ClienteService
 @inject IProdutoService ProdutoService
+@inject IPersonalizacaoService Personalizacao
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
@@ -18,7 +19,10 @@
             <MudItem xs="12" md="4">
                 <MudSelect @bind-Value="_tipo" Label="Tipo de Nota" Variant="Variant.Outlined" Required>
                     <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoNota.NFe">NF-e (55)</MudSelectItem>
-                    <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoNota.NFCe">NFC-e (65)</MudSelectItem>
+                    @if (_perfil.MostrarNFCe)
+                    {
+                        <MudSelectItem Value="@NfeSaas.Domain.Enums.TipoNota.NFCe">NFC-e (65)</MudSelectItem>
+                    }
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" md="4">
@@ -239,28 +243,31 @@
                     <MudItem xs="12" md="2">
                         <MudNumericField @bind-Value="item.AliquotaCofins" Label="Alíq. COFINS %" Variant="Variant.Outlined" Min="0m" Max="100m" />
                     </MudItem>
-                    <!-- Tributação avançada -->
-                    <MudItem xs="12" md="2">
-                        <MudNumericField @bind-Value="item.AliquotaIpi" Label="Alíq. IPI %" Variant="Variant.Outlined" Min="0m" Max="100m"
-                                         HelperText="0 = sem IPI" />
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudSelect @bind-Value="item.CstIpi" Label="CST IPI" Variant="Variant.Outlined" Disabled="@(item.AliquotaIpi <= 0)">
-                            <MudSelectItem Value="@("50")">50 - Saída tributada</MudSelectItem>
-                            <MudSelectItem Value="@("49")">49 - Outras entradas</MudSelectItem>
-                            <MudSelectItem Value="@("99")">99 - Outras saídas</MudSelectItem>
-                            <MudSelectItem Value="@("00")">00 - Entrada c/ recup. crédito</MudSelectItem>
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudNumericField @bind-Value="item.AliquotaFcp" Label="Alíq. FCP %" Variant="Variant.Outlined" Min="0m" Max="10m"
-                                         HelperText="CE/RJ típico 2%" />
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudNumericField @bind-Value="item.AliquotaInternaUfDestino"
-                                         Label="Alíq. interna UF destino % (DIFAL)" Variant="Variant.Outlined" Min="0m" Max="100m"
-                                         HelperText="Preencha para interestadual a não-contribuinte" />
-                    </MudItem>
+                    @if (_perfil.MostrarTributacaoAvancada)
+                    {
+                        <!-- Tributação avançada — IPI, FCP, DIFAL. Oculto no modo simples (configuração do escritório). -->
+                        <MudItem xs="12" md="2">
+                            <MudNumericField @bind-Value="item.AliquotaIpi" Label="Alíq. IPI %" Variant="Variant.Outlined" Min="0m" Max="100m"
+                                             HelperText="0 = sem IPI" />
+                        </MudItem>
+                        <MudItem xs="12" md="2">
+                            <MudSelect @bind-Value="item.CstIpi" Label="CST IPI" Variant="Variant.Outlined" Disabled="@(item.AliquotaIpi <= 0)">
+                                <MudSelectItem Value="@("50")">50 - Saída tributada</MudSelectItem>
+                                <MudSelectItem Value="@("49")">49 - Outras entradas</MudSelectItem>
+                                <MudSelectItem Value="@("99")">99 - Outras saídas</MudSelectItem>
+                                <MudSelectItem Value="@("00")">00 - Entrada c/ recup. crédito</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="2">
+                            <MudNumericField @bind-Value="item.AliquotaFcp" Label="Alíq. FCP %" Variant="Variant.Outlined" Min="0m" Max="10m"
+                                             HelperText="CE/RJ típico 2%" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudNumericField @bind-Value="item.AliquotaInternaUfDestino"
+                                             Label="Alíq. interna UF destino % (DIFAL)" Variant="Variant.Outlined" Min="0m" Max="100m"
+                                             HelperText="Preencha para interestadual a não-contribuinte" />
+                        </MudItem>
+                    }
                 </MudGrid>
             </MudCard>
         }
@@ -355,6 +362,9 @@
 </MudTabs>
 
 @code {
+    // Personalização
+    private PerfilSimplificado _perfil = PerfilSimplificado.Default();
+
     // Nota config
     private NfeSaas.Domain.Enums.TipoNota _tipo = NfeSaas.Domain.Enums.TipoNota.NFe;
     private NfeSaas.Domain.Enums.TipoOperacao _tipoOperacao = NfeSaas.Domain.Enums.TipoOperacao.Saida;
@@ -400,10 +410,12 @@
         var empresaTask = EmpresaService.GetEmpresaAsync();
         var clientesTask = ClienteService.ListarAsync(apenasAtivos: true);
         var produtosTask = ProdutoService.ListarAsync(apenasAtivos: true);
-        await Task.WhenAll(empresaTask, clientesTask, produtosTask);
+        var perfilTask = Personalizacao.ObterPerfilAsync();
+        await Task.WhenAll(empresaTask, clientesTask, produtosTask, perfilTask);
         _empresa = empresaTask.Result;
         _clientes = clientesTask.Result ?? new();
         _produtos = produtosTask.Result ?? new();
+        _perfil = perfilTask.Result;
         // RegimeTributario: 1=Simples, 2=Simples Excesso Sublimite, 3=Regime Normal
         _isSimples = _empresa != null && _empresa.RegimeTributario != 3;
     }

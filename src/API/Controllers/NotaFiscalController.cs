@@ -136,7 +136,8 @@ public class NotaFiscalController : BaseApiController
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard([FromQuery] int? ano, [FromQuery] int? mes)
     {
-        var agora = DateTime.Now;
+        // Default = ano/mês atual em UTC (container roda em UTC; UI deve passar ano/mes explícitos se quiser fuso local).
+        var agora = DateTime.UtcNow;
         var result = await Mediator.Send(new GetDashboardQuery(EmpresaId, ano ?? agora.Year, mes ?? agora.Month));
         return Ok(result);
     }

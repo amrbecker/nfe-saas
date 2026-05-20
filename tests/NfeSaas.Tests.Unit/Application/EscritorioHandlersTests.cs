@@ -59,6 +59,236 @@ public class EscritorioHandlersTests
     }
 
     // ==========================================================
+    // CadastrarEscritorioComoEmpresaCommand
+    // ==========================================================
+    private CadastrarEscritorioComoEmpresaCommandHandler CadastrarComoEmpresaH() =>
+        new(_escritorioRepo.Object, _empresaRepo.Object, _uow.Object);
+
+    private static CadastrarEscritorioComoEmpresaCommand CmdCadastrarComoEmpresa(
+        Guid escritorioId,
+        string ie = "111111111111",
+        string uf = "SP",
+        string cep = "01310100",
+        string codigoMunicipio = "3550308",
+        int regime = 3,
+        int ambiente = 2,
+        string? cnae = null) =>
+        new(escritorioId, ie,
+            "Rua Teste", "100", "Centro", "São Paulo", uf,
+            cep, codigoMunicipio, regime, ambiente, cnae);
+
+    private static Escritorio EscritorioParaCadastro(string cnpj = "11222333000181") =>
+        Escritorio.Criar("Escritório XPTO LTDA", "XPTO", cnpj,
+            "contato@xpto.com", "11999999999", PlanoSaas.Profissional);
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_EscritorioNaoExiste_RetornaNull()
+    {
+        _escritorioRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Escritorio?)null);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(Guid.NewGuid()), CancellationToken.None);
+
+        result.Should().BeNull();
+        _empresaRepo.Verify(r => r.AddAsync(It.IsAny<Empresa>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_UfInvalida_RetornaNull()
+    {
+        var escritorio = EscritorioParaCadastro();
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id, uf: "ZZ"), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_IeInvalidaParaUf_RetornaNull()
+    {
+        var escritorio = EscritorioParaCadastro();
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+
+        // SP exige IE de 12 dígitos — 8 dígitos é inválido
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id, ie: "12345678"), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_CepComDigitosInsuficientes_RetornaNull()
+    {
+        var escritorio = EscritorioParaCadastro();
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id, cep: "123"), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_CnaeInvalido_RetornaNull()
+    {
+        var escritorio = EscritorioParaCadastro();
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id, cnae: "12345"), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_RegimeTributarioInvalido_RetornaNull()
+    {
+        var escritorio = EscritorioParaCadastro();
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id, regime: 99), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_AmbienteSefazInvalido_RetornaNull()
+    {
+        var escritorio = EscritorioParaCadastro();
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id, ambiente: 7), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_CnpjJaExisteNoMesmoEscritorio_RetornaExistente_SemRecriar()
+    {
+        var escritorio = EscritorioParaCadastro();
+        var existente = Empresa.Criar(escritorio.Id, "Pré-existente LTDA", "Pré",
+            "11222333000181", "111111111111", "Rua X", "1", "Bairro", "Cidade", "SP",
+            "01310100", "3550308", "11999999999", "x@x.com",
+            RegimeTributario.RegimeNormal, AmbienteSefaz.Homologacao);
+
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+        _empresaRepo.Setup(r => r.GetByCnpjAsync("11222333000181", It.IsAny<CancellationToken>())).ReturnsAsync(existente);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id), CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(existente.Id);
+        result.RazaoSocial.Should().Be("Pré-existente LTDA");
+        _empresaRepo.Verify(r => r.AddAsync(It.IsAny<Empresa>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_CnpjExisteEmOutroEscritorio_RetornaNull()
+    {
+        var escritorio = EscritorioParaCadastro();
+        var empresaAlheia = Empresa.Criar(Guid.NewGuid(), "Outra LTDA", "Outra",
+            "11222333000181", "111111111111", "Rua X", "1", "Bairro", "Cidade", "SP",
+            "01310100", "3550308", "11999999999", "x@x.com",
+            RegimeTributario.RegimeNormal, AmbienteSefaz.Homologacao);
+
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+        _empresaRepo.Setup(r => r.GetByCnpjAsync("11222333000181", It.IsAny<CancellationToken>())).ReturnsAsync(empresaAlheia);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id), CancellationToken.None);
+
+        result.Should().BeNull();
+        _empresaRepo.Verify(r => r.AddAsync(It.IsAny<Empresa>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CadastrarEscritorioComoEmpresa_DadosValidos_CriaEmpresaCopiandoDadosDoEscritorio()
+    {
+        var escritorio = EscritorioParaCadastro("11222333000181");
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>())).ReturnsAsync(escritorio);
+        _empresaRepo.Setup(r => r.GetByCnpjAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((Empresa?)null);
+
+        Empresa? capturada = null;
+        _empresaRepo.Setup(r => r.AddAsync(It.IsAny<Empresa>(), It.IsAny<CancellationToken>()))
+            .Callback<Empresa, CancellationToken>((e, _) => capturada = e)
+            .Returns(Task.CompletedTask);
+
+        var result = await CadastrarComoEmpresaH().Handle(
+            CmdCadastrarComoEmpresa(escritorio.Id, cnae: "6920601"), CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Cnpj.Should().Be("11222333000181");
+        result.RazaoSocial.Should().Be(escritorio.RazaoSocial);
+        result.NomeFantasia.Should().Be(escritorio.NomeFantasia);
+
+        capturada.Should().NotBeNull();
+        capturada!.EscritorioId.Should().Be(escritorio.Id);
+        capturada.Email.Should().Be(escritorio.Email);
+        capturada.Telefone.Should().Be(escritorio.Telefone);
+        capturada.Cnae.Should().Be("6920601");
+        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ==========================================================
+    // AtivarPlanoPagoCommand
+    // ==========================================================
+    private AtivarPlanoPagoCommandHandler AtivarPlanoH() =>
+        new(_escritorioRepo.Object, _uow.Object);
+
+    [Fact]
+    public async Task AtivarPlanoPago_EscritorioNaoExiste_RetornaFalse()
+    {
+        _escritorioRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Escritorio?)null);
+
+        var ok = await AtivarPlanoH().Handle(
+            new AtivarPlanoPagoCommand(Guid.NewGuid(), DateTime.UtcNow.AddDays(30), 99m),
+            CancellationToken.None);
+
+        ok.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AtivarPlanoPago_DataAteNoPassado_RetornaFalse()
+    {
+        var escritorio = Escritorio.Criar("E", "E", "11222333000181", "e@e.com", null, PlanoSaas.Basico);
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(escritorio);
+
+        var ok = await AtivarPlanoH().Handle(
+            new AtivarPlanoPagoCommand(escritorio.Id, DateTime.UtcNow.AddDays(-1), 99m),
+            CancellationToken.None);
+
+        ok.Should().BeFalse();
+        escritorio.PlanoAtivoAteEm.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AtivarPlanoPago_DadosValidos_AtivaPlanoEPersiste()
+    {
+        var escritorio = Escritorio.Criar("E", "E", "11222333000181", "e@e.com", null, PlanoSaas.Profissional);
+        _escritorioRepo.Setup(r => r.GetByIdAsync(escritorio.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(escritorio);
+        var ativoAte = DateTime.UtcNow.AddDays(365);
+
+        var ok = await AtivarPlanoH().Handle(
+            new AtivarPlanoPagoCommand(escritorio.Id, ativoAte, 299m),
+            CancellationToken.None);
+
+        ok.Should().BeTrue();
+        escritorio.PlanoAtivoAteEm.Should().Be(ativoAte);
+        escritorio.CalcularStatusAssinatura().Should().Be(StatusAssinaturaEscritorio.Pago);
+        _escritorioRepo.Verify(r => r.UpdateAsync(escritorio, It.IsAny<CancellationToken>()), Times.Once);
+        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ==========================================================
     // CreateEmpresaCommand
     // ==========================================================
     private CreateEmpresaCommandHandler CreateEmpresaH() =>

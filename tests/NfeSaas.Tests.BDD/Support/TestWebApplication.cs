@@ -21,6 +21,11 @@ public class TestWebApplication : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        // Program.cs valida Jwt:Secret e ConnectionStrings:DefaultConnection antes do host buildar.
+        // Injetamos placeholders válidos aqui — o DbContextOptions é substituído logo abaixo
+        // pelo connection string real do Testcontainer.
+        builder.UseSetting("Jwt:Secret", "test-jwt-secret-com-no-minimo-32-caracteres-para-validacao");
+        builder.UseSetting("ConnectionStrings:DefaultConnection", ConnectionString);
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(

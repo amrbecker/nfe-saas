@@ -10,13 +10,43 @@ namespace NfeSaas.API.Controllers;
 [ApiController]
 public class EscritorioController : BaseApiController
 {
-    // Auto-cadastro público — qualquer pessoa pode criar um escritório
+    // Auto-cadastro público — qualquer pessoa pode criar um escritório.
+    // Todo novo escritório recebe 30 dias de trial do plano escolhido.
     [HttpPost("registrar")]
     public async Task<IActionResult> Registrar([FromBody] CreateEscritorioDto dto)
     {
         var result = await Mediator.Send(new CreateEscritorioCommand(dto));
-        if (result == null) return Conflict(new { message = "CNPJ já cadastrado." });
+        if (result == null) return Conflict(new { message = "CNPJ já cadastrado ou plano inválido (escolha Básico, Profissional ou Enterprise)." });
         return Ok(result);
+    }
+
+    // Cadastra o próprio escritório como Empresa emitente. Idempotente — se o CNPJ do
+    // escritório já existe como empresa nele, retorna a existente.
+    [Authorize(Roles = "Admin")]
+    [HttpPost("cadastrar-como-empresa")]
+    public async Task<IActionResult> CadastrarEscritorioComoEmpresa([FromBody] CadastrarEscritorioComoEmpresaDto dto)
+    {
+        var cmd = new CadastrarEscritorioComoEmpresaCommand(
+            EscritorioId,
+            dto.InscricaoEstadual,
+            dto.Logradouro, dto.Numero, dto.Bairro, dto.Cidade, dto.Uf,
+            dto.Cep, dto.CodigoMunicipio,
+            dto.RegimeTributario, dto.AmbienteSefaz, dto.Cnae);
+        var result = await Mediator.Send(cmd);
+        if (result == null)
+            return BadRequest(new { message = "Não foi possível cadastrar o escritório como empresa (verifique IE, UF, CEP, CNAE)." });
+        return Ok(result);
+    }
+
+    // Ativa o plano pago do próprio escritório (admin do escritório).
+    // Em produção, esta rota deve ser substituída por webhook do gateway de pagamento.
+    [Authorize(Roles = "Admin")]
+    [HttpPost("ativar-plano")]
+    public async Task<IActionResult> AtivarPlano([FromBody] AtivarPlanoPagoDto dto)
+    {
+        var ok = await Mediator.Send(new AtivarPlanoPagoCommand(EscritorioId, dto.AtivoAteUtc, dto.ValorPago));
+        if (!ok) return BadRequest(new { message = "Não foi possível ativar o plano (data inválida ou escritório não encontrado)." });
+        return NoContent();
     }
 
     // === EMPRESAS ===

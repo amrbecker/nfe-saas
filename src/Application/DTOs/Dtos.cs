@@ -146,7 +146,22 @@ public record DashboardDto(
 public record FaturamentoDiarioDto(DateTime Data, decimal Total, int Quantidade);
 
 public record LoginDto(string Email, string Senha);
-public record LoginResultDto(string AccessToken, string RefreshToken, string NomeUsuario, string Email, string Role, Guid EscritorioId, List<EmpresaResumoDto> Empresas);
+public record LoginResultDto(
+    string AccessToken,
+    string RefreshToken,
+    string NomeUsuario,
+    string Email,
+    string Role,
+    Guid EscritorioId,
+    List<EmpresaResumoDto> Empresas,
+    AssinaturaDto Assinatura);
+public record AssinaturaDto(
+    string Plano,
+    string Status,                  // TrialAtivo | Pago | TrialExpirado | Suspenso
+    int DiasRestantesTrial,         // 0 quando trial terminou ou está em plano pago
+    DateTime TrialFimEm,
+    DateTime? PlanoAtivoAteEm);
+public record LoginFailureDto(string Motivo, string Codigo, AssinaturaDto? Assinatura);
 public record RefreshTokenDto(string RefreshToken);
 public record SelecionarEmpresaDto(Guid EmpresaId);
 
@@ -159,11 +174,27 @@ public record CreateEscritorioDto(
     string Cnpj,
     string Email,
     string? Telefone,
-    int Plano,
+    int Plano,                          // 1=Basico, 2=Profissional, 3=Enterprise (Free não existe)
     string NomeAdmin,
     string EmailAdmin,
     string SenhaAdmin
 );
+
+public record CadastrarEscritorioComoEmpresaDto(
+    string InscricaoEstadual,
+    string Logradouro,
+    string Numero,
+    string Bairro,
+    string Cidade,
+    string Uf,
+    string Cep,
+    string CodigoMunicipio,
+    int RegimeTributario,
+    int AmbienteSefaz,
+    string? Cnae
+);
+
+public record AtivarPlanoPagoDto(DateTime AtivoAteUtc, decimal? ValorPago);
 
 public record CreateUsuarioDto(
     string Nome,

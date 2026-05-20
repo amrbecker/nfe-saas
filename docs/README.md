@@ -12,19 +12,20 @@ Plataforma completa para emissão, gestão e arquivamento de **Nota Fiscal Eletr
 1. [Diferenciais Competitivos](#-diferenciais-competitivos)
 2. [Problemas que o Produto Resolve](#-problemas-que-o-produto-resolve)
 3. [Funcionalidades](#-funcionalidades)
-4. [Arquitetura](#%EF%B8%8F-arquitetura)
-5. [Início Rápido — Docker Compose](#-início-rápido--docker-compose)
-6. [Desenvolvimento Local](#%EF%B8%8F-desenvolvimento-local)
-7. [Modelo Multi-Tenant e Fluxo JWT](#-modelo-multi-tenant-e-fluxo-jwt)
-8. [Conformidade Fiscal e Imutabilidade](#-conformidade-fiscal-e-imutabilidade)
-9. [Endpoints da API](#-endpoints-da-api)
-10. [Impostos e Regimes Tributários Suportados](#-impostos-e-regimes-tributários-suportados)
-11. [Eventos Fiscais Suportados](#-eventos-fiscais-suportados)
-12. [Contingência SEFAZ](#%EF%B8%8F-contingência-sefaz)
-13. [Tecnologias](#%EF%B8%8F-tecnologias)
-14. [Variáveis de Ambiente](#%EF%B8%8F-variáveis-de-ambiente)
-15. [Testes](#-testes)
-16. [Produção](#-produção)
+4. [Segurança e Proteção de Dados](#-segurança-e-proteção-de-dados)
+5. [Arquitetura](#%EF%B8%8F-arquitetura)
+6. [Início Rápido — Docker Compose](#-início-rápido--docker-compose)
+7. [Desenvolvimento Local](#%EF%B8%8F-desenvolvimento-local)
+8. [Modelo Multi-Tenant e Fluxo JWT](#-modelo-multi-tenant-e-fluxo-jwt)
+9. [Conformidade Fiscal e Imutabilidade](#-conformidade-fiscal-e-imutabilidade)
+10. [Endpoints da API](#-endpoints-da-api)
+11. [Impostos e Regimes Tributários Suportados](#-impostos-e-regimes-tributários-suportados)
+12. [Eventos Fiscais Suportados](#-eventos-fiscais-suportados)
+13. [Contingência SEFAZ](#%EF%B8%8F-contingência-sefaz)
+14. [Tecnologias](#%EF%B8%8F-tecnologias)
+15. [Variáveis de Ambiente](#%EF%B8%8F-variáveis-de-ambiente)
+16. [Testes](#-testes)
+17. [Publicação em Produção](#-publicação-em-produção)
 
 ---
 
@@ -48,6 +49,7 @@ Plataforma completa para emissão, gestão e arquivamento de **Nota Fiscal Eletr
 | 14 | **Open-source self-hosted** | Stack 100% containerizada (Docker Compose). **Sem custo por nota emitida**, sem amarração a fornecedor SaaS terceiro, dados ficam na infraestrutura do cliente. |
 | 15 | **Arquitetura limpa e testável** | DDD + CQRS (MediatR) + Clean Architecture + EF Core 8. Testes Unit, Integration (Testcontainers) e BDD (SpecFlow) prontos. |
 | 16 | **Mensagens 100% em PT-BR** | Domínio, UI e mensagens de erro em português brasileiro, alinhadas ao vocabulário fiscal nacional. |
+| 17 | **Segurança em camadas** | Cifragem em repouso de senhas de certificado A1 e tokens CSC (ASP.NET Data Protection), RNG criptográfico na chave de acesso da NF-e, escape de XML contra injection, JWT secret com fail-fast no startup, upload de certificado restrito a admin com limite de tamanho — veja [Segurança e Proteção de Dados](#-segurança-e-proteção-de-dados). |
 
 ---
 
@@ -170,11 +172,94 @@ Plataforma completa para emissão, gestão e arquivamento de **Nota Fiscal Eletr
 - ✅ Authorization por role (`Admin` × `User`)
 - ✅ Validação cruzada `EmpresaId do token` × `EmpresaId do recurso` em todas as rotas
 - ✅ Audit log de operações sensíveis com IP de origem
+- ✅ **Cifragem em repouso** de senha do certificado A1 e token CSC (ASP.NET Data Protection)
+- ✅ **Fail-fast** no startup quando `Jwt:Secret` é vazio, curto ou placeholder
+- ✅ **RNG criptográfico** (`RandomNumberGenerator`) na geração de `cNF` e chave de acesso — impede previsão da chave por timing
+- ✅ **Escape de XML** em todos os campos de texto livre (razão social, descrições, justificativas) — prevenção contra XML Injection
+- ✅ **Upload de certificado restrito a Admin** com limite de tamanho (256 KB)
+- ✅ **Secrets via variáveis de ambiente** (`.env` gitignored) — nenhum segredo no repositório
 
 ### Integrações auxiliares
 - ✅ **ViaCEP** — autocompletar endereço por CEP
 - ✅ **Envio de NF-e por e-mail** (XML + DANFE) ao destinatário
 - ✅ **Health check** em `/health`
+
+---
+
+## 🔒 Segurança e Proteção de Dados
+
+A plataforma trata de **dados fiscais juridicamente vinculantes** e **certificados digitais ICP-Brasil**. A postura de segurança é tratada como funcionalidade-produto, não como TODO de operação.
+
+### Cifragem em repouso de secrets sensíveis
+
+| Dado | Onde fica | Como é protegido |
+|------|-----------|------------------|
+| **Senha do certificado A1** | Coluna `empresas.CertificadoSenha` | Cifrada via **ASP.NET Data Protection API** com chaves AES-256 rotacionáveis, prefixo `enc:v1:` |
+| **Token CSC (NFC-e)** | Coluna `empresas.CscToken` | Cifrado idem |
+| **Bytes do certificado .pfx** | Coluna `empresas.CertificadoBytes` | Já protegido por senha PFX (PKCS#12) |
+| **Senha de usuário** | Coluna `usuarios.SenhaHash` | Hash **BCrypt** (work factor 11, salt automático) |
+| **JWT Secret** | Variável de ambiente `Jwt__Secret` | Nunca persistido em disco do app; fail-fast se ausente/curto |
+| **Senha do PostgreSQL** | Variável `POSTGRES_PASSWORD` | Lida do `.env` (gitignored); compose falha se ausente |
+
+As chaves de cifragem do Data Protection ficam **fora do banco** (volume Docker `dp_keys`), o que impede que um vazamento da tabela `empresas` exponha senhas/tokens em claro.
+
+> **Rotação de chaves:** o Data Protection rotaciona automaticamente a cada 90 dias. Valores antigos continuam decifráveis enquanto a chave antiga não for purgada.
+>
+> **Migração de chave:** para trocar de file system para Azure Key Vault / AWS KMS, basta substituir a configuração de `AddDataProtection()` em `DependencyInjection.cs` — o `EncryptedStringConverter` é agnóstico ao backend.
+
+### Defesa em profundidade
+
+| Camada | Controle implementado |
+|--------|----------------------|
+| **Boot da API**     | Fail-fast: lança `InvalidOperationException` se `Jwt:Secret` for vazio, < 32 chars ou conter `SUA_CHAVE`/`__TROCAR`. Mesma checagem para `ConnectionStrings:DefaultConnection`. |
+| **Compose**         | Sintaxe `${VAR:?mensagem}` faz `docker compose up` falhar se `.env` estiver incompleto. |
+| **Autenticação**    | JWT HS256 com `Issuer` + `Audience` + `IssuerSigningKey` validados (`ValidateLifetime`, `ValidateAudience`, `ValidateIssuer` = `true`). |
+| **Multi-tenant**    | Toda query filtra por `empresa_id` do claim JWT. Repositórios não expõem método cross-tenant. |
+| **Autorização**     | `[Authorize(Roles = "Admin")]` em rotas críticas (upload de certificado, atualização da empresa, gestão de usuários, atualização da tabela NCM). |
+| **Upload de arquivo** | Certificado limitado a **256 KB** via `[RequestSizeLimit]` + checagem explícita. Apenas `.pfx`/`.p12` aceitos. |
+| **Validação ICP-Brasil** | OIDs ICP-Brasil (`2.16.76.1.2.*`) verificados na extensão de Certificate Policies do PFX. Fallback para issuer das ACs (Soluti, Certisign, Valid, Serasa). |
+| **Geração de XML**  | Todos os campos de texto livre (razão social, descrição, justificativa, etc.) passam por `SecurityElement.Escape` antes de serem interpolados — bloqueia **XML Injection**. |
+| **Chave de acesso NF-e** | Campo `cNF` (8 dígitos anti-enumeração) gerado com `RandomNumberGenerator.GetInt32` (CSPRNG) — não previsível por timing como ocorre com `System.Random`. |
+| **Assinatura digital** | RSA-SHA256 nativa do .NET (`SignedXml`) com transformações `XmlDsigEnveloped` + `XmlDsigC14N` exigidas pela SEFAZ. |
+| **Imutabilidade**   | `FiscalImmutabilityInterceptor` em EF Core bloqueia UPDATE/DELETE de NotaFiscal autorizada/cancelada na camada do banco. |
+| **Auditoria**       | `IAuditService` registra ação, usuário, empresa, chave NF-e, detalhes e IP de origem em tabela própria — independente de log de aplicação. |
+| **CORS**            | Origin allowlist explícita via `WebUI:BaseUrl`. |
+| **Health endpoint** | `/health` é público mas não retorna dados sensíveis (apenas status). |
+
+### Compliance e princípios atendidos
+
+- **LGPD Art. 46 — Boas práticas de segurança técnica:** cifragem em repouso de dados sensíveis (certificado A1 → dado de identificação inequívoca da PJ), auditoria, controle de acesso.
+- **LGPD Art. 50 — Boas práticas e governança:** segregação de tenants, log de operações, retenção compatível com obrigação legal.
+- **ICP-Brasil:** validação de OIDs da política de certificação antes de aceitar o certificado.
+- **CTN art. 173 + Lei 10.522/02:** retenção fiscal de 5 anos com bloqueio de exclusão.
+- **Manual da NF-e v4.00:** assinatura, layout XML, sequenciamento, eventos e contingência aderentes.
+- **OWASP ASVS L2** (referência):
+  - V2 Auth: JWT validado, BCrypt para senhas, sem hardcoded secrets.
+  - V5 Validation: XSD oficial + escape de XML + validações de domínio.
+  - V6 Stored Cryptography: Data Protection com chave > 256 bits.
+  - V7 Error Handling: mensagens de erro genéricas; sem exposição de stack trace em produção.
+  - V10 Malicious code: nenhum executável de terceiros embutido; XML gerado pelo próprio app.
+
+### Postura de "secrets nunca no código"
+
+```
+.gitignore inclui:
+  appsettings.*.json (exceto appsettings.json base, sem secrets)
+  secrets.json
+  .env
+  .env.*
+  postgres_data/
+  logs/
+```
+
+O `appsettings.json` versionado tem `Jwt.Secret` e `ConnectionStrings.DefaultConnection` **vazios** — o app não sobe sem `.env` configurado. O fluxo recomendado é:
+
+```powershell
+Copy-Item .env.example .env
+# editar .env e gerar secrets:
+#   JWT_SECRET:        openssl rand -base64 48
+#   POSTGRES_PASSWORD: openssl rand -base64 24
+```
 
 ---
 
@@ -228,14 +313,36 @@ Padrões aplicados: **DDD**, **CQRS** (MediatR), **Clean Architecture**, **Repos
 
 ### Pré-requisitos
 - Docker 24+ e Docker Compose V2
+- (Opcional, Windows) PowerShell 5.1+ para o script `restart.ps1`
 
-### 1. Suba toda a stack
+### 1. Configure os secrets (`.env`)
+
+O compose exige variáveis de ambiente — não há credenciais default no repositório.
+
+```powershell
+Copy-Item .env.example .env
+# Edite .env e gere valores fortes:
+#   JWT_SECRET:        openssl rand -base64 48     (>= 32 chars)
+#   POSTGRES_PASSWORD: openssl rand -base64 24
+```
+
+### 2. Suba toda a stack
+
+**Atalho (Windows):**
+
+```powershell
+.\restart.ps1
+```
+
+O script valida o `.env`, sobe os containers, aplica migrations, semeia dados de demo (se o banco está vazio) e abre a solution no IDE. Use `-Clean` para apagar o volume do Postgres e recomeçar do zero. Outros switches: `-NoBuild`, `-SkipMigrations`, `-NoIde`, `-NoSeed`.
+
+**Manual:**
 
 ```powershell
 docker compose up -d --build
 ```
 
-### 2. Aguarde a inicialização (~2 min na primeira vez)
+### 3. Aguarde a inicialização (~2 min na primeira vez)
 
 ```powershell
 docker compose ps
@@ -516,14 +623,38 @@ A nota é persistida com a marcação e segue o ciclo normal de eventos quando a
 
 ## ⚙️ Variáveis de Ambiente
 
-| Variável | Descrição |
-|----------|-----------|
-| `ConnectionStrings__DefaultConnection` | String de conexão PostgreSQL |
-| `Jwt__Secret`            | Chave secreta JWT (mínimo 32 chars) |
-| `Jwt__Issuer`            | Issuer do token (padrão `NfeSaas`) |
-| `Jwt__Audience`          | Audience do token (padrão `NfeSaas.WebUI`) |
-| `WebUI__BaseUrl`         | URL pública da WebUI (CORS) |
-| `ASPNETCORE_ENVIRONMENT` | `Development` ou `Production` |
+Configuradas via `.env` na raiz (ver `.env.example`). O `docker-compose.yml` usa interpolação `${VAR:?msg}` e falha se a variável for ausente.
+
+### Obrigatórias
+
+| Variável | Onde aparece | Descrição |
+|----------|--------------|-----------|
+| `POSTGRES_DB` | compose | Nome do banco (sugerido: `nfesaas`) |
+| `POSTGRES_USER` | compose | Usuário do banco |
+| `POSTGRES_PASSWORD` | compose | Senha forte do banco (gere com `openssl rand -base64 24`) |
+| `JWT_SECRET` | compose → `Jwt__Secret` | Chave secreta JWT — mínimo **32 caracteres**, fail-fast no startup se inválida (gere com `openssl rand -base64 48`) |
+
+### Opcionais (com default)
+
+| Variável | Default | Descrição |
+|----------|---------|-----------|
+| `JWT_ISSUER` | `NfeSaas` | Issuer do token |
+| `JWT_AUDIENCE` | `NfeSaas.WebUI` | Audience do token |
+| `WEBUI_BASE_URL` | `http://localhost:5002` | URL pública da WebUI (CORS allowlist) |
+| `ASPNETCORE_ENVIRONMENT` | `Production` | `Development` habilita Swagger UI |
+| `DataProtection__KeysPath` | `/app/dpkeys` | Path interno onde as chaves de cifragem ficam persistidas |
+| `Ncm__UpdateSourceUrl` | _vazio_ | URL HTTPS para atualização semanal da tabela NCM (Portal Único Siscomex) |
+| `Ncm__LocalFilePath` | _vazio_ | Path interno para JSON local de NCM (alternativa à URL) |
+| `Ncm__UpdateIntervalDays` | `7` | Intervalo entre atualizações automáticas |
+| `Ncm__UpdateOnStartup` | `false` | Se `true`, atualiza tabela NCM no boot |
+
+### Volumes Docker importantes
+
+| Volume | Caminho no container | Finalidade |
+|--------|---------------------|------------|
+| `postgres_data` | `/var/lib/postgresql/data` | Dados do PostgreSQL. **Backup crítico**. |
+| `dp_keys` | `/app/dpkeys` | Chaves de cifragem (Data Protection). **Perder = perder acesso a `CertificadoSenha` e `CscToken` já gravados**. Backup crítico. |
+| `api_logs` | `/app/logs` | Logs Serilog rotacionados por dia. |
 
 ---
 
@@ -549,16 +680,192 @@ Convenção: testes que exercitam SEFAZ usam sempre `AmbienteSefaz.Homologacao` 
 
 ---
 
-## 🚨 Produção
+## 🚀 Publicação em Produção
 
-1. **Altere `Jwt__Secret`** para uma chave forte e única — nunca use o valor de exemplo do compose.
-2. **Use HTTPS** em produção (configure certificado TLS no Nginx ou reverse proxy à frente da API).
-3. **Backup regular** do PostgreSQL e dos certificados A1 (estão armazenados criptografados na tabela `empresas`).
-4. **Monitor de validade do certificado A1** — renove antes da expiração (o sistema bloqueia emissão automaticamente).
-5. **Logs** rotacionam em `logs/nfesaas-YYYYMMDD.log` na API e ficam em `/var/lib/docker/volumes/api_logs` no container.
-6. **NF-e v4.00** — layout oficial vigente. Schemas XSD vivem em `src/Infrastructure/Schemas/`.
-7. **Retenção de dados:** documentos autorizados/cancelados ficam protegidos por 5 anos por força de lei — provisione armazenamento adequado.
-8. **Auditoria:** preserve `AuditLog` por no mínimo o mesmo período legal de retenção das notas.
+Guia operacional para colocar a plataforma em ambiente produtivo emitindo NF-e/NFC-e reais contra a SEFAZ.
+
+### 1. Hardening do host
+
+| Item | Recomendação |
+|------|-------------|
+| Sistema operacional | Linux LTS (Ubuntu 22.04+ / Debian 12 / RHEL 9). Patches automáticos habilitados. |
+| Firewall | Apenas `443/tcp` (HTTPS) e `22/tcp` (SSH com chave). **Não exponha** `5432` (Postgres) nem `8080` (API direta) na internet. |
+| SSH | Apenas chave pública, sem senha. Fail2ban opcional. |
+| Usuário do app | Não-root, sem acesso sudo. Dono dos volumes Docker. |
+| Atualização do Docker | Docker Engine 24+, Compose V2 plugin (não a CLI legacy). |
+
+### 2. Configuração de secrets
+
+**Nunca** use valores do `.env.example` em produção. Gere novos:
+
+```bash
+# JWT (>= 32 chars; recomendado 64+)
+openssl rand -base64 48
+
+# Senha do Postgres
+openssl rand -base64 24
+```
+
+Armazene o `.env` com permissão `chmod 600` e dono = usuário do app. Em ambientes corporativos prefira:
+
+- **HashiCorp Vault / AWS Secrets Manager / Azure Key Vault** — injete via `docker run --env-file <(vault kv get …)` ou via init container.
+- **Docker Swarm Secrets** se rodar em Swarm: trocar `${JWT_SECRET}` por `/run/secrets/jwt_secret` montado.
+- **Kubernetes**: `Secret` montado como env ou arquivo.
+
+### 3. Cifragem em repouso
+
+A senha do certificado A1 e o token CSC ficam cifrados no banco via Data Protection. As chaves de cifragem ficam no volume `dp_keys`. Em produção, evolua para um Key Management externo:
+
+| Backend | Implementação | Vantagem |
+|---------|--------------|----------|
+| Volume Docker (default) | `PersistKeysToFileSystem` | Simples, sem dependência externa |
+| Azure Key Vault | `ProtectKeysWithAzureKeyVault` + `PersistKeysToAzureBlobStorage` | HSM-backed, auditoria nativa |
+| AWS KMS | wrapper customizado em `IXmlEncryptor` | Integração com IAM |
+| Postgres | `PersistKeysToDbContext` + tabela própria | Reduz superfície (mesma rede que dados) |
+
+**Backup das chaves é crítico.** Sem `dp_keys`, certificados e tokens já cifrados ficam ilegíveis.
+
+### 4. HTTPS / TLS obrigatório
+
+A API e a WebUI **devem** ficar atrás de um reverse proxy com TLS terminado:
+
+```nginx
+# /etc/nginx/conf.d/nfesaas.conf
+server {
+    listen 443 ssl http2;
+    server_name app.seu-dominio.com.br;
+
+    ssl_certificate     /etc/letsencrypt/live/app.seu-dominio.com.br/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.seu-dominio.com.br/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # HSTS — força HTTPS por 6 meses
+    add_header Strict-Transport-Security "max-age=15552000; includeSubDomains" always;
+
+    # Headers de segurança recomendados
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:5001/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        client_max_body_size 1m;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:5002/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
+
+Atualize o `.env` com a URL pública:
+
+```
+WEBUI_BASE_URL=https://app.seu-dominio.com.br
+```
+
+> Use **Let's Encrypt** + **certbot** para certificados gratuitos auto-renovados.
+
+### 5. Migrations (não use migrate-on-startup em produção)
+
+Por padrão a API roda `Database.MigrateAsync()` no boot, o que **não** é seguro em ambiente com múltiplas réplicas. Em produção, aplique as migrations em um job dedicado **antes** de subir a nova versão da API:
+
+```powershell
+# Na máquina de deploy, com o .NET SDK instalado:
+dotnet ef migrations script --idempotent -o migration.sql `
+  --project src/Infrastructure --startup-project src/API
+
+# Copie para o container postgres e aplique:
+docker cp migration.sql nfesaas_postgres:/tmp/migration.sql
+docker exec nfesaas_postgres psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB `
+  -v ON_ERROR_STOP=1 -f /tmp/migration.sql
+
+# Depois suba a API
+docker compose up -d --build api webui
+```
+
+Para desabilitar o migrate-on-startup, comente o bloco em `src/API/Program.cs:91-96` antes do build da imagem de produção.
+
+### 6. Backup e Disaster Recovery
+
+| Componente | Frequência | Comando |
+|-----------|-----------|---------|
+| **PostgreSQL** | Diário (full) + WAL contínuo | `docker exec nfesaas_postgres pg_dump -U $POSTGRES_USER -d $POSTGRES_DB -F c -f /tmp/db.dump` |
+| **`dp_keys`** | Diário | `docker run --rm -v nfe-saas_dp_keys:/data -v "$PWD:/backup" alpine tar czf /backup/dp_keys.tgz -C /data .` |
+| **`.env`** | Após cada alteração | Cofre de senhas (1Password / Vault / KMS) |
+| **Logs** | Conforme política | Centralize via Filebeat / Vector / Promtail |
+
+Teste a restauração **trimestralmente** — backup não testado não é backup.
+
+### 7. Observabilidade
+
+| Sinal | Como expor |
+|-------|-----------|
+| Health | `GET /health` (público) — use no load balancer |
+| Métricas | Adicione `App.Metrics` ou `OpenTelemetry` (não bundleado) |
+| Logs estruturados | Serilog já grava JSON em `/app/logs/nfesaas-YYYYMMDD.log` — encaminhe para ELK/Loki |
+| Auditoria fiscal | Tabela `audit_logs` (mantenha 5+ anos) |
+| Alertas críticos | Certificado A1 expira (campo `CertificadoValidade`); SEFAZ retorna `cStat` de rejeição persistente; fila de notas pendentes > N |
+
+### 8. Operação fiscal
+
+| Tarefa | Cadência |
+|--------|----------|
+| Monitorar **validade do certificado A1** por empresa | Diário (alerta T-30, T-15, T-7) |
+| Atualizar **tabela NCM** oficial | Semanal (worker já agendado — configure `Ncm__UpdateSourceUrl`) |
+| Validar **status do serviço SEFAZ** | A cada emissão (já integrado via `ISefazService.ConsultarStatusServicoAsync`) |
+| Acompanhar **lista de notas pendentes** (`Situacao = Enviada`) | Diário — pode indicar problema de comunicação |
+| Conferir **integridade dos XMLs assinados** | Antes de qualquer descarte (após retenção legal) |
+
+### 9. Performance e escala
+
+- **Postgres:** habilite `pg_stat_statements`, `autovacuum` agressivo nas tabelas `notas_fiscais` e `audit_logs`. Considere particionamento por ano para volumes > 1M notas.
+- **API stateless:** múltiplas réplicas atrás do load balancer. Stickiness não é necessária — JWT carrega o contexto.
+- **WebUI:** Blazor WASM serve estaticamente via Nginx; cache agressivo (`Cache-Control: public, max-age=31536000, immutable`) para arquivos versionados.
+- **Sessão Data Protection:** com múltiplas réplicas da API, o volume `dp_keys` precisa ser **compartilhado** (NFS, EFS) ou migrado para backend distribuído (Postgres / Azure Key Vault).
+
+### 10. Rotação de secrets
+
+| Secret | Quando rotacionar | Procedimento |
+|--------|-------------------|--------------|
+| `JWT_SECRET` | A cada 90 dias ou ao suspeitar de vazamento | Atualize `.env`, restart API. **Todos os tokens emitidos são invalidados** — usuários precisam logar de novo. |
+| `POSTGRES_PASSWORD` | A cada 180 dias | `ALTER USER nfesaas WITH PASSWORD '<nova>'` no banco + atualizar `.env` + `docker compose up -d` para api. |
+| Chaves Data Protection | Automático (90 dias) | Nenhuma ação. Valores cifrados com chaves antigas continuam decifrando enquanto não-purgados. |
+| Certificado A1 | Conforme expiração ICP-Brasil (~1 ano A1) | Upload pela WebUI (página _Certificado_). |
+| Token CSC NFC-e | Conforme rotação SEFAZ | Atualize via WebUI (página _Empresa → Configuração_). |
+
+### 11. Checklist de Go-Live
+
+- [ ] `.env` gerado com secrets fortes e armazenado em cofre
+- [ ] HTTPS configurado no reverse proxy com certificado válido
+- [ ] DNS apontando para o host
+- [ ] Postgres em servidor dedicado (ou managed: RDS/Cloud SQL/Azure DB) com backup automático
+- [ ] Volume `dp_keys` com backup configurado
+- [ ] `WEBUI_BASE_URL` apontando para o domínio público
+- [ ] Migrations aplicadas via script (não migrate-on-startup)
+- [ ] Migrate-on-startup desabilitado em `Program.cs`
+- [ ] Logs sendo agregados (ELK / Loki / CloudWatch)
+- [ ] Alerta de saúde no `/health` configurado
+- [ ] Alerta de expiração de certificado A1 (T-30 dias)
+- [ ] Política de retenção de banco e logs ≥ 5 anos
+- [ ] Procedimento de restore testado em ambiente de homologação
+- [ ] Usuário admin inicial criado, senha forte, MFA externo (se aplicável no IDP do cliente)
+- [ ] Cadastro real das empresas clientes feito (CNPJ, IE, CNAE, endereço, certificado A1)
+- [ ] Emissão piloto em **AmbienteSefaz.Homologacao** validada
+- [ ] Transição para `AmbienteSefaz.Producao` após homologação aceita pela SEFAZ
+
+### 12. Compliance fiscal
+
+- **Retenção legal:** 5 anos contados do exercício seguinte ao da emissão (CTN art. 173). O sistema bloqueia DELETE enquanto `DentroPeriodoRetencao = true` e expõe `DataDescarteAutorizado` para auditoria.
+- **Manual de Orientação do Contribuinte v7.0+** (NF-e v4.00): layout, validações e regras de eventos seguidos integralmente.
+- **NFC-e:** registre CSC no painel SEFAZ da UF emissora; configure CscId/CscToken na empresa antes de emitir (página _Empresa → Configuração_).
+- **Contingência:** ative `TipoEmissao` apropriado (SVC-AN / SVC-RS / FS-DA) quando a SEFAZ autorizadora estiver fora — não emita "normal" forçado durante outage.
 
 ---
 

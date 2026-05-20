@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,16 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
+        // Data Protection — usado para cifrar secrets em repouso (senha do certificado, token CSC).
+        // No Docker as chaves precisam ser persistidas em volume (ver docker-compose.yml: volume `dp_keys`)
+        // para que reinícios não invalidem dados já cifrados.
+        var dpKeysPath = config["DataProtection:KeysPath"];
+        var dpBuilder = services.AddDataProtection().SetApplicationName("NfeSaas");
+        if (!string.IsNullOrWhiteSpace(dpKeysPath) && Directory.Exists(dpKeysPath))
+        {
+            dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(dpKeysPath));
+        }
+
         // Database + interceptor de imutabilidade fiscal
         services.AddSingleton<FiscalImmutabilityInterceptor>();
         services.AddDbContext<NfeDbContext>((sp, opts) =>

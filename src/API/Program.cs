@@ -23,8 +23,25 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// JWT Auth
-var jwtSecret = builder.Configuration["Jwt:Secret"]!;
+// JWT Auth — falha cedo se o segredo não foi configurado ou ainda é placeholder.
+var jwtSecret = builder.Configuration["Jwt:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32 ||
+    jwtSecret.Contains("SUA_CHAVE", StringComparison.OrdinalIgnoreCase) ||
+    jwtSecret.Contains("__TROCAR", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException(
+        "Configuração inválida: 'Jwt:Secret' precisa ter no mínimo 32 caracteres e não pode ser o placeholder. " +
+        "Configure via variável de ambiente Jwt__Secret (ver .env.example).");
+}
+
+var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connStr))
+{
+    throw new InvalidOperationException(
+        "Configuração inválida: 'ConnectionStrings:DefaultConnection' não pode estar vazio. " +
+        "Configure via ConnectionStrings__DefaultConnection (ver .env.example).");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>
     {

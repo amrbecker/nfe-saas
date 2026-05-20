@@ -27,6 +27,11 @@ public class DatabaseFixture : IAsyncLifetime
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
+                // Program.cs valida Jwt:Secret e ConnectionStrings:DefaultConnection antes do host buildar.
+                // Injetamos placeholders válidos aqui — o DbContextOptions é substituído logo abaixo
+                // pelo connection string real do Testcontainer.
+                builder.UseSetting("Jwt:Secret", "test-jwt-secret-com-no-minimo-32-caracteres-para-validacao");
+                builder.UseSetting("ConnectionStrings:DefaultConnection", _postgres.GetConnectionString());
                 builder.ConfigureServices(services =>
                 {
                     var descriptor = services.SingleOrDefault(
@@ -47,8 +52,9 @@ public class DatabaseFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        Client.Dispose();
-        await Factory.DisposeAsync();
+        // Tolerar falha de InitializeAsync — Client/Factory podem estar nulos.
+        Client?.Dispose();
+        if (Factory != null) await Factory.DisposeAsync();
         await _postgres.DisposeAsync();
     }
 

@@ -12,7 +12,8 @@ IF NOT EXISTS (SELECT 1 FROM escritorios WHERE "Cnpj" = '99999999000191') THEN
     INSERT INTO escritorios (
         "Id", "CreatedAt", "IsDeleted",
         "RazaoSocial", "NomeFantasia", "Cnpj",
-        "Email", "Telefone", "Plano", "Ativo"
+        "Email", "Telefone", "Plano", "Ativo",
+        "TrialInicioEm", "TrialFimEm", "PlanoAtivoAteEm"
     ) VALUES (
         'cccccccc-cccc-cccc-cccc-cccccccccccc',
         NOW(), false,
@@ -22,7 +23,10 @@ IF NOT EXISTS (SELECT 1 FROM escritorios WHERE "Cnpj" = '99999999000191') THEN
         'admin@escritoriodemo.com.br',
         '11999999900',
         1,  -- Basico
-        true
+        true,
+        NOW(),
+        NOW() + INTERVAL '30 days',
+        NOW() + INTERVAL '365 days'  -- demo: plano "pago" por 1 ano para não bloquear demonstrações
     );
     RAISE NOTICE 'Escritório de demonstração criado.';
 END IF;

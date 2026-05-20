@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NfeSaas.Infrastructure.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NfeSaas.Infrastructure.Migrations
 {
     [DbContext(typeof(NfeDbContext))]
-    partial class NfeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260515130945_EncryptEmpresaSecrets")]
+    partial class EncryptEmpresaSecrets
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -387,9 +390,6 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.Property<int>("Plano")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("PlanoAtivoAteEm")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("RazaoSocial")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -398,15 +398,6 @@ namespace NfeSaas.Infrastructure.Migrations
                     b.Property<string>("Telefone")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
-
-                    b.Property<DateTime>("TrialFimEm")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("TrialInicioEm")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("UltimoPagamentoEm")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

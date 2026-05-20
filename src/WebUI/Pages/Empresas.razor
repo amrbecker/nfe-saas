@@ -11,10 +11,16 @@
 
 <MudText Typo="Typo.h5" Class="mb-4">Empresas Clientes</MudText>
 
-<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-           OnClick="AbrirCadastro" Class="mb-4">
-    Nova Empresa
-</MudButton>
+<div style="display:flex; gap:8px; flex-wrap:wrap" class="mb-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="AbrirCadastro">
+        Nova Empresa
+    </MudButton>
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Business"
+               OnClick="@(() => Nav.NavigateTo("/escritorio-como-empresa"))">
+        Cadastrar meu escritório como empresa
+    </MudButton>
+</div>
 
 @if (_empresas == null)
 {

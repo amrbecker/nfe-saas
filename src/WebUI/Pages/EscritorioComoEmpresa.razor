@@ -1,0 +1,131 @@
+@page "/escritorio-como-empresa"
+@attribute [Authorize(Roles = "Admin")]
+@using NfeSaas.Domain.Enums
+@inject IEscritorioService EscritorioService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Cadastrar meu escritório como empresa - NfeSaas</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="pa-4">
+    <MudText Typo="Typo.h5" Class="mb-2">Cadastrar meu escritório como empresa emitente</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+        Usa o CNPJ, razão social e nome fantasia já cadastrados no seu escritório. Preencha apenas o endereço e os dados fiscais.
+    </MudText>
+
+    <MudCard Elevation="2" Class="pa-4">
+        <MudForm @ref="_form" @bind-IsValid="_valido">
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_dto.InscricaoEstadual" Label="Inscrição Estadual" Variant="Variant.Outlined"
+                                  Required RequiredError="Obrigatório" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_dto.Uf" Label="UF" Variant="Variant.Outlined" Required>
+                        @foreach (var uf in _ufs) { <MudSelectItem T="int" Value="@_ufs.IndexOf(uf)">@uf</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_dto.Logradouro" Label="Logradouro" Variant="Variant.Outlined" Required />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_dto.Numero" Label="Número" Variant="Variant.Outlined" Required />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_dto.Bairro" Label="Bairro" Variant="Variant.Outlined" Required />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_dto.Cidade" Label="Cidade" Variant="Variant.Outlined" Required />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_dto.Cep" Label="CEP (só dígitos)" Variant="Variant.Outlined" Required />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_dto.CodigoMunicipio" Label="Cód. IBGE Município" Variant="Variant.Outlined" Required />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_dto.RegimeTributario" Label="Regime Tributário" Variant="Variant.Outlined" Required>
+                        <MudSelectItem T="int" Value="1">Simples Nacional</MudSelectItem>
+                        <MudSelectItem T="int" Value="2">Simples — Excesso de sublimite</MudSelectItem>
+                        <MudSelectItem T="int" Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_dto.AmbienteSefaz" Label="Ambiente SEFAZ" Variant="Variant.Outlined" Required>
+                        <MudSelectItem T="int" Value="2">Homologação (teste)</MudSelectItem>
+                        <MudSelectItem T="int" Value="1">Produção</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_dto.Cnae" Label="CNAE (7 dígitos) — opcional" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+
+            <div style="display:flex; gap:8px; justify-content:flex-end" class="mt-4">
+                <MudButton Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo("/empresas"))">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="@(!_valido || _salvando)"
+                           OnClick="Salvar">
+                    @(_salvando ? "Salvando..." : "Cadastrar")
+                </MudButton>
+            </div>
+        </MudForm>
+    </MudCard>
+</MudContainer>
+
+@code {
+    MudForm _form = default!;
+    bool _valido;
+    bool _salvando;
+
+    // UF como int por causa do binding do MudSelect com lista — convertido em texto antes do envio.
+    record CamposForm
+    {
+        public string InscricaoEstadual { get; set; } = "";
+        public int Uf { get; set; }
+        public string Logradouro { get; set; } = "";
+        public string Numero { get; set; } = "";
+        public string Bairro { get; set; } = "";
+        public string Cidade { get; set; } = "";
+        public string Cep { get; set; } = "";
+        public string CodigoMunicipio { get; set; } = "";
+        public int RegimeTributario { get; set; } = 3;
+        public int AmbienteSefaz { get; set; } = 2;
+        public string? Cnae { get; set; }
+    }
+
+    CamposForm _dto = new();
+
+    static readonly List<string> _ufs = new() {
+        "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB",
+        "PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
+    };
+
+    async Task Salvar()
+    {
+        _salvando = true;
+        try
+        {
+            var dto = new CadastrarEscritorioComoEmpresaDto(
+                _dto.InscricaoEstadual,
+                _dto.Logradouro, _dto.Numero, _dto.Bairro, _dto.Cidade, _ufs[_dto.Uf],
+                new string(_dto.Cep.Where(char.IsDigit).ToArray()),
+                new string(_dto.CodigoMunicipio.Where(char.IsDigit).ToArray()),
+                _dto.RegimeTributario, _dto.AmbienteSefaz,
+                string.IsNullOrWhiteSpace(_dto.Cnae) ? null : _dto.Cnae);
+
+            var (empresa, erro) = await EscritorioService.CadastrarComoEmpresaAsync(dto);
+            if (empresa == null)
+            {
+                Snackbar.Add(erro ?? "Falha ao cadastrar.", Severity.Error);
+                return;
+            }
+            Snackbar.Add($"Empresa '{empresa.RazaoSocial}' criada com sucesso!", Severity.Success);
+            Nav.NavigateTo("/empresas");
+        }
+        finally
+        {
+            _salvando = false;
+        }
+    }
+}

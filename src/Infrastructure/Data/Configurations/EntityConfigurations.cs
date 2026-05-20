@@ -16,6 +16,8 @@ public class EscritorioConfiguration : IEntityTypeConfiguration<Escritorio>
         builder.HasIndex(e => e.Cnpj).IsUnique();
         builder.Property(e => e.Email).IsRequired().HasMaxLength(100);
         builder.Property(e => e.Telefone).HasMaxLength(20);
+        builder.Property(e => e.TrialInicioEm).IsRequired();
+        builder.Property(e => e.TrialFimEm).IsRequired();
     }
 }
 
@@ -35,9 +37,12 @@ public class EmpresaConfiguration : IEntityTypeConfiguration<Empresa>
         builder.Property(e => e.Cep).HasMaxLength(8);
         builder.Property(e => e.Cnae).HasMaxLength(7);
         builder.Property(e => e.CertificadoBytes).HasColumnType("bytea");
-        builder.Property(e => e.CertificadoSenha).HasMaxLength(500);
+        // CertificadoSenha e CscToken são cifrados em repouso via EncryptedStringConverter
+        // (configurado em NfeDbContext.OnModelCreating). HasMaxLength fica em 1000 para acomodar
+        // o overhead do Data Protection sobre senhas longas.
+        builder.Property(e => e.CertificadoSenha).HasMaxLength(1000);
         builder.Property(e => e.CscId).HasMaxLength(6);
-        builder.Property(e => e.CscToken).HasMaxLength(500);
+        builder.Property(e => e.CscToken).HasMaxLength(1000);
 
         builder.HasOne(e => e.Escritorio)
             .WithMany(es => es.Empresas)

@@ -31,6 +31,8 @@ public class CreateEscritorioCommandHandler : IRequestHandler<CreateEscritorioCo
         var existing = await _escritorioRepo.GetByCnpjAsync(CnpjValidator.ApenasDigitos(dto.Cnpj), cancellationToken);
         if (existing != null) return null;
 
+        if (!Enum.IsDefined(typeof(PlanoSaas), dto.Plano))
+            return null; // Plano Free não existe — escolha obrigatória entre Basico/Profissional/Enterprise
         var plano = (PlanoSaas)dto.Plano;
         var escritorio = Escritorio.Criar(dto.RazaoSocial, dto.NomeFantasia, dto.Cnpj, dto.Email, dto.Telefone, plano);
         await _escritorioRepo.AddAsync(escritorio, cancellationToken);
@@ -86,6 +88,100 @@ public class CreateEmpresaCommandHandler : IRequestHandler<CreateEmpresaCommand,
         await _empresaRepo.AddAsync(empresa, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 
+        return new EmpresaResumoDto(empresa.Id, empresa.RazaoSocial, empresa.NomeFantasia, empresa.Cnpj);
+    }
+}
+
+// === ATIVAR PLANO PAGO ===
+// Em produção, deve ser chamado pelo webhook do gateway de pagamento. Aqui é um endpoint
+// administrativo simples (Role=Admin do próprio escritório ou super-admin).
+public record AtivarPlanoPagoCommand(Guid EscritorioId, DateTime AtivoAteUtc, decimal? ValorPago) : IRequest<bool>;
+
+public class AtivarPlanoPagoCommandHandler : IRequestHandler<AtivarPlanoPagoCommand, bool>
+{
+    private readonly IEscritorioRepository _escritorioRepo;
+    private readonly IUnitOfWork _uow;
+
+    public AtivarPlanoPagoCommandHandler(IEscritorioRepository escritorioRepo, IUnitOfWork uow)
+    {
+        _escritorioRepo = escritorioRepo;
+        _uow = uow;
+    }
+
+    public async Task<bool> Handle(AtivarPlanoPagoCommand request, CancellationToken ct)
+    {
+        var escritorio = await _escritorioRepo.GetByIdAsync(request.EscritorioId, ct);
+        if (escritorio == null) return false;
+        if (request.AtivoAteUtc <= DateTime.UtcNow) return false;
+        escritorio.AtivarPlanoPago(request.AtivoAteUtc);
+        await _escritorioRepo.UpdateAsync(escritorio, ct);
+        await _uow.SaveChangesAsync(ct);
+        return true;
+    }
+}
+
+// === CADASTRAR O PRÓPRIO ESCRITÓRIO COMO EMPRESA EMITENTE ===
+// Permite que o escritório (que é PJ com CNPJ) emita NF-e em seu próprio nome,
+// sem precisar criar uma "empresa cliente" duplicando os dados.
+public record CadastrarEscritorioComoEmpresaCommand(
+    Guid EscritorioId,
+    string InscricaoEstadual,
+    string Logradouro, string Numero, string Bairro, string Cidade, string Uf,
+    string Cep, string CodigoMunicipio,
+    int RegimeTributario, int AmbienteSefaz,
+    string? Cnae) : IRequest<EmpresaResumoDto?>;
+
+public class CadastrarEscritorioComoEmpresaCommandHandler : IRequestHandler<CadastrarEscritorioComoEmpresaCommand, EmpresaResumoDto?>
+{
+    private readonly IEscritorioRepository _escritorioRepo;
+    private readonly IEmpresaRepository _empresaRepo;
+    private readonly IUnitOfWork _uow;
+
+    public CadastrarEscritorioComoEmpresaCommandHandler(
+        IEscritorioRepository escritorioRepo, IEmpresaRepository empresaRepo, IUnitOfWork uow)
+    {
+        _escritorioRepo = escritorioRepo;
+        _empresaRepo = empresaRepo;
+        _uow = uow;
+    }
+
+    public async Task<EmpresaResumoDto?> Handle(CadastrarEscritorioComoEmpresaCommand request, CancellationToken ct)
+    {
+        var escritorio = await _escritorioRepo.GetByIdAsync(request.EscritorioId, ct);
+        if (escritorio == null) return null;
+
+        // Validações dos campos fiscais (CNPJ já foi validado no cadastro do escritório).
+        if (!IeValidator.UfValida(request.Uf)) return null;
+        if (!IeValidator.Validar(request.InscricaoEstadual, request.Uf)) return null;
+        if (request.Cep.Where(char.IsDigit).Count() != 8) return null;
+        if (!string.IsNullOrWhiteSpace(request.Cnae) && !CnaeValidator.Validar(request.Cnae)) return null;
+        if (!Enum.IsDefined(typeof(RegimeTributario), request.RegimeTributario)) return null;
+        if (!Enum.IsDefined(typeof(AmbienteSefaz), request.AmbienteSefaz)) return null;
+
+        // Idempotência: se já existe Empresa com este CNPJ no escritório, retorna a existente.
+        var cnpjDigitos = CnpjValidator.ApenasDigitos(escritorio.Cnpj);
+        var existente = await _empresaRepo.GetByCnpjAsync(cnpjDigitos, ct);
+        if (existente != null && existente.EscritorioId == escritorio.Id)
+            return new EmpresaResumoDto(existente.Id, existente.RazaoSocial, existente.NomeFantasia, existente.Cnpj);
+        if (existente != null && existente.EscritorioId != escritorio.Id)
+            return null; // CNPJ já cadastrado em outro escritório
+
+        var empresa = Empresa.Criar(
+            escritorio.Id,
+            escritorio.RazaoSocial,
+            escritorio.NomeFantasia,
+            cnpjDigitos,
+            request.InscricaoEstadual,
+            request.Logradouro, request.Numero, request.Bairro, request.Cidade, request.Uf,
+            request.Cep, request.CodigoMunicipio,
+            escritorio.Telefone ?? "",
+            escritorio.Email,
+            (RegimeTributario)request.RegimeTributario,
+            (AmbienteSefaz)request.AmbienteSefaz,
+            string.IsNullOrWhiteSpace(request.Cnae) ? null : request.Cnae.Trim());
+
+        await _empresaRepo.AddAsync(empresa, ct);
+        await _uow.SaveChangesAsync(ct);
         return new EmpresaResumoDto(empresa.Id, empresa.RazaoSocial, empresa.NomeFantasia, empresa.Cnpj);
     }
 }

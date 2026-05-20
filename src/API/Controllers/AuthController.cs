@@ -14,8 +14,19 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         var result = await Mediator.Send(new LoginCommand(dto.Email, dto.Senha));
-        if (result == null) return Unauthorized(new { message = "Email ou senha inválidos." });
-        return Ok(result);
+        if (result.Falha != null)
+        {
+            // 401 para credencial inválida; 402 (Payment Required) para trial expirado;
+            // 403 para escritório suspenso. Permite UI tratar cada caso diferentemente.
+            var status = result.Falha.Codigo switch
+            {
+                "TrialExpirado" => 402,
+                "EscritorioSuspenso" => 403,
+                _ => 401
+            };
+            return StatusCode(status, new { message = result.Falha.Motivo, codigo = result.Falha.Codigo, assinatura = result.Falha.Assinatura });
+        }
+        return Ok(result.Sucesso);
     }
 
     [HttpPost("refresh")]

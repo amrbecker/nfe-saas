@@ -1,3 +1,5 @@
+﻿using System.Globalization;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Text;
@@ -14,6 +16,16 @@ public class XmlNFeService : IXmlNFeService
 
     public XmlNFeService(IXsdValidationService xsd) => _xsd = xsd;
 
+    // Escape de texto livre interpolado no XML — protege contra quebra de tag e XML Injection.
+    // Aplicar em qualquer valor controlado por usuário (razão social, descrições, informações adicionais).
+    private static string E(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : System.Security.SecurityElement.Escape(s)!;
+
+    // Formatação decimal forçando InvariantCulture — SEFAZ exige ponto como separador decimal.
+    // Sem isso, interpolação `{x:F2}` usa a cultura corrente e em pt-BR gera vírgula → rejeição pelo schema.
+    private static string F2(decimal v) => v.ToString("F2", CultureInfo.InvariantCulture);
+    private static string F4(decimal v) => v.ToString("F4", CultureInfo.InvariantCulture);
+
     public string GerarXmlNFe(NotaFiscal nota, Empresa empresa)
     {
         var sb = new StringBuilder();
@@ -29,7 +41,7 @@ public class XmlNFeService : IXmlNFeService
         // IDE
         sb.AppendLine("<ide>");
         sb.AppendLine($"<cUF>{cuf}</cUF>");
-        sb.AppendLine($"<cNF>{new Random().Next(10000000, 99999999)}</cNF>");
+        sb.AppendLine($"<cNF>{CodigoNumericoAleatorio()}</cNF>");
         sb.AppendLine($"<natOp>VENDA DE MERCADORIA</natOp>");
         sb.AppendLine($"<mod>{(int)nota.Tipo}</mod>");
         sb.AppendLine($"<serie>{nota.Serie:D3}</serie>");
@@ -52,21 +64,21 @@ public class XmlNFeService : IXmlNFeService
         // EMITENTE
         sb.AppendLine("<emit>");
         sb.AppendLine($"<CNPJ>{empresa.Cnpj}</CNPJ>");
-        sb.AppendLine($"<xNome>{empresa.RazaoSocial}</xNome>");
-        sb.AppendLine($"<xFant>{empresa.NomeFantasia}</xFant>");
+        sb.AppendLine($"<xNome>{E(empresa.RazaoSocial)}</xNome>");
+        sb.AppendLine($"<xFant>{E(empresa.NomeFantasia)}</xFant>");
         sb.AppendLine("<enderEmit>");
-        sb.AppendLine($"<xLgr>{empresa.Logradouro}</xLgr>");
-        sb.AppendLine($"<nro>{empresa.Numero}</nro>");
-        sb.AppendLine($"<xBairro>{empresa.Bairro}</xBairro>");
+        sb.AppendLine($"<xLgr>{E(empresa.Logradouro)}</xLgr>");
+        sb.AppendLine($"<nro>{E(empresa.Numero)}</nro>");
+        sb.AppendLine($"<xBairro>{E(empresa.Bairro)}</xBairro>");
         sb.AppendLine($"<cMun>{empresa.CodigoMunicipio}</cMun>");
-        sb.AppendLine($"<xMun>{empresa.Cidade}</xMun>");
+        sb.AppendLine($"<xMun>{E(empresa.Cidade)}</xMun>");
         sb.AppendLine($"<UF>{empresa.Uf}</UF>");
         sb.AppendLine($"<CEP>{empresa.Cep}</CEP>");
         sb.AppendLine("<cPais>1058</cPais>");
         sb.AppendLine("<xPais>Brasil</xPais>");
-        sb.AppendLine($"<fone>{empresa.Telefone}</fone>");
+        sb.AppendLine($"<fone>{E(empresa.Telefone)}</fone>");
         sb.AppendLine("</enderEmit>");
-        sb.AppendLine($"<IE>{empresa.InscricaoEstadual}</IE>");
+        sb.AppendLine($"<IE>{E(empresa.InscricaoEstadual)}</IE>");
         sb.AppendLine($"<CRT>{(int)empresa.RegimeTributario}</CRT>");
         sb.AppendLine("</emit>");
 
@@ -76,15 +88,15 @@ public class XmlNFeService : IXmlNFeService
             sb.AppendLine("<dest>");
             var tagDoc = nota.DestinatarioTipoPessoa == TipoPessoa.PessoaFisica ? "CPF" : "CNPJ";
             sb.AppendLine($"<{tagDoc}>{nota.DestinatarioCpfCnpj}</{tagDoc}>");
-            sb.AppendLine($"<xNome>{nota.DestinatarioRazaoSocial}</xNome>");
+            sb.AppendLine($"<xNome>{E(nota.DestinatarioRazaoSocial)}</xNome>");
             if (!string.IsNullOrEmpty(nota.DestinatarioLogradouro))
             {
                 sb.AppendLine("<enderDest>");
-                sb.AppendLine($"<xLgr>{nota.DestinatarioLogradouro}</xLgr>");
-                sb.AppendLine($"<nro>{nota.DestinatarioNumero}</nro>");
-                sb.AppendLine($"<xBairro>{nota.DestinatarioBairro}</xBairro>");
+                sb.AppendLine($"<xLgr>{E(nota.DestinatarioLogradouro)}</xLgr>");
+                sb.AppendLine($"<nro>{E(nota.DestinatarioNumero)}</nro>");
+                sb.AppendLine($"<xBairro>{E(nota.DestinatarioBairro)}</xBairro>");
                 sb.AppendLine($"<cMun>{nota.DestinatarioCodigoMunicipio}</cMun>");
-                sb.AppendLine($"<xMun>{nota.DestinatarioCidade}</xMun>");
+                sb.AppendLine($"<xMun>{E(nota.DestinatarioCidade)}</xMun>");
                 sb.AppendLine($"<UF>{nota.DestinatarioUf}</UF>");
                 sb.AppendLine($"<CEP>{nota.DestinatarioCep}</CEP>");
                 sb.AppendLine("<cPais>1058</cPais>");
@@ -93,9 +105,9 @@ public class XmlNFeService : IXmlNFeService
             }
             sb.AppendLine($"<indIEDest>{(string.IsNullOrEmpty(nota.DestinatarioInscricaoEstadual) ? 9 : 1)}</indIEDest>");
             if (!string.IsNullOrEmpty(nota.DestinatarioInscricaoEstadual))
-                sb.AppendLine($"<IE>{nota.DestinatarioInscricaoEstadual}</IE>");
+                sb.AppendLine($"<IE>{E(nota.DestinatarioInscricaoEstadual)}</IE>");
             if (!string.IsNullOrEmpty(nota.DestinatarioEmail))
-                sb.AppendLine($"<email>{nota.DestinatarioEmail}</email>");
+                sb.AppendLine($"<email>{E(nota.DestinatarioEmail)}</email>");
             sb.AppendLine("</dest>");
         }
 
@@ -104,27 +116,27 @@ public class XmlNFeService : IXmlNFeService
         {
             sb.AppendLine($"<det nItem=\"{item.NumeroItem}\">");
             sb.AppendLine("<prod>");
-            sb.AppendLine($"<cProd>{item.CodigoProduto}</cProd>");
-            sb.AppendLine($"<cEAN>{item.CodigoEan ?? "SEM GTIN"}</cEAN>");
-            sb.AppendLine($"<xProd>{item.Descricao}</xProd>");
+            sb.AppendLine($"<cProd>{E(item.CodigoProduto)}</cProd>");
+            sb.AppendLine($"<cEAN>{E(item.CodigoEan ?? "SEM GTIN")}</cEAN>");
+            sb.AppendLine($"<xProd>{E(item.Descricao)}</xProd>");
             sb.AppendLine($"<NCM>{item.Ncm}</NCM>");
             if (!string.IsNullOrEmpty(item.Cest)) sb.AppendLine($"<CEST>{item.Cest}</CEST>");
             sb.AppendLine($"<CFOP>{item.Cfop}</CFOP>");
-            sb.AppendLine($"<uCom>{item.UnidadeComercial}</uCom>");
-            sb.AppendLine($"<qCom>{item.Quantidade:F4}</qCom>");
-            sb.AppendLine($"<vUnCom>{item.ValorUnitario:F4}</vUnCom>");
-            sb.AppendLine($"<vProd>{item.ValorTotal:F2}</vProd>");
-            sb.AppendLine($"<cEANTrib>{item.CodigoEan ?? "SEM GTIN"}</cEANTrib>");
-            sb.AppendLine($"<uTrib>{item.UnidadeComercial}</uTrib>");
-            sb.AppendLine($"<qTrib>{item.Quantidade:F4}</qTrib>");
-            sb.AppendLine($"<vUnTrib>{item.ValorUnitario:F4}</vUnTrib>");
+            sb.AppendLine($"<uCom>{E(item.UnidadeComercial)}</uCom>");
+            sb.AppendLine($"<qCom>{F4(item.Quantidade)}</qCom>");
+            sb.AppendLine($"<vUnCom>{F4(item.ValorUnitario)}</vUnCom>");
+            sb.AppendLine($"<vProd>{F2(item.ValorTotal)}</vProd>");
+            sb.AppendLine($"<cEANTrib>{E(item.CodigoEan ?? "SEM GTIN")}</cEANTrib>");
+            sb.AppendLine($"<uTrib>{E(item.UnidadeComercial)}</uTrib>");
+            sb.AppendLine($"<qTrib>{F4(item.Quantidade)}</qTrib>");
+            sb.AppendLine($"<vUnTrib>{F4(item.ValorUnitario)}</vUnTrib>");
             sb.AppendLine($"<indTot>1</indTot>");
-            if (item.ValorDesconto > 0) sb.AppendLine($"<vDesc>{item.ValorDesconto:F2}</vDesc>");
+            if (item.ValorDesconto > 0) sb.AppendLine($"<vDesc>{F2(item.ValorDesconto)}</vDesc>");
             sb.AppendLine("</prod>");
 
             // IMPOSTOS
             sb.AppendLine("<imposto>");
-            sb.AppendLine($"<vTotTrib>{(item.ValorIcms + item.ValorPis + item.ValorCofins):F2}</vTotTrib>");
+            sb.AppendLine($"<vTotTrib>{F2((item.ValorIcms + item.ValorPis + item.ValorCofins))}</vTotTrib>");
 
             // ICMS — Simples Nacional usa CSOSN dentro de <ICMSSN{xx}>; Regime Normal usa CST dentro de <ICMS{xx}>.
             sb.AppendLine("<ICMS>");
@@ -137,16 +149,16 @@ public class XmlNFeService : IXmlNFeService
                 switch (item.CsosnIcms.Value)
                 {
                     case NfeSaas.Domain.Enums.CsosnIcms.TributadaComPermissaoCredito: // 101
-                        sb.AppendLine($"<pCredSN>{item.AliquotaIcms:F4}</pCredSN>");
-                        sb.AppendLine($"<vCredICMSSN>{(item.BaseCalculoIcms * item.AliquotaIcms / 100m):F2}</vCredICMSSN>");
+                        sb.AppendLine($"<pCredSN>{F4(item.AliquotaIcms)}</pCredSN>");
+                        sb.AppendLine($"<vCredICMSSN>{F2((item.BaseCalculoIcms * item.AliquotaIcms / 100m))}</vCredICMSSN>");
                         break;
                     case NfeSaas.Domain.Enums.CsosnIcms.Outros: // 900
                         if (item.BaseCalculoIcms > 0)
                         {
                             sb.AppendLine("<modBC>3</modBC>");
-                            sb.AppendLine($"<vBC>{item.BaseCalculoIcms:F2}</vBC>");
-                            sb.AppendLine($"<pICMS>{item.AliquotaIcms:F2}</pICMS>");
-                            sb.AppendLine($"<vICMS>{item.ValorIcms:F2}</vICMS>");
+                            sb.AppendLine($"<vBC>{F2(item.BaseCalculoIcms)}</vBC>");
+                            sb.AppendLine($"<pICMS>{F2(item.AliquotaIcms)}</pICMS>");
+                            sb.AppendLine($"<vICMS>{F2(item.ValorIcms)}</vICMS>");
                         }
                         break;
                     // 102, 103, 300, 400, 500, 201, 202, 203 — bloco mínimo (orig + CSOSN). ST detalhada será tratada na tributação avançada.
@@ -162,16 +174,16 @@ public class XmlNFeService : IXmlNFeService
                 if (item.BaseCalculoIcms > 0)
                 {
                     sb.AppendLine("<modBC>3</modBC>");
-                    sb.AppendLine($"<vBC>{item.BaseCalculoIcms:F2}</vBC>");
-                    sb.AppendLine($"<pICMS>{item.AliquotaIcms:F2}</pICMS>");
-                    sb.AppendLine($"<vICMS>{item.ValorIcms:F2}</vICMS>");
+                    sb.AppendLine($"<vBC>{F2(item.BaseCalculoIcms)}</vBC>");
+                    sb.AppendLine($"<pICMS>{F2(item.AliquotaIcms)}</pICMS>");
+                    sb.AppendLine($"<vICMS>{F2(item.ValorIcms)}</vICMS>");
                 }
                 // FCP — % adicional sobre BC ICMS, em algumas UFs (CE 2%, RJ 2% etc.)
                 if (item.ValorFcp.HasValue && item.ValorFcp.Value > 0)
                 {
-                    sb.AppendLine($"<vBCFCP>{item.BaseCalculoFcp ?? 0:F2}</vBCFCP>");
-                    sb.AppendLine($"<pFCP>{item.AliquotaFcp ?? 0:F2}</pFCP>");
-                    sb.AppendLine($"<vFCP>{item.ValorFcp.Value:F2}</vFCP>");
+                    sb.AppendLine($"<vBCFCP>{F2(item.BaseCalculoFcp ?? 0)}</vBCFCP>");
+                    sb.AppendLine($"<pFCP>{F2(item.AliquotaFcp ?? 0)}</pFCP>");
+                    sb.AppendLine($"<vFCP>{F2(item.ValorFcp.Value)}</vFCP>");
                 }
                 sb.AppendLine($"</ICMS{cstIcmsStr}>");
             }
@@ -182,9 +194,9 @@ public class XmlNFeService : IXmlNFeService
             var cstPisStr = ((int)item.CstPis).ToString("D2");
             sb.AppendLine($"<PISAliq>");
             sb.AppendLine($"<CST>{cstPisStr}</CST>");
-            sb.AppendLine($"<vBC>{item.BaseCalculoPis:F2}</vBC>");
-            sb.AppendLine($"<pPIS>{item.AliquotaPis:F2}</pPIS>");
-            sb.AppendLine($"<vPIS>{item.ValorPis:F2}</vPIS>");
+            sb.AppendLine($"<vBC>{F2(item.BaseCalculoPis)}</vBC>");
+            sb.AppendLine($"<pPIS>{F2(item.AliquotaPis)}</pPIS>");
+            sb.AppendLine($"<vPIS>{F2(item.ValorPis)}</vPIS>");
             sb.AppendLine("</PISAliq>");
             sb.AppendLine("</PIS>");
 
@@ -193,9 +205,9 @@ public class XmlNFeService : IXmlNFeService
             var cstCofinsStr = ((int)item.CstCofins).ToString("D2");
             sb.AppendLine("<COFINSAliq>");
             sb.AppendLine($"<CST>{cstCofinsStr}</CST>");
-            sb.AppendLine($"<vBC>{item.BaseCalculoCofins:F2}</vBC>");
-            sb.AppendLine($"<pCOFINS>{item.AliquotaCofins:F2}</pCOFINS>");
-            sb.AppendLine($"<vCOFINS>{item.ValorCofins:F2}</vCOFINS>");
+            sb.AppendLine($"<vBC>{F2(item.BaseCalculoCofins)}</vBC>");
+            sb.AppendLine($"<pCOFINS>{F2(item.AliquotaCofins)}</pCOFINS>");
+            sb.AppendLine($"<vCOFINS>{F2(item.ValorCofins)}</vCOFINS>");
             sb.AppendLine("</COFINSAliq>");
             sb.AppendLine("</COFINS>");
 
@@ -207,9 +219,9 @@ public class XmlNFeService : IXmlNFeService
                 var cstIpiStr = item.CstIpi ?? "50";
                 sb.AppendLine($"<IPITrib>");
                 sb.AppendLine($"<CST>{cstIpiStr}</CST>");
-                sb.AppendLine($"<vBC>{item.BaseCalculoIpi ?? 0:F2}</vBC>");
-                sb.AppendLine($"<pIPI>{item.AliquotaIpi ?? 0:F2}</pIPI>");
-                sb.AppendLine($"<vIPI>{item.ValorIpi.Value:F2}</vIPI>");
+                sb.AppendLine($"<vBC>{F2(item.BaseCalculoIpi ?? 0)}</vBC>");
+                sb.AppendLine($"<pIPI>{F2(item.AliquotaIpi ?? 0)}</pIPI>");
+                sb.AppendLine($"<vIPI>{F2(item.ValorIpi.Value)}</vIPI>");
                 sb.AppendLine("</IPITrib>");
                 sb.AppendLine("</IPI>");
             }
@@ -218,14 +230,14 @@ public class XmlNFeService : IXmlNFeService
             if (item.ValorIcmsUfDestino.HasValue && item.ValorIcmsUfDestino.Value > 0)
             {
                 sb.AppendLine("<ICMSUFDest>");
-                sb.AppendLine($"<vBCUFDest>{item.BaseCalculoDifal ?? 0:F2}</vBCUFDest>");
+                sb.AppendLine($"<vBCUFDest>{F2(item.BaseCalculoDifal ?? 0)}</vBCUFDest>");
                 sb.AppendLine($"<pFCPUFDest>0.00</pFCPUFDest>");
-                sb.AppendLine($"<pICMSUFDest>{item.AliquotaInternaUfDestino ?? 0:F2}</pICMSUFDest>");
-                sb.AppendLine($"<pICMSInter>{item.AliquotaInterestadual ?? 0:F2}</pICMSInter>");
+                sb.AppendLine($"<pICMSUFDest>{F2(item.AliquotaInternaUfDestino ?? 0)}</pICMSUFDest>");
+                sb.AppendLine($"<pICMSInter>{F2(item.AliquotaInterestadual ?? 0)}</pICMSInter>");
                 sb.AppendLine($"<pICMSInterPart>100.00</pICMSInterPart>"); // Partilha 100% destino desde 2019
                 sb.AppendLine($"<vFCPUFDest>0.00</vFCPUFDest>");
-                sb.AppendLine($"<vICMSUFDest>{item.ValorIcmsUfDestino.Value:F2}</vICMSUFDest>");
-                sb.AppendLine($"<vICMSUFRemet>{item.ValorIcmsUfRemetente ?? 0:F2}</vICMSUFRemet>");
+                sb.AppendLine($"<vICMSUFDest>{F2(item.ValorIcmsUfDestino.Value)}</vICMSUFDest>");
+                sb.AppendLine($"<vICMSUFRemet>{F2(item.ValorIcmsUfRemetente ?? 0)}</vICMSUFRemet>");
                 sb.AppendLine("</ICMSUFDest>");
             }
 
@@ -236,28 +248,28 @@ public class XmlNFeService : IXmlNFeService
         // TOTAIS
         sb.AppendLine("<total>");
         sb.AppendLine("<ICMSTot>");
-        sb.AppendLine($"<vBC>{nota.Itens.Sum(i => i.BaseCalculoIcms):F2}</vBC>");
-        sb.AppendLine($"<vICMS>{nota.TotalIcms:F2}</vICMS>");
+        sb.AppendLine($"<vBC>{F2(nota.Itens.Sum(i => i.BaseCalculoIcms))}</vBC>");
+        sb.AppendLine($"<vICMS>{F2(nota.TotalIcms)}</vICMS>");
         sb.AppendLine($"<vICMSDeson>0.00</vICMSDeson>");
         sb.AppendLine($"<vFCPUFDest>0.00</vFCPUFDest>");
-        sb.AppendLine($"<vICMSUFDest>{nota.TotalIcmsUfDestino:F2}</vICMSUFDest>");
-        sb.AppendLine($"<vICMSUFRemet>{nota.TotalIcmsUfRemetente:F2}</vICMSUFRemet>");
-        sb.AppendLine($"<vFCP>{nota.TotalFcp:F2}</vFCP>");
-        sb.AppendLine($"<vBCST>{nota.Itens.Sum(i => i.BaseCalculoIcmsSt ?? 0):F2}</vBCST>");
-        sb.AppendLine($"<vST>{nota.TotalIcmsSt:F2}</vST>");
+        sb.AppendLine($"<vICMSUFDest>{F2(nota.TotalIcmsUfDestino)}</vICMSUFDest>");
+        sb.AppendLine($"<vICMSUFRemet>{F2(nota.TotalIcmsUfRemetente)}</vICMSUFRemet>");
+        sb.AppendLine($"<vFCP>{F2(nota.TotalFcp)}</vFCP>");
+        sb.AppendLine($"<vBCST>{F2(nota.Itens.Sum(i => i.BaseCalculoIcmsSt ?? 0))}</vBCST>");
+        sb.AppendLine($"<vST>{F2(nota.TotalIcmsSt)}</vST>");
         sb.AppendLine($"<vFCPST>0.00</vFCPST>");
         sb.AppendLine($"<vFCPSTRet>0.00</vFCPSTRet>");
-        sb.AppendLine($"<vProd>{nota.TotalProdutos:F2}</vProd>");
-        sb.AppendLine($"<vFrete>{nota.TotalFrete:F2}</vFrete>");
-        sb.AppendLine($"<vSeg>{nota.TotalSeguro:F2}</vSeg>");
-        sb.AppendLine($"<vDesc>{nota.TotalDesconto:F2}</vDesc>");
+        sb.AppendLine($"<vProd>{F2(nota.TotalProdutos)}</vProd>");
+        sb.AppendLine($"<vFrete>{F2(nota.TotalFrete)}</vFrete>");
+        sb.AppendLine($"<vSeg>{F2(nota.TotalSeguro)}</vSeg>");
+        sb.AppendLine($"<vDesc>{F2(nota.TotalDesconto)}</vDesc>");
         sb.AppendLine($"<vII>0.00</vII>");
-        sb.AppendLine($"<vIPI>{nota.TotalIpi:F2}</vIPI>");
+        sb.AppendLine($"<vIPI>{F2(nota.TotalIpi)}</vIPI>");
         sb.AppendLine($"<vIPIDevol>0.00</vIPIDevol>");
-        sb.AppendLine($"<vPIS>{nota.TotalPis:F2}</vPIS>");
-        sb.AppendLine($"<vCOFINS>{nota.TotalCofins:F2}</vCOFINS>");
+        sb.AppendLine($"<vPIS>{F2(nota.TotalPis)}</vPIS>");
+        sb.AppendLine($"<vCOFINS>{F2(nota.TotalCofins)}</vCOFINS>");
         sb.AppendLine($"<vOutro>0.00</vOutro>");
-        sb.AppendLine($"<vNF>{nota.TotalNota:F2}</vNF>");
+        sb.AppendLine($"<vNF>{F2(nota.TotalNota)}</vNF>");
         sb.AppendLine("</ICMSTot>");
         sb.AppendLine("</total>");
 
@@ -270,14 +282,14 @@ public class XmlNFeService : IXmlNFeService
         sb.AppendLine("<pag>");
         sb.AppendLine("<detPag>");
         sb.AppendLine($"<tPag>{nota.FormaPagemento}</tPag>");
-        sb.AppendLine($"<vPag>{nota.ValorPagamento:F2}</vPag>");
+        sb.AppendLine($"<vPag>{F2(nota.ValorPagamento)}</vPag>");
         sb.AppendLine("</detPag>");
         sb.AppendLine("</pag>");
 
         if (!string.IsNullOrEmpty(nota.InformacoesAdicionais))
         {
             sb.AppendLine("<infAdic>");
-            sb.AppendLine($"<infCpl>{nota.InformacoesAdicionais}</infCpl>");
+            sb.AppendLine($"<infCpl>{E(nota.InformacoesAdicionais)}</infCpl>");
             sb.AppendLine("</infAdic>");
         }
 
@@ -347,7 +359,7 @@ public class XmlNFeService : IXmlNFeService
     <xServ>CANCELAR</xServ>
     <chNFe>{chaveAcesso}</chNFe>
     <nProt></nProt>
-    <xJust>{justificativa}</xJust>
+    <xJust>{E(justificativa)}</xJust>
   </infCanc>
 </cancNFe>";
     }
@@ -357,11 +369,11 @@ public class XmlNFeService : IXmlNFeService
         var cuf = ObterCUf(empresa.Uf);
         var cOrgao = cuf.ToString("D2");
         var idEvento = $"ID110110{chaveAcesso}{sequencial:D2}";
-        var dh = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz");
+        var dh = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:sszzz");
 
         return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <envEvento xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""1.00"">
-  <idLote>{DateTime.Now:yyyyMMddHHmmssfff}</idLote>
+  <idLote>{DateTime.UtcNow:yyyyMMddHHmmssfff}</idLote>
   <evento versao=""1.00"">
     <infEvento Id=""{idEvento}"">
       <cOrgao>{cOrgao}</cOrgao>
@@ -411,7 +423,7 @@ public class XmlNFeService : IXmlNFeService
         var tpEvento = ((int)tipo).ToString();
         var nSeq = 1;
         var idEvento = $"ID{tpEvento}{chaveAcesso}{nSeq:D2}";
-        var dh = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz");
+        var dh = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:sszzz");
         var descEvento = tipo switch
         {
             NfeSaas.Domain.Enums.TipoEventoFiscal.ManifestacaoConfirmacao => "Confirmacao da Operacao",
@@ -428,7 +440,7 @@ public class XmlNFeService : IXmlNFeService
 
         return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <envEvento xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""1.00"">
-  <idLote>{DateTime.Now:yyyyMMddHHmmssfff}</idLote>
+  <idLote>{DateTime.UtcNow:yyyyMMddHHmmssfff}</idLote>
   <evento versao=""1.00"">
     <infEvento Id=""{idEvento}"">
       <cOrgao>91</cOrgao>
@@ -531,10 +543,15 @@ public class XmlNFeService : IXmlNFeService
     private static string GerarChaveAcesso(int cuf, DateTime emissao, string cnpj,
         int modelo, int serie, int numero, int tpEmis, int ambiente)
     {
-        var chave = $"{cuf}{emissao:yyMM}{cnpj}{modelo:D2}{serie:D3}{numero:D9}{tpEmis}{new Random().Next(10000000, 99999999):D8}";
+        var chave = $"{cuf}{emissao:yyMM}{cnpj}{modelo:D2}{serie:D3}{numero:D9}{tpEmis}{CodigoNumericoAleatorio():D8}";
         var dv = CalcularDv(chave);
         return chave + dv;
     }
+
+    // cNF (8 dígitos): código numérico anti-enumeração da chave de acesso. Exige RNG criptográfico —
+    // System.Random é determinístico pelo tick do relógio e permite previsão da chave.
+    private static int CodigoNumericoAleatorio() =>
+        RandomNumberGenerator.GetInt32(10_000_000, 100_000_000);
 
     private static int CalcularDv(string chave)
     {

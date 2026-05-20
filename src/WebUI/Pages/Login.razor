@@ -88,6 +88,9 @@
                 <MudCardContent>
 
                     <MudText Typo="Typo.overline" Color="Color.Primary" Class="mb-1">1. Escolha o plano</MudText>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3" Dense="true">
+                        <b>Todos os planos incluem 30 dias grátis para teste.</b> Sem cobrança no cadastro — você só paga ao final do período de avaliação se quiser continuar.
+                    </MudAlert>
                     <MudGrid Class="mb-4">
                         @foreach (var plano in _planos)
                         {
@@ -99,6 +102,9 @@
                                         <MudText Typo="Typo.h6">@plano.Nome</MudText>
                                         <MudText Typo="Typo.h5" Color="Color.Primary"><b>@plano.Preco</b></MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">@plano.Descricao</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Success" Class="mt-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" /> 30 dias grátis
+                                        </MudText>
                                     </MudCardContent>
                                 </MudCard>
                             </MudItem>
@@ -177,9 +183,9 @@
 
     private readonly List<PlanoInfo> _planos = new()
     {
-        new(1, "Básico",        "Grátis",    "Até 3 empresas / 50 NF-e/mês"),
-        new(2, "Profissional",  "R$ 99/mês", "Até 20 empresas / ilimitado"),
-        new(3, "Enterprise",    "R$ 299/mês","Empresas ilimitadas + suporte"),
+        new(1, "Básico",        "R$ 49/mês",  "Até 3 empresas / 50 NF-e/mês"),
+        new(2, "Profissional",  "R$ 99/mês",  "Até 20 empresas / ilimitado"),
+        new(3, "Enterprise",    "R$ 299/mês", "Empresas ilimitadas + suporte"),
     };
 
     async Task HandleLogin()
@@ -190,10 +196,29 @@
             return;
         }
         _loading = true;
-        var result = await AuthService.LoginAsync(_email, _senha);
+        var attempt = await AuthService.LoginAsync(_email, _senha);
         _loading = false;
 
-        if (result == null) { Snackbar.Add("E-mail ou senha inválidos.", Severity.Error); return; }
+        if (attempt.Sucesso == null)
+        {
+            var severity = attempt.Codigo == "TrialExpirado" || attempt.Codigo == "EscritorioSuspenso"
+                ? Severity.Warning : Severity.Error;
+            var mensagem = attempt.Mensagem ?? "Falha ao fazer login.";
+            if (attempt.Codigo == "TrialExpirado" && attempt.Assinatura != null)
+            {
+                mensagem += $" (Plano contratado: {attempt.Assinatura.Plano}. Trial encerrou em {attempt.Assinatura.TrialFimEm:dd/MM/yyyy}.)";
+            }
+            Snackbar.Add(mensagem, severity);
+            return;
+        }
+
+        var result = attempt.Sucesso;
+
+        // Aviso amigável dos dias restantes do trial (se ainda em trial)
+        if (result.Assinatura.Status == "TrialAtivo")
+        {
+            Snackbar.Add($"Você está no trial — {result.Assinatura.DiasRestantesTrial} dia(s) restantes.", Severity.Info);
+        }
 
         if (result.Empresas.Count == 0)
         {
@@ -202,7 +227,6 @@
             return;
         }
 
-        // auto-select handled inside AuthService when count == 1 — just reload the app
         if (result.Empresas.Count == 1)
         {
             Nav.NavigateTo("/", forceLoad: true);
@@ -255,13 +279,12 @@
         }
 
         // Faz login automaticamente após o registro
-        var result = await AuthService.LoginAsync(_reg.EmailAdmin, _reg.SenhaAdmin);
+        var attempt = await AuthService.LoginAsync(_reg.EmailAdmin, _reg.SenhaAdmin);
         _loading = false;
 
-        if (result != null)
+        if (attempt.Sucesso != null)
         {
-            // Escritório recém-criado não tem empresas ainda → manda direto cadastrar a primeira
-            Snackbar.Add("Bem-vindo! Cadastre sua primeira empresa cliente para começar.", Severity.Success);
+            Snackbar.Add("Bem-vindo! Você está no trial de 30 dias do plano " + attempt.Sucesso.Assinatura.Plano + ".", Severity.Success);
             Nav.NavigateTo("/empresas", forceLoad: true);
         }
         else

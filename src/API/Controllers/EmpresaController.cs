@@ -91,11 +91,16 @@ public class EmpresaController : BaseApiController
         return Ok(new CertificadoStatusDto(info.Valido, info.NomeTitular, info.Cnpj, info.Validade, info.MensagemErro));
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost("certificado/upload")]
+    [RequestSizeLimit(256 * 1024)] // PFX A1 raramente passa de ~10 KB; 256 KB cobre A3 com folga.
     public async Task<IActionResult> UploadCertificado(IFormFile arquivo, [FromForm] string senha)
     {
         if (arquivo == null || arquivo.Length == 0)
             return BadRequest(new { message = "Arquivo não enviado." });
+
+        if (arquivo.Length > 256 * 1024)
+            return BadRequest(new { message = "Arquivo excede o tamanho máximo permitido (256 KB)." });
 
         if (!arquivo.FileName.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase) &&
             !arquivo.FileName.EndsWith(".p12", StringComparison.OrdinalIgnoreCase))
