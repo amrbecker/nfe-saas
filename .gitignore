@@ -20,6 +20,7 @@ appsettings.*.json
 secrets.json
 .env
 .env.*
+!.env.example
 
 ## Docker volumes
 postgres_data/

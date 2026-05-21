@@ -44,12 +44,13 @@ Plataforma completa para emissão, gestão e arquivamento de **Nota Fiscal Eletr
 | 9 | **Validação XSD oficial** | Os schemas v4.00 da NF-e são carregados em memória e usados para validar **antes do envio à SEFAZ** — reduz drasticamente o número de rejeições. |
 | 10 | **DANFE e DANFE NFC-e com QR Code** | Geração nativa de PDF via **QuestPDF** (licença Community), incluindo hash CSC para a NFC-e. |
 | 11 | **Certificado A1 por empresa** | Cada empresa cliente tem seu próprio certificado armazenado, validado e expira-aware — uma instalação serve dezenas de CNPJs. |
-| 12 | **Auto-cadastro de escritório** | Onboarding sem fricção: o contador cria seu próprio tenant pela WebUI, sem precisar de um vendedor. |
-| 13 | **Wizard de personalização** | Configuração inicial por empresa (perfil de cliente, tipo de produto, volume, nível de automação) que adapta a UI ao caso de uso. |
-| 14 | **Open-source self-hosted** | Stack 100% containerizada (Docker Compose). **Sem custo por nota emitida**, sem amarração a fornecedor SaaS terceiro, dados ficam na infraestrutura do cliente. |
-| 15 | **Arquitetura limpa e testável** | DDD + CQRS (MediatR) + Clean Architecture + EF Core 8. Testes Unit, Integration (Testcontainers) e BDD (SpecFlow) prontos. |
-| 16 | **Mensagens 100% em PT-BR** | Domínio, UI e mensagens de erro em português brasileiro, alinhadas ao vocabulário fiscal nacional. |
-| 17 | **Segurança em camadas** | Cifragem em repouso de senhas de certificado A1 e tokens CSC (ASP.NET Data Protection), RNG criptográfico na chave de acesso da NF-e, escape de XML contra injection, JWT secret com fail-fast no startup, upload de certificado restrito a admin com limite de tamanho — veja [Segurança e Proteção de Dados](#-segurança-e-proteção-de-dados). |
+| 12 | **Auto-cadastro com trial de 30 dias** | Onboarding sem cartão: o contador cria o próprio tenant na WebUI, escolhe o plano e começa a emitir. Após 30 dias, o login retorna **HTTP 402 com `codigo: TrialExpirado`** e a UI orienta a ativação — bloqueio gracioso, sem deletar dados. |
+| 13 | **Wizard de personalização → UI adaptativa** | Configuração inicial por empresa (perfil de cliente, tipo de produto, volume, nível de automação) gera **flags semânticas** consumidas pela WebUI: modo simples esconde NFC-e, IPI/FCP/DIFAL, inutilizações e cadastros — sem opção desnecessária para quem não precisa. |
+| 14 | **Escritório como emissor próprio** | O escritório (PJ com CNPJ) pode emitir NF-e em nome próprio com um clique — endpoint **idempotente por CNPJ** evita duplicar dados, e copia razão social/contato do tenant automaticamente. |
+| 15 | **Open-source self-hosted** | Stack 100% containerizada (Docker Compose). **Sem custo por nota emitida**, sem amarração a fornecedor SaaS terceiro, dados ficam na infraestrutura do cliente. |
+| 16 | **Arquitetura limpa e testável** | DDD + CQRS (MediatR) + Clean Architecture + EF Core 8. Testes Unit, Integration (Testcontainers) e BDD (SpecFlow) prontos — **536 testes passando**. |
+| 17 | **Mensagens 100% em PT-BR** | Domínio, UI e mensagens de erro em português brasileiro, alinhadas ao vocabulário fiscal nacional. |
+| 18 | **Segurança em camadas** | Cifragem em repouso de senhas de certificado A1 e tokens CSC (ASP.NET Data Protection), RNG criptográfico na chave de acesso da NF-e, escape de XML contra injection, **InvariantCulture forçado** em decimais do XML (vírgula = rejeição SEFAZ), JWT secret com fail-fast no startup, upload de certificado restrito a admin com limite de tamanho — veja [Segurança e Proteção de Dados](#-segurança-e-proteção-de-dados). |
 
 ---
 
@@ -88,12 +89,30 @@ Plataforma completa para emissão, gestão e arquivamento de **Nota Fiscal Eletr
 ## ⚙️ Funcionalidades
 
 ### Gestão multi-empresa
-- ✅ Auto-cadastro de Escritório (CNPJ, e-mail, telefone, plano)
+- ✅ Auto-cadastro de Escritório (CNPJ, e-mail, telefone, plano obrigatório — sem plano Free)
 - ✅ Cadastro ilimitado de Empresas (CNPJs clientes) por Escritório
+- ✅ **Cadastrar o próprio escritório como empresa emitente** com um clique (idempotente por CNPJ)
 - ✅ Gestão de Usuários por Escritório (roles `Admin` e `User`, ativar/desativar/excluir)
 - ✅ Seletor de empresa no header (troca de contexto sem novo login)
 - ✅ Wizard de Configuração Inicial por empresa (perfil cliente, volume, automação)
 - ✅ Cadastro completo da Empresa (Razão Social, CNPJ, IE, IM, CNAE, endereço, regime tributário, ambiente SEFAZ)
+
+### Trial e ativação de plano (`StatusAssinaturaEscritorio`)
+- ✅ Trial automático de **30 dias** ao auto-cadastrar (constante `Escritorio.DiasTrialPadrao`)
+- ✅ Planos `Basico` / `Profissional` / `Enterprise` — escolha obrigatória no cadastro
+- ✅ `LoginCommandHandler` retorna `LoginCommandResult` discriminado (Sucesso × Falha)
+- ✅ Códigos HTTP no login: **200** sucesso, **401** credencial inválida, **402** trial expirado, **403** escritório suspenso
+- ✅ `AssinaturaDto` no `LoginResultDto` traz Plano, Status, DiasRestantesTrial, TrialFimEm, PlanoAtivoAteEm
+- ✅ `Login.razor` exibe badge de trial e mensagens contextuais por código de falha
+- ✅ Endpoint `POST /api/escritorio/ativar-plano [Admin]` (em produção: webhook do gateway de pagamento)
+- ✅ `SelecionarEmpresaCommandHandler` valida `escritorio.PodeAcessar()` em todas as trocas de empresa
+- ✅ Suspensão administrativa (`Escritorio.Suspender()`) domina sobre Pago/TrialAtivo
+
+### Personalização adaptativa da UI (`PersonalizacaoService`)
+- ✅ Flags semânticas derivadas do wizard: `ModoSimplificado`, `MostrarNFCe`, `MostrarTributacaoAvancada`, `MostrarCadastroProdutos`, `MostrarCadastroClientes`, `MostrarInutilizacoes`, `MostrarContingencia`, `MostrarRelatoriosAvancados`, `ExplicacoesDetalhadas`
+- ✅ `EmitirNFe.razor` esconde IPI/FCP/DIFAL quando `MostrarTributacaoAvancada = false`
+- ✅ `MainLayout.razor` esconde menus (Produtos, Clientes, Inutilizações) conforme perfil
+- ✅ Cache invalidado automaticamente ao trocar de empresa
 
 ### Cadastros operacionais
 - ✅ **Produtos:** Código, NCM, CEST, CFOP padrão, unidade, origem da mercadoria, EAN, código ANP, valor unitário padrão, ativo/inativo
@@ -288,10 +307,12 @@ NfeSaas/
 │   │   └── Controllers/ # Auth, Escritorio, Empresa, NotaFiscal, Produto, Cliente, Inutilizacao
 │   └── WebUI/           # Blazor WebAssembly + MudBlazor 6
 │       ├── Pages/       # Login, Dashboard, EmitirNFe, NotasEmitidas, NotaDetalhe,
-│       │                # Empresas, Empresa, Certificado, Produtos, Clientes, Usuarios,
-│       │                # Inutilizacoes, ConfiguracaoInicial
+│       │                # Empresas, Empresa, EscritorioComoEmpresa, Certificado,
+│       │                # Produtos, Clientes, Usuarios, Inutilizacoes, ConfiguracaoInicial
 │       ├── Shared/      # MainLayout, NavMenu
-│       └── Services/    # AuthService, NotaFiscalService, EscritorioService, JwtAuthStateProvider
+│       └── Services/    # AuthService, NotaFiscalService, EscritorioService,
+│                        # PersonalizacaoService (flags semânticas da UI),
+│                        # JwtAuthStateProvider
 ├── tests/
 │   ├── NfeSaas.Tests.Unit/         # Testes de domínio e serviços isolados
 │   ├── NfeSaas.Tests.Integration/  # Banco real via Testcontainers
@@ -430,11 +451,16 @@ Hierarquia: **Escritório → Empresa → NotaFiscal**. Um **Usuário pertence a
 ```
 1) POST /api/auth/login
    { email, senha }
-   → 200 { accessToken (sem empresa_id), refreshToken, empresas[] }
+   → 200 { accessToken (sem empresa_id), refreshToken, empresas[],
+           assinatura: { plano, status, diasRestantesTrial, trialFimEm, planoAtivoAteEm } }
+   → 401 { codigo: "CredenciaisInvalidas", message }
+   → 402 { codigo: "TrialExpirado",       message, assinatura }   ← UI orienta ativar plano
+   → 403 { codigo: "EscritorioSuspenso",  message, assinatura }
 
 2) POST /api/auth/selecionar-empresa     (Authorization: Bearer <accessToken do passo 1>)
    { empresaId }
    → 200 { accessToken (com empresa_id e escritorio_id) }
+   → 400 quando escritorio.PodeAcessar() == false (trial expirado, suspenso)
 
 3) Todas as rotas protegidas exigem o token com empresa_id.
 ```
@@ -469,13 +495,23 @@ A troca de empresa via UI dispara o passo 2 novamente — **sem novo login**. To
 ### Autenticação
 ```
 POST   /api/auth/login                          Login (e-mail + senha)
+                                                → 200 LoginResultDto (com `assinatura`)
+                                                → 401 codigo=CredenciaisInvalidas
+                                                → 402 codigo=TrialExpirado   (assinatura preenchida)
+                                                → 403 codigo=EscritorioSuspenso
 POST   /api/auth/refresh                        Renovar access token
 POST   /api/auth/selecionar-empresa             Trocar empresa (gera novo token com empresa_id)
+                                                Valida escritorio.PodeAcessar() — bloqueia trial expirado
 ```
 
 ### Escritório (multi-tenant)
 ```
-POST   /api/escritorio/registrar                Auto-cadastro de escritório (público)
+POST   /api/escritorio/registrar                Auto-cadastro (público) — Trial 30 dias automático
+                                                Plano obrigatório: Basico | Profissional | Enterprise
+POST   /api/escritorio/cadastrar-como-empresa   Cadastrar próprio escritório como empresa emitente  [Admin]
+                                                Idempotente por CNPJ; copia razão social/contato
+POST   /api/escritorio/ativar-plano             Ativar plano pago (AtivoAteUtc, ValorPago?)         [Admin]
+                                                Em produção: substituir por webhook do gateway
 GET    /api/escritorio/empresas                 Listar empresas do escritório
 POST   /api/escritorio/empresas                 Criar empresa cliente            [Admin]
 GET    /api/escritorio/usuarios                 Listar usuários                  [Admin]

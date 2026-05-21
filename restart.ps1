@@ -5,16 +5,18 @@
 
 .DESCRIPTION
     Fluxo padrao:
-      1. Valida pre-requisitos (Docker, dotnet, .env)
+      1. Valida pre-requisitos (Docker, dotnet, .env, JWT_SECRET >= 32 chars)
       2. (Opcional) Remove volumes para banco limpo (-Clean) - re-aplica seed automaticamente
+         AVISO: -Clean tambem apaga dp_keys, invalidando CertificadoSenha/CscToken ja cifrados
       3. Sobe os containers (build opcional)
       4. Aguarda o postgres ficar saudavel
       5. Gera o script SQL idempotente das migrations EF Core
       6. Copia e aplica o script no container do postgres
       7. Aplica seed de demonstracao quando o banco esta vazio
       8. Aguarda a API responder em /health
-      9. Mostra endpoints prontos para teste
-     10. Abre a solution no IDE padrao (a menos que -NoIde)
+      9. Mostra endpoints prontos para teste + dicas
+     10. (Opcional) Roda testes Unit + Integration (-Test)
+     11. Abre a solution no IDE padrao (a menos que -NoIde)
 
 .PARAMETER Clean
     Remove volumes do docker compose (apaga o banco). Util para resetar dados de seed.
@@ -32,6 +34,9 @@
 .PARAMETER NoSeed
     Nao aplica o seed mesmo quando o banco esta vazio. Util para testes do zero.
 
+.PARAMETER Test
+    Apos subir o ambiente, executa dotnet test (Unit + Integration). Implica -NoIde.
+
 .EXAMPLE
     .\restart.ps1
     Reinicia tudo com rebuild, aplica migrations e abre a solution.
@@ -43,6 +48,10 @@
 .EXAMPLE
     .\restart.ps1 -NoBuild -SkipMigrations -NoIde
     Restart rapido sem rebuild, sem migrations e sem abrir IDE (uso CI / iteracao rapida).
+
+.EXAMPLE
+    .\restart.ps1 -Test
+    Reinicia tudo e roda a suite de testes (Unit + Integration). Util pos-rebase ou pre-commit.
 #>
 [CmdletBinding()]
 param(
@@ -50,8 +59,12 @@ param(
     [switch]$NoBuild,
     [switch]$SkipMigrations,
     [switch]$NoIde,
-    [switch]$NoSeed
+    [switch]$NoSeed,
+    [switch]$Test
 )
+
+# -Test implica nao abrir IDE (uso em CI / pre-commit)
+if ($Test) { $NoIde = $true }
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -269,14 +282,39 @@ Write-Host "    Swagger : http://localhost:5001/swagger"  -ForegroundColor White
 Write-Host "    Health  : http://localhost:5001/health"   -ForegroundColor White
 Write-Host "    WebUI   : $webUiUrl"                      -ForegroundColor White
 Write-Host ""
-Write-Host "    Login demo: admin@nfesaas.com.br / Admin@123" -ForegroundColor DarkGray
+Write-Host "    Login demo  : admin@nfesaas.com.br / Admin@123"            -ForegroundColor DarkGray
+Write-Host "    Plano demo  : ativo por 1 ano (seed); novos cadastros = trial de 30 dias" -ForegroundColor DarkGray
+Write-Host "    Empresa demo: 00.000.000/0001-91 (auto-selecionada apos login)" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "    Logs em tempo real:" -ForegroundColor DarkGray
-Write-Host "      docker compose logs -f api"   -ForegroundColor DarkGray
-Write-Host "      docker compose logs -f webui" -ForegroundColor DarkGray
+Write-Host "    Atalhos uteis:" -ForegroundColor DarkGray
+Write-Host "      docker compose logs -f api    # logs API"     -ForegroundColor DarkGray
+Write-Host "      docker compose logs -f webui  # logs WebUI"   -ForegroundColor DarkGray
+Write-Host "      .\restart.ps1 -Test           # rodar testes" -ForegroundColor DarkGray
+Write-Host "      .\restart.ps1 -Clean          # zerar banco"  -ForegroundColor DarkGray
 
 # -------------------------------------------------------------
-# 8. Abrir IDE
+# 8. Testes (opcional)
+# -------------------------------------------------------------
+if ($Test) {
+    Write-Step "Executando testes Unit + Integration"
+    Push-Location $projectRoot
+    try {
+        dotnet test tests/NfeSaas.Tests.Unit --nologo --logger "console;verbosity=minimal"
+        $unitExit = $LASTEXITCODE
+        dotnet test tests/NfeSaas.Tests.Integration --nologo --logger "console;verbosity=minimal"
+        $intExit = $LASTEXITCODE
+        if ($unitExit -ne 0 -or $intExit -ne 0) {
+            Write-Err "Testes falharam (Unit=$unitExit, Integration=$intExit)"
+            exit 1
+        }
+        Write-Ok "Todos os testes passaram"
+    } finally {
+        Pop-Location
+    }
+}
+
+# -------------------------------------------------------------
+# 9. Abrir IDE
 # -------------------------------------------------------------
 if (-not $NoIde) {
     if (Test-Path $solutionFile) {
