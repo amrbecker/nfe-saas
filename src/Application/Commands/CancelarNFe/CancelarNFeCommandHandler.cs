@@ -52,13 +52,18 @@ public class CancelarNFeCommandHandler : IRequestHandler<CancelarNFeCommand, Can
         if (empresa == null) return new CancelarNFeResult(false, "Empresa não encontrada.");
         if (!empresa.CertificadoValido())
             return new CancelarNFeResult(false, "Certificado digital inválido ou não configurado — cancelamento exige assinatura.");
+        if (string.IsNullOrEmpty(nota.Protocolo))
+            return new CancelarNFeResult(false, "Nota sem protocolo de autorização — não é possível cancelar.");
 
-        var resultado = await _sefaz.CancelarNFeAsync(nota, empresa, justificativa, cancellationToken);
+        // Assina o evento de cancelamento ANTES de transmitir — a SEFAZ recebe o XML assinado,
+        // não uma justificativa solta.
+        var xmlCanc = _xmlService.GerarXmlCancelamento(nota.ChaveAcesso!, nota.Protocolo, justificativa, empresa);
+        var xmlCancAssinado = _xmlService.AssinarCancelamento(xmlCanc, empresa.CertificadoBytes!, empresa.CertificadoSenha!);
+
+        var resultado = await _sefaz.CancelarNFeAsync(nota, empresa, xmlCancAssinado, cancellationToken);
 
         if (resultado.Sucesso)
         {
-            var xmlCanc = _xmlService.GerarXmlCancelamento(nota.ChaveAcesso!, justificativa, empresa);
-            var xmlCancAssinado = _xmlService.AssinarCancelamento(xmlCanc, empresa.CertificadoBytes!, empresa.CertificadoSenha!);
             nota.Cancelar(xmlCancAssinado);
             await _notaRepo.UpdateAsync(nota, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);

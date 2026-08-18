@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NfeSaas.Application.Commands.Auth;
 using NfeSaas.Application.DTOs;
 
@@ -8,6 +9,7 @@ namespace NfeSaas.API.Controllers;
 
 [Route("api/auth")]
 [ApiController]
+[EnableRateLimiting("auth")]
 public class AuthController : BaseApiController
 {
     [HttpPost("login")]

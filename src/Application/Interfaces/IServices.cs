@@ -5,7 +5,7 @@ namespace NfeSaas.Application.Interfaces;
 public interface ISefazService
 {
     Task<SefazResultado> EnviarNFeAsync(NotaFiscal nota, Empresa empresa, CancellationToken ct = default);
-    Task<SefazResultado> CancelarNFeAsync(NotaFiscal nota, Empresa empresa, string justificativa, CancellationToken ct = default);
+    Task<SefazResultado> CancelarNFeAsync(NotaFiscal nota, Empresa empresa, string xmlEventoAssinado, CancellationToken ct = default);
     Task<SefazConsultaResultado> ConsultarChaveAcessoAsync(string chaveAcesso, Empresa empresa, CancellationToken ct = default);
     Task<bool> ConsultarStatusServicoAsync(Empresa empresa, CancellationToken ct = default);
 
@@ -49,7 +49,7 @@ public interface IXmlNFeService
 {
     string GerarXmlNFe(NotaFiscal nota, Empresa empresa);
     string AssinarXml(string xml, byte[] certificadoBytes, string senha);
-    string GerarXmlCancelamento(string chaveAcesso, string justificativa, Empresa empresa);
+    string GerarXmlCancelamento(string chaveAcesso, string protocolo, string justificativa, Empresa empresa);
     bool ValidarXml(string xml, out IEnumerable<string> erros);
 
     string GerarXmlCce(string chaveAcesso, int sequencial, string correcao, Empresa empresa);

@@ -130,6 +130,9 @@ public class UsuarioRepository : IUsuarioRepository
     public async Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default) =>
         await _ctx.Usuarios.FirstOrDefaultAsync(u => u.Email == email, ct);
 
+    public async Task<Usuario?> GetByRefreshTokenAsync(string refreshToken, CancellationToken ct = default) =>
+        await _ctx.Usuarios.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken, ct);
+
     public async Task<IEnumerable<Usuario>> GetByEscritorioAsync(Guid escritorioId, CancellationToken ct = default) =>
         await _ctx.Usuarios.Where(u => u.EscritorioId == escritorioId).ToListAsync(ct);
 

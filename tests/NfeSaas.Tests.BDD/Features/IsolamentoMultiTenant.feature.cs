@@ -24,9 +24,9 @@ namespace NfeSaas.Tests.BDD.Features
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Isolamento Multi-Tenant", "  Como administrador do sistema\r\n  Quero garantir que dados de um escritório não " +
-                "sejam acessíveis por outro\r\n  Para manter a segurança e privacidade das informaç" +
-                "ões", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags);
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Isolamento Multi-Tenant", "  Como administrador do sistema\n  Quero garantir que dados de um escritório não s" +
+                "ejam acessíveis por outro\n  Para manter a segurança e privacidade das informaçõe" +
+                "s", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags);
         
         private Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

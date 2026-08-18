@@ -1,7 +1,11 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using NfeSaas.API.Middleware;
 using NfeSaas.API.Workers;
 using NfeSaas.Application;
 using NfeSaas.Infrastructure;
@@ -103,11 +107,52 @@ builder.Services.AddHealthChecks();
 builder.Services.Configure<NcmUpdateWorkerOptions>(builder.Configuration.GetSection("Ncm"));
 builder.Services.AddHostedService<NcmUpdateWorker>();
 
+// Rate limiting — política restritiva para os endpoints de autenticação (login/refresh), que são
+// o alvo natural de força bruta. Particiona por IP do cliente. Limite alto no ambiente "Testing"
+// (WebApplicationFactory/BDD): todas as requisições do TestServer compartilham o mesmo IP
+// sintético, então o limite de produção derrubaria os próprios testes com 429.
+var authPermitLimit = builder.Environment.IsEnvironment("Testing") ? 100_000 : 10;
+builder.Services.AddRateLimiter(opts =>
+{
+    opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    opts.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
+
+// Cabeçalhos de proxy reverso (X-Forwarded-For/Proto) — necessário para IP real do cliente
+// (rate limiting, logs) e esquema correto (https) quando atrás de nginx/load balancer, conforme
+// docs/README.md "HTTPS / TLS obrigatório". KnownProxies/KnownNetworks ficam vazios por padrão
+// (ASP.NET Core só confia em loopback) — configure-os para o IP real do proxy antes de publicar
+// atrás de um reverse proxy que não seja no mesmo host.
+builder.Services.Configure<ForwardedHeadersOptions>(opts =>
+{
+    opts.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
 var app = builder.Build();
 
-// Migrate DB on startup
-using (var scope = app.Services.CreateScope())
+app.UseForwardedHeaders();
+
+// Handler global de exceções — formata ValidationException/erros inesperados como JSON
+// estruturado em vez do corpo vazio padrão do ASP.NET Core em produção.
+app.UseExceptionHandling();
+
+// Migrations no boot: conveniente para single-instance (dev, docker-compose local), mas racy
+// com múltiplas réplicas. Desligado por padrão em Production — restart.sh já aplica migrations
+// via job idempotente antes de subir a API (ver docs/README.md "Migrations"). Forçar via
+// Database__MigrateOnStartup=true se necessário para um deploy single-instance.
+var migrateOnStartup = builder.Configuration.GetValue<bool?>("Database:MigrateOnStartup")
+    ?? !app.Environment.IsProduction();
+if (migrateOnStartup)
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<NfeDbContext>();
     await db.Database.MigrateAsync();
 }
@@ -120,6 +165,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 app.UseCors("AllowWebUI");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

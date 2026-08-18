@@ -17,6 +17,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
+    <PackageReference Include="Npgsql" Version="8.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="8.0.0" />
@@ -25,14 +26,23 @@
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="7.3.1" />
     <PackageReference Include="QuestPDF" Version="2024.3.3" />
     <!-- QuestPDF 2024.3.3 puxa SkiaSharp 2.88.3 + assets macOS/Win32, mas não os de Linux.
-         Sem este pacote, a imagem Docker (Debian) lança DllNotFoundException ao gerar PDF. -->
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.3" />
+         Sem este pacote, a imagem Docker (Debian) lança DllNotFoundException ao gerar PDF.
+         SkiaSharp/NativeAssets pinados juntos em 2.88.9 (última patch da linha 2.88.x que
+         corrige GHSA-j7hp-h8jx-5ppr sem o salto de API para a série 3.x/4.x). -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
     <PackageReference Include="QRCoder" Version="1.4.3" />
     <PackageReference Include="BarcodeLib" Version="3.0.0" />
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
-    <PackageReference Include="MailKit" Version="4.3.0" />
+    <!-- Pins de segurança para dependências transitivas com CVE conhecido, mantendo a mesma
+         linha 8.0.x (sem mudança de API) — ver GHSA-qj66-m88j-hmgj, GHSA-447r-wph3-92pm,
+         GHSA-37gx-xxp4-5rgx (+ 6 outros advisories na mesma família) e GHSA-hh2w-p6rv-4g7w. -->
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageReference Include="System.Formats.Asn1" Version="8.0.2" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.4" />
+    <PackageReference Include="System.Text.Json" Version="8.0.6" />
   </ItemGroup>
 </Project>

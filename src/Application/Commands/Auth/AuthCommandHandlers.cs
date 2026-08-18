@@ -88,8 +88,58 @@ public record RefreshTokenCommand(string RefreshToken) : IRequest<LoginResultDto
 
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, LoginResultDto?>
 {
-    public Task<LoginResultDto?> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
-        => Task.FromResult<LoginResultDto?>(null); // placeholder — endpoint não implementado
+    private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IEmpresaRepository _empresaRepo;
+    private readonly IEscritorioRepository _escritorioRepo;
+    private readonly ITokenService _tokenService;
+    private readonly IUnitOfWork _uow;
+
+    public RefreshTokenCommandHandler(
+        IUsuarioRepository usuarioRepo,
+        IEmpresaRepository empresaRepo,
+        IEscritorioRepository escritorioRepo,
+        ITokenService tokenService,
+        IUnitOfWork uow)
+    {
+        _usuarioRepo = usuarioRepo;
+        _empresaRepo = empresaRepo;
+        _escritorioRepo = escritorioRepo;
+        _tokenService = tokenService;
+        _uow = uow;
+    }
+
+    public async Task<LoginResultDto?> Handle(RefreshTokenCommand request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken)) return null;
+
+        var usuario = await _usuarioRepo.GetByRefreshTokenAsync(request.RefreshToken, ct);
+        if (usuario == null || !usuario.Ativo || !usuario.RefreshTokenValido(request.RefreshToken))
+            return null;
+
+        var escritorio = await _escritorioRepo.GetByIdAsync(usuario.EscritorioId, ct);
+        if (escritorio == null) return null;
+
+        // Trial expirado/suspenso desde o último login: força passar pelo /login de novo para
+        // que a UI receba o código de falha (TrialExpirado/EscritorioSuspenso) e a mensagem certa.
+        var status = escritorio.CalcularStatusAssinatura();
+        if (status is StatusAssinaturaEscritorio.Suspenso or StatusAssinaturaEscritorio.TrialExpirado)
+            return null;
+
+        var empresas = await _empresaRepo.GetByEscritorioAsync(usuario.EscritorioId, ct);
+        var empresaDtos = empresas.Select(e => new EmpresaResumoDto(e.Id, e.RazaoSocial, e.NomeFantasia, e.Cnpj)).ToList();
+
+        // Rotaciona o refresh token a cada uso (mitiga replay de um token vazado).
+        var accessToken = _tokenService.GerarAccessToken(usuario.Id, usuario.Email, usuario.Role, usuario.EscritorioId);
+        var novoRefreshToken = _tokenService.GerarRefreshToken();
+        usuario.SetRefreshToken(novoRefreshToken, DateTime.UtcNow.AddDays(7));
+
+        await _usuarioRepo.UpdateAsync(usuario, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        // Igual ao login: token sem empresa_id — cliente precisa chamar selecionar-empresa de novo.
+        return new LoginResultDto(accessToken, novoRefreshToken, usuario.Nome, usuario.Email, usuario.Role,
+            usuario.EscritorioId, empresaDtos, LoginCommandHandler.MapAssinatura(escritorio));
+    }
 }
 
 public record SelecionarEmpresaCommand(Guid UsuarioId, Guid EmpresaId) : IRequest<string?>;

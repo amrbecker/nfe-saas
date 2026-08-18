@@ -78,6 +78,7 @@ public class AutenticacaoSteps
     {
         _state.LastResponse = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginDto(email, senha));
+        _state.LastLoginResult = null;
     }
 
     [When(@"seleciono a empresa com CNPJ ""(.*)""")]
@@ -89,6 +90,7 @@ public class AutenticacaoSteps
 
         _state.LastResponse = await _client.PostAsJsonAsync("/api/auth/selecionar-empresa",
             new SelecionarEmpresaDto(empresaId));
+        _state.LastLoginResult = null;
 
         _client.DefaultRequestHeaders.Authorization = null;
     }
@@ -99,19 +101,28 @@ public class AutenticacaoSteps
         _state.LastResponse!.StatusCode.Should().Be((HttpStatusCode)statusCode);
     }
 
+    // O corpo de LastResponse só pode ser lido uma vez (o stream é consumido/descartado após a
+    // primeira leitura) — steps "Then" subsequentes que inspecionam a mesma resposta reaproveitam
+    // esse cache em vez de reler o content.
+    private async Task<LoginResultDto> LerLoginResultAsync()
+    {
+        _state.LastLoginResult ??= await _state.LastResponse!.Content.ReadFromJsonAsync<LoginResultDto>();
+        return _state.LastLoginResult!;
+    }
+
     [Then(@"recebo um token de acesso válido")]
     public async Task ThenTokenValido()
     {
-        var result = await _state.LastResponse!.Content.ReadFromJsonAsync<LoginResultDto>();
-        result!.AccessToken.Should().NotBeNullOrEmpty();
+        var result = await LerLoginResultAsync();
+        result.AccessToken.Should().NotBeNullOrEmpty();
         result.RefreshToken.Should().NotBeNullOrEmpty();
     }
 
     [Then(@"recebo a lista de empresas do escritório")]
     public async Task ThenListaEmpresas()
     {
-        var result = await _state.LastResponse!.Content.ReadFromJsonAsync<LoginResultDto>();
-        result!.Empresas.Should().NotBeNull();
+        var result = await LerLoginResultAsync();
+        result.Empresas.Should().NotBeNull();
     }
 
     [Then(@"recebo um novo token com empresa selecionada")]

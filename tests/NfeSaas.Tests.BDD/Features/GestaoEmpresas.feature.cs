@@ -24,8 +24,8 @@ namespace NfeSaas.Tests.BDD.Features
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Gestão de Empresas e Usuários", "  Como administrador do escritório\r\n  Quero gerenciar as empresas e usuários do m" +
-                "eu escritório\r\n  Para manter o controle de acesso e cadastros", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags);
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Gestão de Empresas e Usuários", "  Como administrador do escritório\n  Quero gerenciar as empresas e usuários do me" +
+                "u escritório\n  Para manter o controle de acesso e cadastros", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags);
         
         private Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
@@ -164,10 +164,10 @@ namespace NfeSaas.Tests.BDD.Features
                             "BDD Empresa"});
                 table1.AddRow(new string[] {
                             "Cnpj",
-                            "72234567000191"});
+                            "72234567000133"});
                 table1.AddRow(new string[] {
                             "InscricaoEstadual",
-                            "IE999"});
+                            "ISENTO"});
 #line 9
     await testRunner.WhenAsync("crio uma empresa com os dados:", ((string)(null)), table1, "When ");
 #line hidden

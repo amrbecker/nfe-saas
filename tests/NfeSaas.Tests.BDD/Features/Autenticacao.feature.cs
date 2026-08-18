@@ -24,8 +24,8 @@ namespace NfeSaas.Tests.BDD.Features
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Autenticação", "  Como usuário do sistema NfeSaas\r\n  Quero realizar login com minhas credenciais\r" +
-                "\n  Para acessar as funcionalidades do sistema", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags);
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "Autenticação", "  Como usuário do sistema NfeSaas\n  Quero realizar login com minhas credenciais\n " +
+                " Para acessar as funcionalidades do sistema", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags);
         
         private Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

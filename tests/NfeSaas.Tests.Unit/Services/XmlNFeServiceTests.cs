@@ -152,12 +152,14 @@ public class XmlNFeServiceTests
         var empresa = CriarEmpresa();
         var xml = _service.GerarXmlCancelamento(
             "35260512345678000195550010000000011000000019",
+            "135260000000001",
             "Cancelamento por erro de digitação no destinatário.",
             empresa);
 
-        xml.Should().Contain("<cancNFe");
-        xml.Should().Contain("<infCanc");
-        xml.Should().Contain("<xServ>CANCELAR</xServ>");
+        xml.Should().Contain("<envEvento");
+        xml.Should().Contain("<infEvento");
+        xml.Should().Contain("<tpEvento>110111</tpEvento>");
+        xml.Should().Contain("<nProt>135260000000001</nProt>");
         xml.Should().Contain("<xJust>Cancelamento por erro de digitação no destinatário.</xJust>");
     }
 

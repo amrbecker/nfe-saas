@@ -309,8 +309,11 @@ public class XmlNFeService : IXmlNFeService
     public string AssinarInutilizacao(string xml, byte[] certificadoBytes, string senha) =>
         AssinarPorTags(xml, parentTag: "inutNFe", childTagComId: "infInut", certificadoBytes, senha);
 
+    // Desde a NT 2011/2013, o cancelamento é transmitido como evento (tpEvento 110111) via
+    // RecepcaoEvento — não existe mais o webservice dedicado nfeCancelamentoNF. Estrutura
+    // idêntica a um evento comum (<evento>/<infEvento>), por isso reaproveita AssinarEvento.
     public string AssinarCancelamento(string xml, byte[] certificadoBytes, string senha) =>
-        AssinarPorTags(xml, parentTag: "cancNFe", childTagComId: "infCanc", certificadoBytes, senha);
+        AssinarEvento(xml, certificadoBytes, senha);
 
     private static string AssinarPorTags(string xml, string parentTag, string childTagComId, byte[] certificadoBytes, string senha)
     {
@@ -350,18 +353,36 @@ public class XmlNFeService : IXmlNFeService
         }
     }
 
-    public string GerarXmlCancelamento(string chaveAcesso, string justificativa, Empresa empresa)
+    // Cancelamento é um evento (tpEvento 110111) enviado via RecepcaoEvento — mesma estrutura
+    // <envEvento>/<evento>/<infEvento> usada por CC-e e Manifestação (ver GerarXmlCce).
+    public string GerarXmlCancelamento(string chaveAcesso, string protocolo, string justificativa, Empresa empresa)
     {
+        var cuf = ObterCUf(empresa.Uf);
+        var cOrgao = cuf.ToString("D2");
+        var idEvento = $"ID110111{chaveAcesso}01";
+        var dh = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:sszzz");
+
         return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<cancNFe xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""4.00"">
-  <infCanc Id=""ID{chaveAcesso}"">
-    <tpAmb>{(int)empresa.AmbienteSefaz}</tpAmb>
-    <xServ>CANCELAR</xServ>
-    <chNFe>{chaveAcesso}</chNFe>
-    <nProt></nProt>
-    <xJust>{E(justificativa)}</xJust>
-  </infCanc>
-</cancNFe>";
+<envEvento xmlns=""http://www.portalfiscal.inf.br/nfe"" versao=""1.00"">
+  <idLote>{DateTime.UtcNow:yyyyMMddHHmmssfff}</idLote>
+  <evento versao=""1.00"">
+    <infEvento Id=""{idEvento}"">
+      <cOrgao>{cOrgao}</cOrgao>
+      <tpAmb>{(int)empresa.AmbienteSefaz}</tpAmb>
+      <CNPJ>{empresa.Cnpj}</CNPJ>
+      <chNFe>{chaveAcesso}</chNFe>
+      <dhEvento>{dh}</dhEvento>
+      <tpEvento>110111</tpEvento>
+      <nSeqEvento>1</nSeqEvento>
+      <verEvento>1.00</verEvento>
+      <detEvento versao=""1.00"">
+        <descEvento>Cancelamento</descEvento>
+        <nProt>{protocolo}</nProt>
+        <xJust>{E(justificativa)}</xJust>
+      </detEvento>
+    </infEvento>
+  </evento>
+</envEvento>";
     }
 
     public string GerarXmlCce(string chaveAcesso, int sequencial, string correcao, Empresa empresa)

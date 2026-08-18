@@ -27,7 +27,13 @@ RUN apt-get update \
 
 COPY --from=build /app/publish .
 
-RUN mkdir -p logs
+# logs/ e dpkeys/ são criados aqui (com ownership do usuário da app) para que, na primeira vez
+# que os volumes nomeados `api_logs`/`dp_keys` do compose forem montados nesses paths, o Docker
+# propague essa ownership para o volume — senão o container non-root não consegue escrever neles.
+RUN mkdir -p logs dpkeys \
+ && groupadd -r nfesaas && useradd -r -g nfesaas -d /app nfesaas \
+ && chown -R nfesaas:nfesaas /app
+USER nfesaas
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080

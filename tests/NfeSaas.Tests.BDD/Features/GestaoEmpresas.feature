@@ -10,8 +10,8 @@ Feature: Gestão de Empresas e Usuários
       | Campo            | Valor              |
       | RazaoSocial      | Empresa BDD Ltda   |
       | NomeFantasia     | BDD Empresa        |
-      | Cnpj             | 72234567000191     |
-      | InscricaoEstadual| IE999              |
+      | Cnpj             | 72234567000133     |
+      | InscricaoEstadual| ISENTO             |
     Then a resposta deve ter status 200
     And a empresa aparece na listagem do escritório
 

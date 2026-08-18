@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore NfeSaas.sln
+
+      - name: Build
+        run: dotnet build NfeSaas.sln --no-restore --configuration Release
+
+      - name: Check for known-vulnerable packages
+        run: |
+          dotnet list src/API/NfeSaas.API.csproj package --vulnerable --include-transitive | tee vuln-api.txt
+          dotnet list src/WebUI/NfeSaas.WebUI.csproj package --vulnerable --include-transitive | tee vuln-webui.txt
+          if grep -qi "has the following vulnerable packages" vuln-api.txt vuln-webui.txt; then
+            echo "::error::Vulnerable NuGet packages found — see log above."
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: dotnet test tests/NfeSaas.Tests.Unit --no-build --configuration Release --logger "console;verbosity=normal"
+
+      # Integration e BDD sobem Postgres via Testcontainers — precisam do daemon Docker do runner.
+      - name: Integration tests
+        run: dotnet test tests/NfeSaas.Tests.Integration --no-build --configuration Release --logger "console;verbosity=normal"
+
+      - name: BDD tests
+        run: dotnet test tests/NfeSaas.Tests.BDD --no-build --configuration Release --logger "console;verbosity=normal"
