@@ -107,8 +107,8 @@ Nunca rodar `dotnet ef database update` diretamente nos containers. O `restart.s
 
 - `Empresa.CertificadoSenha` e `Empresa.CscToken` são cifrados via `EncryptedStringConverter` (ASP.NET Data Protection) com prefixo `enc:v1:`
 - Valores legados em texto claro (sem prefixo) continuam sendo lidos como estão — re-cifragem acontece no próximo `UPDATE`
-- Chaves de cifragem ficam no volume Docker `dp_keys` (`/app/dpkeys`). **Perder esse volume = perder acesso aos secrets já gravados.**
-- Configuração via `DataProtection__KeysPath`. Sem o valor, chaves ficam efêmeras (apenas dev/teste)
+- Chaves de cifragem ficam no volume Docker `dp_keys` (`/app/dpkeys`), configurado via `DataProtection__KeysPath`. **Perder esse volume = perder acesso aos secrets já gravados.**
+- Sem `DataProtection__KeysPath` configurado (hosts sem disco persistente, ex.: Render free tier), cai automaticamente no fallback `PersistKeysToDbContext<NfeDbContext>()` — chaves na tabela `DataProtectionKeys` da própria base Postgres (ver `DependencyInjection.AddInfrastructure`). Configure `DataProtection__CertificateBase64`/`CertificatePassword` para cifrar essas chaves em repouso (`ProtectKeysWithCertificate`) — sem isso, quem lê a tabela decifra os secrets de todas as empresas.
 - Para evoluir para Azure Key Vault / AWS KMS, basta trocar `AddDataProtection()` em `DependencyInjection.cs` — o converter é agnóstico ao backend
 
 ## Executar os Serviços
@@ -200,10 +200,19 @@ Seed atribui ao Escritório demo `PlanoAtivoAteEm = NOW() + 1 ano` para não blo
 
 ## Serviços Externos
 
-- **ISefazService**: stub em dev/homologação, real em produção — sempre usar `AmbienteSefaz.Homologacao` nos testes
-- **IXmlNFeService**: geração e assinatura XML da NF-e (exige certificado digital na Empresa). Use os helpers `F2`/`F4` para qualquer formatação decimal no XML
+- **ISefazService**: stub em dev/homologação (`Sefaz:UseRealWebservice=false`, default), transmissão real em produção — autorização, cancelamento, CC-e, inutilização, manifestação e consulta de protocolo todos via webservice de verdade (RecepcaoEvento4/NFeInutilizacao4/NFeConsultaProtocolo4). URLs por UF e mapeamento de contingência SVC-AN/SVC-RS em `SefazService.cs` — verificados contra fontes oficiais em 2026-08-18, revalidar periodicamente. Sempre usar `AmbienteSefaz.Homologacao` nos testes
+- **IXmlNFeService**: geração e assinatura XML da NF-e (exige certificado digital na Empresa). Use os helpers `F2`/`F4` para qualquer formatação decimal no XML. Cancelamento/CC-e/Manifestação usam o formato de evento (`<envEvento>`, tpEvento 110111/110110/2102xx) — não o `<cancNFe>` standalone pré-2013
 - **IImpostoCalculoService**: cálculo de ICMS, ICMS-ST, PIS e COFINS — testado via testes unitários isolados
 - **ICertificadoService**: upload/validação de PFX A1. Rota de upload limitada a 256 KB e exige role `Admin`
+- **IEmailService** (`ResendEmailService`): integração com Resend pronta e registrada no DI, mas sem nenhum call site — nenhum email é disparado hoje. Configurar `Resend__ApiKey`/`Resend__FromEmail` só quando algum fluxo for implementado
+
+## Produção
+
+Deploy: Render (API, Docker) + Cloudflare Pages (WebUI estática) + Neon (Postgres) + Cloudflare
+(DNS de `sideral.app.br`) + Sentry (monitoramento). Passo a passo completo em
+[`docs/deploy-producao.md`](docs/deploy-producao.md); config do serviço Render como código em
+`render.yaml`. Free tier em todos — Render dorme após inatividade (cold start no próximo
+request), Neon entra em autosuspend; aceitável para o piloto, trocar quando houver mais clientes.
 
 ## Padrões a Seguir
 

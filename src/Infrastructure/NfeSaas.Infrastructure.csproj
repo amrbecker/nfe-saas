@@ -21,6 +21,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" Version="8.0.0" />
+    <!-- Hosts sem disco persistente (ex.: Render free tier) não conseguem usar
+         PersistKeysToFileSystem — as chaves vão para a própria base Postgres. -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.3.1" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="7.3.1" />

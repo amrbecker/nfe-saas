@@ -5,12 +5,17 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.0" PrivateAssets="all" />
+    <!-- 8.0.3+ exigido pelo Sentry.AspNetCore.Blazor.WebAssembly -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.3" PrivateAssets="all" />
     <PackageReference Include="MudBlazor" Version="6.20.0" />
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.3.1" />
+    <!-- Sentry:Dsn vazio (default) = SDK no-op. -->
+    <PackageReference Include="Sentry.AspNetCore.Blazor.WebAssembly" Version="6.9.0" />
+    <!-- Pin de segurança — ver GHSA-hh2w-p6rv-4g7w (mesma correção aplicada em Infrastructure). -->
+    <PackageReference Include="System.Text.Json" Version="8.0.6" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Application\NfeSaas.Application.csproj" />

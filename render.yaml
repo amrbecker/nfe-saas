@@ -1,0 +1,45 @@
+# Render Blueprint — API do NfeSaas (WebUI fica na Cloudflare Pages, não aqui).
+#
+# Uso: conecte este repositório em https://dashboard.render.com/blueprints (New > Blueprint).
+# O Render lê este arquivo, cria o serviço e pede para preencher as variáveis marcadas
+# `sync: false` (secrets — nunca ficam neste arquivo nem no git).
+#
+# Free tier: sem disco persistente e o serviço "dorme" após ~15min sem tráfego (cold start no
+# próximo request). Por isso: Database__MigrateOnStartup=true (só há 1 instância, sem risco de
+# migrations concorrentes) e DataProtection cai automaticamente no fallback via Postgres
+# (ver src/Infrastructure/DependencyInjection.cs) em vez de volume em disco.
+services:
+  - type: web
+    name: nfesaas-api
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile.api
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: WebUI__BaseUrl
+        value: https://nfe.sideral.app.br
+      - key: Jwt__Issuer
+        value: NfeSaas
+      - key: Jwt__Audience
+        value: NfeSaas.WebUI
+      - key: Database__MigrateOnStartup
+        value: "true"
+      # --- Secrets (preencher no dashboard do Render após criar o Blueprint) ---
+      - key: ConnectionStrings__DefaultConnection
+        sync: false # connection string do Neon — ver docs/deploy-producao.md
+      - key: Jwt__Secret
+        sync: false # openssl rand -base64 48
+      - key: Sentry__Dsn
+        sync: false # DSN do projeto "nfesaas-api" no Sentry (opcional, mas recomendado)
+      - key: DataProtection__CertificateBase64
+        sync: false # opcional — ver docs/deploy-producao.md "Cifrar as chaves de Data Protection"
+      - key: DataProtection__CertificatePassword
+        sync: false # obrigatório se CertificateBase64 estiver preenchido
+      - key: Resend__ApiKey
+        sync: false # opcional — só necessário quando algum fluxo de email for implementado
+      - key: Resend__FromEmail
+        sync: false # opcional

@@ -1,11 +1,16 @@
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using NfeSaas.Domain.Entities;
 using NfeSaas.Infrastructure.Data.Converters;
 
 namespace NfeSaas.Infrastructure.Data;
 
-public class NfeDbContext : DbContext
+// IDataProtectionKeyContext: usado como fallback de armazenamento de chaves de cifragem em
+// hosts sem disco persistente (ver DependencyInjection.AddInfrastructure) — cria a tabela
+// DataProtectionKeys via migration, mas só é efetivamente usada quando DataProtection:KeysPath
+// não está configurado/disponível.
+public class NfeDbContext : DbContext, IDataProtectionKeyContext
 {
     private readonly IDataProtector? _secretsProtector;
 
@@ -28,6 +33,7 @@ public class NfeDbContext : DbContext
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<EventoFiscal> EventosFiscais => Set<EventoFiscal>();
     public DbSet<Ncm> Ncms => Set<Ncm>();
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

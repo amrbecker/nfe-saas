@@ -10,6 +10,14 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+// Sentry:Dsn vazio (default) = SDK inativo. Configure em wwwroot/appsettings.Production.json
+// (ou via build da Cloudflare Pages) para ativar captura de erros client-side.
+builder.UseSentry(o =>
+{
+    o.Dsn = builder.Configuration["Sentry:Dsn"];
+    o.TracesSampleRate = 0.1;
+});
+
 // API HttpClient
 builder.Services.AddScoped(sp => new HttpClient
 {

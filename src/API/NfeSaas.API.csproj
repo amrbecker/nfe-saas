@@ -19,5 +19,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <!-- Sentry:Dsn vazio (default) = SDK no-op, sem custo em dev/quando não configurado. -->
+    <PackageReference Include="Sentry.AspNetCore" Version="6.9.0" />
   </ItemGroup>
 </Project>

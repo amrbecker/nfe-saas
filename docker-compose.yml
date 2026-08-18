@@ -49,6 +49,12 @@ services:
       - Ncm__LocalFilePath=
       - Ncm__UpdateIntervalDays=7
       - Ncm__UpdateOnStartup=false
+      # Monitoramento e email — opcionais, vazio = inativo (ver .env.example).
+      - Sentry__Dsn=${SENTRY_DSN:-}
+      - Resend__ApiKey=${RESEND_API_KEY:-}
+      - Resend__FromEmail=${RESEND_FROM_EMAIL:-}
+      - DataProtection__CertificateBase64=${DATA_PROTECTION_CERT_BASE64:-}
+      - DataProtection__CertificatePassword=${DATA_PROTECTION_CERT_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy

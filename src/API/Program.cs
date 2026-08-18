@@ -21,6 +21,15 @@ Log.Logger = new LoggerConfiguration()
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
+// Sentry:Dsn vazio (default em dev/local) = SDK inativo, sem custo. Configure via env var
+// Sentry__Dsn no host de produção para ativar captura de exceções e tracing.
+builder.WebHost.UseSentry(o =>
+{
+    o.Dsn = builder.Configuration["Sentry:Dsn"];
+    o.Environment = builder.Environment.EnvironmentName;
+    o.TracesSampleRate = 0.1;
+});
+
 // Services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

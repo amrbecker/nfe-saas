@@ -17,6 +17,9 @@ obj/
 ## Secrets / config local
 appsettings.*.json
 !appsettings.json
+# WebUI (Blazor WASM) appsettings.*.json não são secrets — são estáticos, publicados junto do
+# bundle e lidos pelo browser (ApiBaseUrl, DSN público do Sentry). Precisam ir pro git.
+!src/WebUI/wwwroot/appsettings.*.json
 secrets.json
 .env
 .env.*
