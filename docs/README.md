@@ -273,8 +273,8 @@ As chaves de cifragem do Data Protection ficam **fora do banco** (volume Docker 
 
 O `appsettings.json` versionado tem `Jwt.Secret` e `ConnectionStrings.DefaultConnection` **vazios** — o app não sobe sem `.env` configurado. O fluxo recomendado é:
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
 # editar .env e gerar secrets:
 #   JWT_SECRET:        openssl rand -base64 48
 #   POSTGRES_PASSWORD: openssl rand -base64 24
@@ -334,14 +334,13 @@ Padrões aplicados: **DDD**, **CQRS** (MediatR), **Clean Architecture**, **Repos
 
 ### Pré-requisitos
 - Docker 24+ e Docker Compose V2
-- (Opcional, Windows) PowerShell 5.1+ para o script `restart.ps1`
 
 ### 1. Configure os secrets (`.env`)
 
 O compose exige variáveis de ambiente — não há credenciais default no repositório.
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
 # Edite .env e gere valores fortes:
 #   JWT_SECRET:        openssl rand -base64 48     (>= 32 chars)
 #   POSTGRES_PASSWORD: openssl rand -base64 24
@@ -349,23 +348,23 @@ Copy-Item .env.example .env
 
 ### 2. Suba toda a stack
 
-**Atalho (Windows):**
+**Atalho:**
 
-```powershell
-.\restart.ps1
+```bash
+./restart.sh
 ```
 
-O script valida o `.env`, sobe os containers, aplica migrations, semeia dados de demo (se o banco está vazio) e abre a solution no IDE. Use `-Clean` para apagar o volume do Postgres e recomeçar do zero. Outros switches: `-NoBuild`, `-SkipMigrations`, `-NoIde`, `-NoSeed`.
+O script valida o `.env`, sobe os containers, aplica migrations, semeia dados de demo (se o banco está vazio) e abre a solution no IDE. Use `--clean` para apagar o volume do Postgres e recomeçar do zero. Outras flags: `--no-build`, `--skip-migrations`, `--no-ide`, `--no-seed`, `--test`.
 
 **Manual:**
 
-```powershell
+```bash
 docker compose up -d --build
 ```
 
 ### 3. Aguarde a inicialização (~2 min na primeira vez)
 
-```powershell
+```bash
 docker compose ps
 docker compose logs -f api
 ```
@@ -420,8 +419,8 @@ Dados de seed:
 
 O container da API **não tem o SDK do EF Core**. Para aplicar migrações em ambiente containerizado, gere o script SQL idempotente e aplique via `psql`:
 
-```powershell
-dotnet ef migrations script --idempotent -o migration.sql `
+```bash
+dotnet ef migrations script --idempotent -o migration.sql \
   --project src/Infrastructure --startup-project src/API
 
 docker cp migration.sql nfesaas_postgres:/tmp/migration.sql
@@ -432,7 +431,7 @@ Em dev local (Postgres host nativo) basta `dotnet ef database update --project s
 
 ### 3. Execute API e WebUI
 
-```powershell
+```bash
 # Terminal 1
 dotnet run --project src/API --urls=http://localhost:5001
 
@@ -696,7 +695,7 @@ Configuradas via `.env` na raiz (ver `.env.example`). O `docker-compose.yml` usa
 
 ## 🧪 Testes
 
-```powershell
+```bash
 # Testes de domínio e serviços isolados
 dotnet test tests/NfeSaas.Tests.Unit
 
@@ -812,14 +811,14 @@ WEBUI_BASE_URL=https://app.seu-dominio.com.br
 
 Por padrão a API roda `Database.MigrateAsync()` no boot, o que **não** é seguro em ambiente com múltiplas réplicas. Em produção, aplique as migrations em um job dedicado **antes** de subir a nova versão da API:
 
-```powershell
+```bash
 # Na máquina de deploy, com o .NET SDK instalado:
-dotnet ef migrations script --idempotent -o migration.sql `
+dotnet ef migrations script --idempotent -o migration.sql \
   --project src/Infrastructure --startup-project src/API
 
 # Copie para o container postgres e aplique:
 docker cp migration.sql nfesaas_postgres:/tmp/migration.sql
-docker exec nfesaas_postgres psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB `
+docker exec nfesaas_postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
   -v ON_ERROR_STOP=1 -f /tmp/migration.sql
 
 # Depois suba a API

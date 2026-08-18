@@ -89,9 +89,9 @@ O escritório (PJ com CNPJ) pode emitir NF-e em nome próprio sem precisar criar
 
 O container da API **não tem o SDK do EF Core**. Para aplicar migrações:
 
-```powershell
+```bash
 # 1. Gerar script SQL idempotente (rodar na máquina host)
-dotnet ef migrations script --idempotent -o migration.sql `
+dotnet ef migrations script --idempotent -o migration.sql \
   --project src/Infrastructure --startup-project src/API
 
 # 2. Copiar para o container do postgres e aplicar
@@ -99,7 +99,7 @@ docker cp migration.sql nfesaas_postgres:/tmp/migration.sql
 docker exec nfesaas_postgres psql -U nfesaas -d nfesaas -f /tmp/migration.sql
 ```
 
-Nunca rodar `dotnet ef database update` diretamente nos containers. O `restart.ps1` já automatiza esse fluxo.
+Nunca rodar `dotnet ef database update` diretamente nos containers. O `restart.sh` já automatiza esse fluxo.
 
 **Design-time factory:** `NfeDbContextDesignFactory` constrói o `DbContext` sem `IDataProtectionProvider` para o tooling do EF (`dotnet ef`). No runtime, o construtor de 2 parâmetros é selecionado e a cifragem dos secrets fica ativa.
 
@@ -113,18 +113,18 @@ Nunca rodar `dotnet ef database update` diretamente nos containers. O `restart.p
 
 ## Executar os Serviços
 
-**Atalho (Windows):**
-```powershell
-.\restart.ps1                              # padrão: build + migrations + seed (se vazio) + abre IDE
-.\restart.ps1 -Clean                       # apaga volumes (banco + dp_keys) e recomeça
-.\restart.ps1 -NoBuild -SkipMigrations     # restart rápido
-.\restart.ps1 -NoIde -NoSeed               # CI / iteração
+**Atalho:**
+```bash
+./restart.sh                                       # padrão: build + migrations + seed (se vazio) + abre IDE
+./restart.sh --clean                                # apaga volumes (banco + dp_keys) e recomeça
+./restart.sh --no-build --skip-migrations           # restart rápido
+./restart.sh --no-ide --no-seed                     # CI / iteração
 ```
 
 O script valida `.env`, sobe os containers, aplica migrations idempotentes, aplica seed se o banco estiver vazio, aguarda `/health` e abre a solution.
 
 **Manual:**
-```powershell
+```bash
 docker compose up -d --build               # subir tudo
 docker compose logs -f api                 # ver logs da API
 docker compose up -d postgres              # apenas o banco (útil para dev local)
@@ -140,8 +140,8 @@ Endpoints locais:
 
 `.env` é obrigatório e não vai pro git. Copie do template e preencha:
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
 # Gere secrets fortes:
 #   JWT_SECRET:        openssl rand -base64 48       (mín. 32 chars; fail-fast no startup)
 #   POSTGRES_PASSWORD: openssl rand -base64 24
@@ -151,7 +151,7 @@ O `Program.cs` valida `Jwt:Secret` (>= 32 chars, sem placeholders `SUA_CHAVE`/`_
 
 ## Executar Testes
 
-```powershell
+```bash
 # Unitários
 dotnet test tests/NfeSaas.Tests.Unit
 
@@ -208,7 +208,7 @@ Seed atribui ao Escritório demo `PlanoAtivoAteEm = NOW() + 1 ano` para não blo
 ## Padrões a Seguir
 
 - Novos casos de uso → novo Command/Query em `Application/`, handler correspondente, interface no repositório se necessário
-- Novos campos no banco → nova migration EF (`dotnet ef migrations add NomeMigration`), depois `restart.ps1` aplica
+- Novos campos no banco → nova migration EF (`dotnet ef migrations add NomeMigration`), depois `restart.sh` aplica
 - Não adicionar lógica de negócio nos Controllers — apenas despachar para MediatR
 - Não usar `DateTime.Now` no Domain/Application/Infrastructure — usar `DateTime.UtcNow`
 - Nunca interpolar `{decimal:F2}`/`{decimal:F4}` em XML SEFAZ — usar `F2(...)`/`F4(...)` (InvariantCulture)

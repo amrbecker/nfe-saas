@@ -88,8 +88,13 @@ source ~/.zshrc
 
 ### 2.3 .NET 8 SDK
 
+O cask `dotnet-sdk` instala sempre a versão mais recente (hoje, .NET 10+), não o 8.x que o projeto usa. Instale a formula versionada:
+
 ```bash
-brew install --cask dotnet-sdk
+brew install dotnet@8
+echo 'export DOTNET_ROOT="/opt/homebrew/opt/dotnet@8/libexec"' >> ~/.zshrc
+echo 'export PATH="/opt/homebrew/opt/dotnet@8/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
 Verifique:
@@ -97,13 +102,6 @@ Verifique:
 ```bash
 dotnet --version   # deve retornar 8.x.x
 ```
-
-> Se `brew install --cask dotnet-sdk` instalar uma versão mais nova (9+), instale o 8 explicitamente:
-> ```bash
-> brew install dotnet@8
-> echo 'export PATH="/opt/homebrew/opt/dotnet@8/bin:$PATH"' >> ~/.zshrc
-> source ~/.zshrc
-> ```
 
 ### 2.4 Docker Desktop (Apple Silicon)
 
@@ -116,16 +114,7 @@ docker --version
 docker compose version
 ```
 
-### 2.5 PowerShell Core
-
-Necessário para rodar o `restart.ps1`:
-
-```bash
-brew install --cask powershell
-pwsh --version   # deve retornar 7.x
-```
-
-### 2.6 Git
+### 2.5 Git
 
 O macOS já inclui o Git via Xcode CLT. Verifique:
 
@@ -133,7 +122,7 @@ O macOS já inclui o Git via Xcode CLT. Verifique:
 git --version
 ```
 
-### 2.7 Node.js via fnm (para Claude Code CLI)
+### 2.6 Node.js via fnm (para Claude Code CLI)
 
 Instale o `fnm` (Fast Node Manager):
 
@@ -152,7 +141,7 @@ node --version
 npm --version
 ```
 
-### 2.8 Claude Code CLI
+### 2.7 Claude Code CLI
 
 ```bash
 npm install -g @anthropic-ai/claude-code
@@ -351,25 +340,23 @@ dotnet dev-certs https --trust
 
 ## 7. Como rodar o projeto
 
-### 7.1 Via script `restart.ps1` (equivalente ao Windows)
-
-No macOS, use `pwsh` (PowerShell Core) no lugar de `powershell`:
+### 7.1 Via script `restart.sh`
 
 ```bash
 # Inicialização padrão (build + migrations + seed + abre solution)
-pwsh ./restart.ps1
+./restart.sh
 
 # Resetar banco do zero
-pwsh ./restart.ps1 -Clean
+./restart.sh --clean
 
 # Restart rápido (sem rebuild de imagens, sem migrations)
-pwsh ./restart.ps1 -NoBuild -SkipMigrations -NoIde
+./restart.sh --no-build --skip-migrations --no-ide
 
 # Rodar testes após subir
-pwsh ./restart.ps1 -Test
+./restart.sh --test
 ```
 
-> **Nota:** O parâmetro `-NoIde` é útil no Mac se você não tiver um IDE que registre `.sln` como protocolo padrão. Com Rider instalado, `Start-Process NfeSaas.sln` abre automaticamente.
+> **Nota:** A flag `--no-ide` é útil se você não tiver Rider nem VS Code instalados — o script tenta abrir a solution nesses IDEs (nessa ordem) e avisa se nenhum for encontrado.
 
 ### 7.2 Via Docker Compose direto
 
@@ -391,7 +378,7 @@ docker compose down
 docker compose down -v
 ```
 
-### 7.3 Aplicar migrations manualmente (sem o restart.ps1)
+### 7.3 Aplicar migrations manualmente (sem o restart.sh)
 
 ```bash
 # 1. Gerar script SQL idempotente
@@ -460,7 +447,7 @@ Para abrir o projeto:
 rider NfeSaas.sln
 ```
 
-Ou via `Start-Process` do `restart.ps1` que detecta o `.sln` e abre no IDE registrado.
+O `restart.sh` também tenta abrir o Rider (ou VS Code, se o Rider não for encontrado) automaticamente ao final, a menos que rodado com `--no-ide`.
 
 ### VS Code (alternativa)
 
@@ -513,13 +500,13 @@ code .
 
 ```bash
 # Subir ambiente completo
-pwsh ./restart.ps1
+./restart.sh
 
 # Restart rápido (sem rebuild)
-pwsh ./restart.ps1 -NoBuild -SkipMigrations -NoIde
+./restart.sh --no-build --skip-migrations --no-ide
 
 # Zerar banco e recriar
-pwsh ./restart.ps1 -Clean
+./restart.sh --clean
 
 # Adicionar migration EF Core
 dotnet ef migrations add NomeDaMigration \
@@ -550,17 +537,17 @@ docker compose ps
 | # | Situação | Solução |
 |---|---|---|
 | 1 | **`brew` não encontrado** após instalar | O Homebrew no Apple Silicon fica em `/opt/homebrew/`. Adicione `eval "$(/opt/homebrew/bin/brew shellenv)"` ao `~/.zshrc`. |
-| 2 | **`dotnet` não encontrado** | O cask instala em `/usr/local/share/dotnet` (link em `/usr/local/bin/dotnet`). Se não estiver no PATH: `export PATH="$PATH:/usr/local/bin"`. |
-| 3 | **`dotnet ef` não encontrado** após `dotnet tool install` | Adicione `export PATH="$PATH:$HOME/.dotnet/tools"` ao `~/.zshrc`. |
-| 4 | **`pwsh` não encontrado** | Instale com `brew install --cask powershell`. O executável é `pwsh`, não `powershell`. |
-| 5 | **`Start-Process NfeSaas.sln` não abre o Rider** | Instale o Rider e registre o protocolo `.sln` nele: Rider → Tools → Create Command-line Launcher. Ou use `-NoIde` e abra manualmente. |
+| 2 | **`dotnet` não encontrado** (formula `dotnet@8`) | `dotnet@8` é keg-only (não symlinkado em `/opt/homebrew/bin`). Confirme `export PATH="/opt/homebrew/opt/dotnet@8/bin:$PATH"` no `~/.zshrc`. |
+| 3 | **`dotnet --version` mostra 9.x/10.x em vez de 8.x** | Você tem outro SDK (ex. cask `dotnet-sdk`) na frente no PATH. Garanta que a linha do `dotnet@8` vem **antes** de qualquer outra entrada de dotnet no `~/.zshrc`. |
+| 4 | **`dotnet ef` não encontrado** após `dotnet tool install` | Adicione `export PATH="$PATH:$HOME/.dotnet/tools"` ao `~/.zshrc`. Instale com `dotnet tool install --global dotnet-ef --version 8.0.0` para casar com o EF Core 8 do projeto (sem `--version`, o comando busca a última versão, hoje 10.x, incompatível). |
+| 5 | **`restart.sh` não abre o Rider automaticamente** | Instale o Rider (`brew install --cask rider`) — o script tenta `rider`/`open -a Rider` e cai para VS Code se não encontrar. Ou use `--no-ide` e abra manualmente. |
 | 6 | **Docker: `platform linux/amd64`** | Não é necessário — todas as imagens deste projeto (postgres:16-alpine, dotnet/sdk:8.0, nginx:alpine) têm suporte nativo a `linux/arm64`. Não adicione `platform:` forçando amd64. |
 | 7 | **`SkiaSharp` / DANFE PDF falhando nos testes** | No Linux (Docker) já está configurado via `SkiaSharp.NativeAssets.Linux`. Localmente no macOS o runtime SkiaSharp para ARM já vem com o pacote principal. |
 | 8 | **Testcontainers não encontra Docker socket** | Se você instalou Docker via Colima em vez do Docker Desktop, exporte: `export DOCKER_HOST=unix:///var/run/docker.sock`. |
-| 9 | **`curl` vs `Invoke-WebRequest`** | O `restart.ps1` usa `Invoke-WebRequest` que é PowerShell — funciona com `pwsh`. Não precisa trocar por `curl`. |
-| 10 | **`.env` e `.DS_Store`** | O `.gitignore` já ignora `.env`, `.env.*` e `.DS_Store`. Nada vaza acidentalmente. |
-| 11 | **`dp_keys` volume apagado com `docker compose down -v`** | `-v` apaga **todos** os volumes, incluindo o `dp_keys`. Isso invalida `CertificadoSenha` e `CscToken` já cifrados no banco. Só use `-v` se souber o que está fazendo. Prefira `docker compose down` (sem `-v`) para parar sem perder dados. |
-| 12 | **Arquivo `migration.sql` gerado na raiz** | Já está no `.gitignore` (`migration*.sql`). Não o commite. |
+| 9 | **`.env` e `.DS_Store`** | O `.gitignore` já ignora `.env`, `.env.*` e `.DS_Store`. Nada vaza acidentalmente. |
+| 10 | **`dp_keys` volume apagado com `docker compose down -v`** | `-v` apaga **todos** os volumes, incluindo o `dp_keys`. Isso invalida `CertificadoSenha` e `CscToken` já cifrados no banco. Só use `-v` se souber o que está fazendo. Prefira `docker compose down` (sem `-v`) para parar sem perder dados. |
+| 11 | **Arquivo `migration.sql` gerado na raiz** | Já está no `.gitignore` (`migration*.sql`). Não o commite. |
+| 12 | **`~/.zshrc` não se aplica em shells não-interativos** | Ferramentas de automação (scripts, agentes) que abrem um shell não-interativo podem não carregar `~/.zshrc`. Se `dotnet`/`dotnet ef` "sumirem" nesse contexto, exporte o PATH explicitamente no próprio comando. |
 
 ---
 
@@ -626,8 +613,11 @@ Execute em sequência num terminal novo do Mac:
 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zshrc && source ~/.zshrc
 
 # === 2. Dependências do sistema ===
-brew install --cask dotnet-sdk powershell iterm2
-brew install fnm gh jq
+brew install --cask iterm2
+brew install dotnet@8 fnm gh jq
+echo 'export DOTNET_ROOT="/opt/homebrew/opt/dotnet@8/libexec"' >> ~/.zshrc
+echo 'export PATH="/opt/homebrew/opt/dotnet@8/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
 
 # === 3. Oh My Zsh ===
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
@@ -670,13 +660,14 @@ echo ""
 echo "Abra o arquivo: nano .env"
 
 # === 9. Ferramentas .NET globais ===
-dotnet tool install --global dotnet-ef
+dotnet tool install --global dotnet-ef --version 8.0.0
 echo 'export PATH="$PATH:$HOME/.dotnet/tools"' >> ~/.zshrc && source ~/.zshrc
 dotnet ef --version
 
 # === 10. Subir o projeto ===
 # Certifique-se que o Docker Desktop está rodando, depois:
-pwsh ./restart.ps1
+chmod +x restart.sh
+./restart.sh
 
 # Ou manualmente:
 # docker compose up -d --build
@@ -692,4 +683,4 @@ echo "Login demo: admin@nfesaas.com.br / Admin@123"
 
 ---
 
-*Gerado em 2026-06-30. Stack: .NET 8 · Blazor WASM · PostgreSQL 16 · Docker Compose.*
+*Gerado em 2026-06-30, atualizado em 2026-08-18 (fluxo de execução migrado de `restart.ps1`/PowerShell para `restart.sh`/bash — nativo para macOS). Stack: .NET 8 · Blazor WASM · PostgreSQL 16 · Docker Compose.*
