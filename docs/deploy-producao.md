@@ -94,22 +94,38 @@ captura como log da plataforma.
    indicar.
 6. Confirme: `curl https://api.nfe.sideral.app.br/health` deve responder `Healthy`.
 
-## 4. Cloudflare Pages — WebUI
+## 4. Cloudflare Workers & Pages — WebUI
 
-1. Dashboard da Cloudflare → **Workers & Pages → Create → Pages → Connect to Git** → mesmo
-   repositório.
-2. Configuração de build:
-   - **Build command:**
-     ```bash
-     curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir ./dotnet-sdk && export PATH="$PWD/dotnet-sdk:$PATH" && dotnet publish src/WebUI/NfeSaas.WebUI.csproj -c Release -o build_output
-     ```
-   - **Build output directory:** `build_output/wwwroot`
-   - **Root directory:** `/` (raiz do repo)
-3. Deploy. O `_redirects` (SPA fallback) e `_headers` (cache) já estão em
-   `src/WebUI/wwwroot/` e são publicados automaticamente — nenhuma config extra na Cloudflare.
-4. **Custom domains** → adicione `nfe.sideral.app.br`. Como o domínio já está na zona da
+A UI atual da Cloudflare unificou Pages em "Workers Builds" (baseado em Wrangler) — não existe
+mais um campo de dashboard para "Build output directory". O diretório de publicação é definido
+no `wrangler.jsonc` da raiz do repo (já versionado no projeto), na chave `assets.directory`.
+Esse arquivo também define `not_found_handling: "single-page-application"`, que faz o papel do
+antigo `_redirects` do Pages clássico (fallback de rota para o Blazor WASM).
+
+1. Dashboard da Cloudflare → **Workers & Pages → Create → Import a repository** (ou "Connect to
+   Git") → mesmo repositório GitHub.
+2. Configuração de build (só existem estes 4 campos, sem "output directory"):
+
+   | Campo | Valor |
+   |---|---|
+   | **Build command** | ```curl -sSL https://dot.net/v1/dotnet-install.sh \| bash -s -- --channel 8.0 --install-dir ./dotnet-sdk && export PATH="$PWD/dotnet-sdk:$PATH" && dotnet publish src/WebUI/NfeSaas.WebUI.csproj -c Release -o build_output``` |
+   | **Deploy command** | padrão (`npx wrangler deploy`) — lê o `wrangler.jsonc` automaticamente |
+   | **Version command** | padrão |
+   | **Root directory** | `/` (raiz do repo) |
+
+   Em **Build watch paths**, o padrão (`Include paths: *`) serve — só controla o que dispara
+   rebuild em monorepo, não afeta o deploy.
+3. O `name` dentro de `wrangler.jsonc` precisa bater com o nome do projeto mostrado na lista do
+   Workers & Pages — se você criar o projeto com outro nome, ajuste o `wrangler.jsonc` e faça
+   commit antes de rodar o deploy.
+4. Deploy. **Pendente de confirmação:** ainda não validamos se o `_headers` (cache) em
+   `src/WebUI/wwwroot/` continua sendo honrado automaticamente nesse formato novo — depois do
+   primeiro deploy bem-sucedido, confira no DevTools (aba Network) se os headers de cache estão
+   saindo como esperado; se não, será preciso configurar cache via `wrangler.jsonc` ou Cloudflare
+   Cache Rules.
+5. **Custom domains** → adicione `nfe.sideral.app.br`. Como o domínio já está na zona da
    Cloudflare, isso cria o registro DNS automaticamente (sem passo manual).
-5. Confirme: abra `https://nfe.sideral.app.br` — deve carregar a tela de login e falar com
+6. Confirme: abra `https://nfe.sideral.app.br` — deve carregar a tela de login e falar com
    `https://api.nfe.sideral.app.br` (já embutido em `wwwroot/appsettings.Production.json`,
    detectado automaticamente porque hosts estáticos sem o header `Blazor-Environment` assumem
    ambiente "Production" por padrão).

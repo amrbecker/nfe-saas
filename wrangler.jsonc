@@ -1,0 +1,8 @@
+{
+  "name": "nfe-saas",
+  "compatibility_date": "2026-08-19",
+  "assets": {
+    "directory": "./build_output/wwwroot",
+    "not_found_handling": "single-page-application"
+  }
+}
