@@ -100,7 +100,10 @@ A UI atual da Cloudflare unificou Pages em "Workers Builds" (baseado em Wrangler
 mais um campo de dashboard para "Build output directory". O diretório de publicação é definido
 no `wrangler.jsonc` da raiz do repo (já versionado no projeto), na chave `assets.directory`.
 Esse arquivo também define `not_found_handling: "single-page-application"`, que faz o papel do
-antigo `_redirects` do Pages clássico (fallback de rota para o Blazor WASM).
+antigo `_redirects` do Pages clássico (fallback de rota para o Blazor WASM). **Importante:** o
+arquivo `_redirects` em `wwwroot/` (regra `/* /index.html 200`) precisou ser removido — ele ainda
+é processado pelo Workers Builds e conflita com `not_found_handling`, causando erro de deploy
+("Infinite loop detected... strip `.html` or `/index`", code 100324).
 
 1. Dashboard da Cloudflare → **Workers & Pages → Create → Import a repository** (ou "Connect to
    Git") → mesmo repositório GitHub.
@@ -118,11 +121,10 @@ antigo `_redirects` do Pages clássico (fallback de rota para o Blazor WASM).
 3. O `name` dentro de `wrangler.jsonc` precisa bater com o nome do projeto mostrado na lista do
    Workers & Pages — se você criar o projeto com outro nome, ajuste o `wrangler.jsonc` e faça
    commit antes de rodar o deploy.
-4. Deploy. **Pendente de confirmação:** ainda não validamos se o `_headers` (cache) em
-   `src/WebUI/wwwroot/` continua sendo honrado automaticamente nesse formato novo — depois do
-   primeiro deploy bem-sucedido, confira no DevTools (aba Network) se os headers de cache estão
-   saindo como esperado; se não, será preciso configurar cache via `wrangler.jsonc` ou Cloudflare
-   Cache Rules.
+4. Deploy. O `_headers` (cache) em `src/WebUI/wwwroot/` não deu erro de build (só o
+   `_redirects` conflitava, ver acima), mas confira no DevTools (aba Network) se os headers de
+   cache saem como esperado depois do primeiro deploy bem-sucedido — ainda não validamos isso
+   fim a fim.
 5. **Custom domains** → adicione `nfe.sideral.app.br`. Como o domínio já está na zona da
    Cloudflare, isso cria o registro DNS automaticamente (sem passo manual).
 6. Confirme: abra `https://nfe.sideral.app.br` — deve carregar a tela de login e falar com
