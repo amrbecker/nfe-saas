@@ -6,9 +6,8 @@ using NfeSaas.Application.Interfaces;
 
 namespace NfeSaas.Infrastructure.Services;
 
-// Implementação de IEmailService via Resend (https://resend.com). Registrada no DI mas sem
-// nenhum call site ainda — nenhum email é disparado hoje. Fica pronta para quando o produto
-// definir os fluxos (ex.: enviar XML+DANFE ao destinatário após autorização).
+// Implementação de IEmailService via Resend (https://resend.com). Chamada pelo
+// EnviarNFePorEmailCommandHandler quando o usuário aciona o envio manual na tela da nota.
 public class ResendEmailService : IEmailService
 {
     private readonly IHttpClientFactory _httpFactory;
@@ -22,21 +21,21 @@ public class ResendEmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task EnviarNFeAsync(string destinatario, string chaveAcesso, byte[] xmlBytes, byte[] danfeBytes, CancellationToken ct = default)
+    public async Task<bool> EnviarNFeAsync(string destinatario, string chaveAcesso, byte[] xmlBytes, byte[] danfeBytes, CancellationToken ct = default)
     {
         var apiKey = _config["Resend:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             _logger.LogWarning("Resend:ApiKey não configurado — email da NF-e {Chave} não enviado para {Destinatario}.",
                 chaveAcesso, destinatario);
-            return;
+            return false;
         }
 
         var fromEmail = _config["Resend:FromEmail"];
         if (string.IsNullOrWhiteSpace(fromEmail))
         {
             _logger.LogError("Resend:FromEmail não configurado — email da NF-e {Chave} não enviado.", chaveAcesso);
-            return;
+            return false;
         }
 
         var payload = new
@@ -64,11 +63,14 @@ public class ResendEmailService : IEmailService
                 var body = await response.Content.ReadAsStringAsync(ct);
                 _logger.LogError("Falha ao enviar email da NF-e {Chave} via Resend: {Status} {Body}",
                     chaveAcesso, response.StatusCode, body);
+                return false;
             }
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao enviar email da NF-e {Chave} via Resend.", chaveAcesso);
+            return false;
         }
     }
 }

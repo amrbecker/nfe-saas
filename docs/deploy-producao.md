@@ -160,15 +160,16 @@ cadastrados** — mesmo cuidado que o volume `dp_keys` local.
    client é público por natureza — é assim que o Sentry funciona, não precisa de secret) e
    faça commit. Redeploy automático na Cloudflare Pages.
 
-## 7. Resend — deixado pronto, sem ação necessária agora
+## 7. Resend — necessário para o botão "Enviar por E-mail"
 
-`IEmailService`/`ResendEmailService` já existem e estão registrados no DI, mas nenhum código
-chama isso ainda — nenhum email sai do sistema hoje. Quando decidir os fluxos (ex.: enviar
-XML+DANFE ao destinatário, avisar trial acabando), é só:
+`IEmailService`/`ResendEmailService` já têm um call site: o botão "Enviar por E-mail" na tela de
+detalhe da nota (`EnviarNFePorEmailCommandHandler`), acionado manualmente pelo usuário — não há
+envio automático após autorização. Sem configurar isso, o botão sempre retorna erro
+("Falha ao enviar e-mail").
 1. Pegar a API key no dashboard do Resend e configurar `Resend__ApiKey`/`Resend__FromEmail`
    no Render (o `FromEmail` precisa ser de um domínio verificado no Resend — verifique
    `sideral.app.br` ou um subdomínio lá antes de usar).
-2. Injetar `IEmailService` no handler correspondente e chamar `EnviarNFeAsync(...)`.
+2. Testar: autorizar uma NF-e em homologação, abrir a nota na WebUI, clicar "Enviar por E-mail".
 
 ## Checklist antes de dar acesso ao escritório piloto
 

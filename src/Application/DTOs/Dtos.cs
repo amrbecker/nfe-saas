@@ -115,7 +115,8 @@ public record NotaFiscalDetalheDto(
     string? MotivoRejeicao,
     string? InformacoesAdicionais,
     DateTime? DataDescarteAutorizado = null,
-    bool DentroPeriodoRetencao = false
+    bool DentroPeriodoRetencao = false,
+    DateTime? EmailEnviadoEm = null
 );
 
 public record ItemNotaResumoDto(

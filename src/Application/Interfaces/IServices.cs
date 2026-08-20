@@ -107,7 +107,7 @@ public interface ITokenService
 
 public interface IEmailService
 {
-    Task EnviarNFeAsync(string destinatario, string chaveAcesso, byte[] xmlBytes, byte[] danfeBytes, CancellationToken ct = default);
+    Task<bool> EnviarNFeAsync(string destinatario, string chaveAcesso, byte[] xmlBytes, byte[] danfeBytes, CancellationToken ct = default);
 }
 
 public interface ICepValidationService

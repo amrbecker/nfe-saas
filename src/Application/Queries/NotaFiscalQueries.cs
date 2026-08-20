@@ -60,7 +60,7 @@ public class GetNotaDetalheQueryHandler : IRequestHandler<GetNotaDetalheQuery, N
             nota.TotalIcmsSt, nota.TotalPis, nota.TotalCofins, nota.TotalFrete,
             nota.TotalNota, nota.DataEmissao, nota.DataAutorizacao,
             nota.MotivoRejeicao, nota.InformacoesAdicionais,
-            nota.DataDescarteAutorizado, nota.DentroPeriodoRetencao);
+            nota.DataDescarteAutorizado, nota.DentroPeriodoRetencao, nota.EmailEnviadoEm);
     }
 }
 

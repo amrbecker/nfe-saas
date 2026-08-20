@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NfeSaas.Application.Commands.CancelarNFe;
 using NfeSaas.Application.Commands.EmitirNFe;
+using NfeSaas.Application.Commands.EnviarNFePorEmail;
 using NfeSaas.Application.Commands.EventosFiscaisCommands;
 using NfeSaas.Application.DTOs;
 using NfeSaas.Application.Interfaces;
@@ -45,6 +46,15 @@ public class NotaFiscalController : BaseApiController
         if (!result.Sucesso)
             return BadRequest(new { message = result.MensagemErro });
         return Ok(new { message = "Nota cancelada com sucesso." });
+    }
+
+    [HttpPost("{id:guid}/enviar-email")]
+    public async Task<IActionResult> EnviarEmail(Guid id, [FromBody] EnviarEmailRequest req)
+    {
+        var result = await Mediator.Send(new EnviarNFePorEmailCommand(id, EmpresaId, UserId, req.EmailDestino));
+        if (!result.Sucesso)
+            return BadRequest(new { message = result.MensagemErro });
+        return Ok(new { message = "E-mail enviado com sucesso." });
     }
 
     [HttpGet("{id:guid}/danfe")]
@@ -144,3 +154,4 @@ public class NotaFiscalController : BaseApiController
 }
 
 public record CancelarRequest(string Justificativa);
+public record EnviarEmailRequest(string? EmailDestino);

@@ -70,6 +70,7 @@ public class NotaFiscal : BaseEntity
 
     public DateTime DataEmissao { get; private set; } = DateTime.UtcNow;
     public DateTime? DataCancelamento { get; private set; }
+    public DateTime? EmailEnviadoEm { get; private set; }
 
     // Período legal de retenção fiscal (5 anos a partir da autorização ou cancelamento — Lei nº 10.522/02 e CTN art. 173).
     private const int AnosRetencaoFiscal = 5;
@@ -201,6 +202,12 @@ public class NotaFiscal : BaseEntity
         XmlCancelamento = xmlCancelamento;
         Situacao = SituacaoNota.Cancelada;
         DataCancelamento = DateTime.UtcNow;
+        SetUpdated();
+    }
+
+    public void RegistrarEnvioEmail()
+    {
+        EmailEnviadoEm = DateTime.UtcNow;
         SetUpdated();
     }
 

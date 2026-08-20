@@ -204,7 +204,7 @@ Seed atribui ao Escritório demo `PlanoAtivoAteEm = NOW() + 1 ano` para não blo
 - **IXmlNFeService**: geração e assinatura XML da NF-e (exige certificado digital na Empresa). Use os helpers `F2`/`F4` para qualquer formatação decimal no XML. Cancelamento/CC-e/Manifestação usam o formato de evento (`<envEvento>`, tpEvento 110111/110110/2102xx) — não o `<cancNFe>` standalone pré-2013
 - **IImpostoCalculoService**: cálculo de ICMS, ICMS-ST, PIS e COFINS — testado via testes unitários isolados
 - **ICertificadoService**: upload/validação de PFX A1. Rota de upload limitada a 256 KB e exige role `Admin`
-- **IEmailService** (`ResendEmailService`): integração com Resend pronta e registrada no DI, mas sem nenhum call site — nenhum email é disparado hoje. Configurar `Resend__ApiKey`/`Resend__FromEmail` só quando algum fluxo for implementado
+- **IEmailService** (`ResendEmailService`): envia XML+DANFE ao destinatário via `EnviarNFePorEmailCommandHandler`, acionado pelo botão "Enviar por E-mail" na tela de detalhe da nota (`NotaDetalhe.razor`) — envio manual, não automático após autorização. Retorna `bool` (sucesso/falha) para o handler não reportar sucesso falso quando `Resend__ApiKey`/`FromEmail` não estiverem configurados no Render
 
 ## Produção
 

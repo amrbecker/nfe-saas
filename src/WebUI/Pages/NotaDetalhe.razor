@@ -78,6 +78,10 @@ else
                                    OnClick="@(() => _mostrarDialogCce = true)" Variant="Variant.Outlined">Carta de Correção</MudButton>
                         <MudButton StartIcon="@Icons.Material.Filled.HowToVote" Color="Color.Secondary"
                                    OnClick="@(() => _mostrarDialogManif = true)" Variant="Variant.Outlined">Manifestar</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.Email" Color="Color.Primary"
+                                   OnClick="AbrirDialogEmail" Variant="Variant.Outlined">
+                            @(_nota.EmailEnviadoEm.HasValue ? "Reenviar por E-mail" : "Enviar por E-mail")
+                        </MudButton>
                     }
                     <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Href="/notas" Variant="Variant.Text">Voltar</MudButton>
                 </MudCardActions>
@@ -101,6 +105,12 @@ else
                     @if (!string.IsNullOrEmpty(_nota.Destinatario.Cidade))
                     {
                         <MudText><b>Endereço:</b> @_nota.Destinatario.Logradouro, @_nota.Destinatario.Numero — @_nota.Destinatario.Cidade/@_nota.Destinatario.Uf</MudText>
+                    }
+                    @if (_nota.EmailEnviadoEm.HasValue)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Success" Class="mt-2">
+                            E-mail enviado em: @_nota.EmailEnviadoEm.Value.ToString("dd/MM/yyyy HH:mm")
+                        </MudText>
                     }
                 </MudCardContent>
             </MudCard>
@@ -253,6 +263,31 @@ else
             </MudButton>
         </DialogActions>
     </MudDialog>
+
+    <!-- Dialog Envio por E-mail -->
+    <MudDialog @bind-IsVisible="_mostrarDialogEmail" Options="@(new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true })">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Enviar NF-e por E-mail</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (string.IsNullOrEmpty(_nota?.Destinatario.Email))
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    Nenhum e-mail cadastrado para o destinatário — informe um e-mail para enviar.
+                </MudAlert>
+            }
+            <MudTextField @bind-Value="_emailDestino" Label="E-mail do destinatário" Variant="Variant.Outlined"
+                          InputType="InputType.Email" Immediate="true" />
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _mostrarDialogEmail = false)">Cancelar</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                       OnClick="EnviarEmail" Disabled="@(_enviandoEmail || !EmailPareceValido(_emailDestino))">
+                @if (_enviandoEmail) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Enviar
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
 }
 
 @code {
@@ -263,10 +298,13 @@ else
     private bool _loading = true;
     private bool _mostrarDialogCce;
     private bool _mostrarDialogManif;
+    private bool _mostrarDialogEmail;
     private bool _enviandoEvento;
+    private bool _enviandoEmail;
     private string _cceCorrecao = "";
     private int _manifTipo = 210210; // Ciência por padrão
     private string _manifJust = "";
+    private string _emailDestino = "";
 
     private List<BreadcrumbItem> _breadcrumbs = new()
     {
@@ -356,6 +394,35 @@ else
 
     static string TruncarTexto(string s, int max) =>
         string.IsNullOrEmpty(s) || s.Length <= max ? s : s[..max] + "…";
+
+    void AbrirDialogEmail()
+    {
+        _emailDestino = _nota?.Destinatario.Email ?? "";
+        _mostrarDialogEmail = true;
+    }
+
+    static bool EmailPareceValido(string? email) =>
+        !string.IsNullOrWhiteSpace(email) && email.Contains('@') && email.Contains('.');
+
+    async Task EnviarEmail()
+    {
+        _enviandoEmail = true;
+        try
+        {
+            var (sucesso, erro) = await NotaService.EnviarEmailAsync(Id, _emailDestino.Trim());
+            if (sucesso)
+            {
+                Snackbar.Add("E-mail enviado com sucesso.", Severity.Success);
+                _mostrarDialogEmail = false;
+                _nota = await NotaService.GetNotaAsync(Id);
+            }
+            else
+            {
+                Snackbar.Add(erro ?? "Erro ao enviar e-mail.", Severity.Error);
+            }
+        }
+        finally { _enviandoEmail = false; }
+    }
 
     async Task DownloadDanfe()
     {
