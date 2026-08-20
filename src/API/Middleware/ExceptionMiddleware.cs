@@ -35,6 +35,7 @@ public class ExceptionMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
+            SentrySdk.CaptureException(ex);
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
             var error = new { message = "Erro interno do servidor. Tente novamente ou contate o suporte." };
