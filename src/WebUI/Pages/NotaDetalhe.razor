@@ -4,6 +4,7 @@
 @inject IEventoFiscalService EventoService
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>Detalhe da Nota - NfeSaas</PageTitle>
 
@@ -427,8 +428,15 @@ else
     async Task DownloadDanfe()
     {
         var pdf = await NotaService.GetDanfePdfAsync(Id);
-        if (pdf == null) Snackbar.Add("Erro ao gerar DANFE.", Severity.Error);
-        else Snackbar.Add("DANFE gerado! Use o menu do navegador para salvar.", Severity.Success);
+        if (pdf == null)
+        {
+            Snackbar.Add("Erro ao gerar DANFE.", Severity.Error);
+            return;
+        }
+
+        var filename = $"DANFE_{_nota!.Numero:D9}.pdf";
+        await JS.InvokeVoidAsync("downloadFile", filename, "application/pdf", Convert.ToBase64String(pdf));
+        Snackbar.Add("DANFE gerado com sucesso!", Severity.Success);
     }
 
     Color GetCorSituacao(NfeSaas.Domain.Enums.SituacaoNota s) => s switch

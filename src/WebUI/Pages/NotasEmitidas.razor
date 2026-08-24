@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialog
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>Notas Emitidas - NfeSaas</PageTitle>
 
@@ -43,7 +44,7 @@
             <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Info"
                            OnClick="@(() => VerDetalhe(context.Id))" Title="Detalhes" />
             <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Color="Color.Error"
-                           OnClick="@(() => DownloadDanfe(context.Id))" Title="DANFE PDF"
+                           OnClick="@(() => DownloadDanfe(context.Id, context.Numero))" Title="DANFE PDF"
                            Disabled="@(context.Situacao != NfeSaas.Domain.Enums.SituacaoNota.Autorizada)" />
             @if (context.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Autorizada)
             {
@@ -79,11 +80,13 @@
 
     void VerDetalhe(Guid id) => Nav.NavigateTo($"/notas/{id}");
 
-    async Task DownloadDanfe(Guid id)
+    async Task DownloadDanfe(Guid id, int numero)
     {
         var pdf = await NotaService.GetDanfePdfAsync(id);
         if (pdf == null) { Snackbar.Add("Erro ao gerar DANFE.", Severity.Error); return; }
-        // In production: trigger JS interop to download file
+
+        var filename = $"DANFE_{numero:D9}.pdf";
+        await JS.InvokeVoidAsync("downloadFile", filename, "application/pdf", Convert.ToBase64String(pdf));
         Snackbar.Add("DANFE gerado com sucesso!", Severity.Success);
     }
 
