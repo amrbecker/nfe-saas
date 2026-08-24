@@ -53,7 +53,7 @@ public class EnviarNFePorEmailCommandHandler : IRequestHandler<EnviarNFePorEmail
         {
             _ = new MailAddress(email);
         }
-        catch (FormatException)
+        catch (Exception ex) when (ex is FormatException or ArgumentException)
         {
             return new EnviarNFePorEmailResult(false, $"E-mail inválido: {email}");
         }
@@ -61,9 +61,18 @@ public class EnviarNFePorEmailCommandHandler : IRequestHandler<EnviarNFePorEmail
         var empresa = await _empresaRepo.GetByIdAsync(request.EmpresaId, cancellationToken);
         if (empresa == null) return new EnviarNFePorEmailResult(false, "Empresa não encontrada.");
 
-        var danfeBytes = nota.Tipo == TipoNota.NFCe
-            ? await _danfeService.GerarDanfeNFCePdfAsync(nota, empresa, cancellationToken)
-            : await _danfeService.GerarDanfePdfAsync(nota, empresa, cancellationToken);
+        byte[] danfeBytes;
+        try
+        {
+            danfeBytes = nota.Tipo == TipoNota.NFCe
+                ? await _danfeService.GerarDanfeNFCePdfAsync(nota, empresa, cancellationToken)
+                : await _danfeService.GerarDanfePdfAsync(nota, empresa, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao gerar DANFE para envio por e-mail da NF-e {Chave}.", nota.ChaveAcesso);
+            return new EnviarNFePorEmailResult(false, "Falha ao gerar o DANFE para envio. Tente novamente ou contate o suporte.");
+        }
 
         var xmlBytes = Encoding.UTF8.GetBytes(nota.XmlRetorno ?? nota.XmlEnvio!);
 

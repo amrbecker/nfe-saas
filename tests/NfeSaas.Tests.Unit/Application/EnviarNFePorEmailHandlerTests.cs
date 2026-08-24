@@ -103,6 +103,25 @@ public class EnviarNFePorEmailHandlerTests
     }
 
     [Fact]
+    public async Task Enviar_GeracaoDanfeLancaExcecao_RetornaErroControladoSemPropagar()
+    {
+        var nota = CriarNotaAutorizada();
+        var empresa = CriarEmpresa(nota.EmpresaId);
+        _notaRepo.Setup(r => r.GetByIdAsync(nota.Id, It.IsAny<CancellationToken>())).ReturnsAsync(nota);
+        _empresaRepo.Setup(r => r.GetByIdAsync(nota.EmpresaId, It.IsAny<CancellationToken>())).ReturnsAsync(empresa);
+        _danfe.Setup(d => d.GerarDanfePdfAsync(nota, empresa, It.IsAny<CancellationToken>()))
+              .ThrowsAsync(new InvalidOperationException("falha simulada na geração do PDF"));
+
+        var result = await Handler().Handle(
+            new EnviarNFePorEmailCommand(nota.Id, nota.EmpresaId, Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        result.Sucesso.Should().BeFalse();
+        result.MensagemErro.Should().Contain("DANFE");
+        _email.Verify(e => e.EnviarNFeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Enviar_ServicoDeEmailFalha_RetornaErroENaoRegistraEnvio()
     {
         var nota = CriarNotaAutorizada();
