@@ -410,16 +410,16 @@ else
         _enviandoEmail = true;
         try
         {
-            var (sucesso, erro) = await NotaService.EnviarEmailAsync(Id, _emailDestino.Trim());
+            var (sucesso, mensagem) = await NotaService.EnviarEmailAsync(Id, _emailDestino.Trim());
             if (sucesso)
             {
-                Snackbar.Add("E-mail enviado com sucesso.", Severity.Success);
+                Snackbar.Add(mensagem ?? "E-mail enviado com sucesso.", mensagem == null ? Severity.Success : Severity.Warning);
                 _mostrarDialogEmail = false;
                 _nota = await NotaService.GetNotaAsync(Id);
             }
             else
             {
-                Snackbar.Add(erro ?? "Erro ao enviar e-mail.", Severity.Error);
+                Snackbar.Add(mensagem ?? "Erro ao enviar e-mail.", Severity.Error);
             }
         }
         finally { _enviandoEmail = false; }

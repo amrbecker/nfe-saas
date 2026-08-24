@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NfeSaas.Application.Interfaces;
 using NfeSaas.Domain.Enums;
 using NfeSaas.Domain.Interfaces;
+using Sentry;
 
 namespace NfeSaas.Application.Commands.EnviarNFePorEmail;
 
@@ -80,12 +81,25 @@ public class EnviarNFePorEmailCommandHandler : IRequestHandler<EnviarNFePorEmail
         if (!enviado)
             return new EnviarNFePorEmailResult(false, "Falha ao enviar e-mail. Verifique a configuração do Resend ou tente novamente.");
 
-        nota.RegistrarEnvioEmail();
-        await _notaRepo.UpdateAsync(nota, cancellationToken);
-        await _uow.SaveChangesAsync(cancellationToken);
+        // A partir daqui o e-mail já foi entregue de verdade — uma falha nesta etapa
+        // (registrar o envio / auditoria) NÃO pode ser reportada como "falha ao enviar",
+        // senão o usuário reenvia e o destinatário recebe o mesmo e-mail duplicado.
+        try
+        {
+            nota.RegistrarEnvioEmail();
+            await _notaRepo.UpdateAsync(nota, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
-        await _auditService.RegistrarAsync(empresa.Id, "NFe.EmailEnviado", request.UsuarioId,
-            nota.ChaveAcesso, $"Enviado para {email}", ct: cancellationToken);
+            await _auditService.RegistrarAsync(empresa.Id, "NFe.EmailEnviado", request.UsuarioId,
+                nota.ChaveAcesso, $"Enviado para {email}", ct: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "E-mail da NF-e {Chave} enviado com sucesso, mas falhou ao registrar o envio.", nota.ChaveAcesso);
+            SentrySdk.CaptureException(ex);
+            return new EnviarNFePorEmailResult(true,
+                "E-mail enviado com sucesso, mas houve um erro ao registrar isso no sistema — não reenvie.");
+        }
 
         _logger.LogInformation("NF-e {Chave} enviada por e-mail para {Email}.", nota.ChaveAcesso, email);
 

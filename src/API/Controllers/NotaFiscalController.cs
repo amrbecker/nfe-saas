@@ -54,7 +54,7 @@ public class NotaFiscalController : BaseApiController
         var result = await Mediator.Send(new EnviarNFePorEmailCommand(id, EmpresaId, UserId, req.EmailDestino));
         if (!result.Sucesso)
             return BadRequest(new { message = result.MensagemErro });
-        return Ok(new { message = "E-mail enviado com sucesso." });
+        return Ok(new { message = result.MensagemErro ?? "E-mail enviado com sucesso." });
     }
 
     [HttpGet("{id:guid}/danfe")]

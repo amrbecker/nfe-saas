@@ -98,9 +98,9 @@
 
         if (result == true)
         {
-            var (sucesso, erro) = await NotaService.EnviarEmailAsync(id, null);
-            Snackbar.Add(sucesso ? "E-mail enviado com sucesso!" : (erro ?? "Erro ao enviar e-mail."),
-                sucesso ? Severity.Success : Severity.Error);
+            var (sucesso, mensagem) = await NotaService.EnviarEmailAsync(id, null);
+            Snackbar.Add(mensagem ?? (sucesso ? "E-mail enviado com sucesso!" : "Erro ao enviar e-mail."),
+                !sucesso ? Severity.Error : (mensagem == null ? Severity.Success : Severity.Warning));
         }
     }
 

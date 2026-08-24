@@ -164,4 +164,28 @@ public class EnviarNFePorEmailHandlerTests
         _audit.Verify(a => a.RegistrarAsync(empresa.Id, "NFe.EmailEnviado", It.IsAny<Guid?>(),
             nota.ChaveAcesso, It.IsAny<string?>(), null, It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task Enviar_EmailEntregueMasPersistenciaFalha_RetornaSucessoComAvisoSemDizerQueFalhouEnviar()
+    {
+        // Cenário crítico: o e-mail JÁ foi entregue de verdade ao destinatário quando isso
+        // acontece — reportar Sucesso=false incentivaria reenvio duplicado pro cliente.
+        var nota = CriarNotaAutorizada();
+        var empresa = CriarEmpresa(nota.EmpresaId);
+        _notaRepo.Setup(r => r.GetByIdAsync(nota.Id, It.IsAny<CancellationToken>())).ReturnsAsync(nota);
+        _empresaRepo.Setup(r => r.GetByIdAsync(nota.EmpresaId, It.IsAny<CancellationToken>())).ReturnsAsync(empresa);
+        _danfe.Setup(d => d.GerarDanfePdfAsync(nota, empresa, It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new byte[] { 1 });
+        _email.Setup(e => e.EnviarNFeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(true);
+        _uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("falha simulada ao salvar"));
+
+        var result = await Handler().Handle(
+            new EnviarNFePorEmailCommand(nota.Id, nota.EmpresaId, Guid.NewGuid(), null),
+            CancellationToken.None);
+
+        result.Sucesso.Should().BeTrue();
+        result.MensagemErro.Should().Contain("não reenvie");
+    }
 }

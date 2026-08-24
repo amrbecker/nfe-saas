@@ -341,7 +341,7 @@ public interface INotaFiscalService
     Task<EmitirNFeResult?> EmitirAsync(EmitirNotaFiscalDto dto);
     Task<bool> CancelarAsync(Guid id, string justificativa);
     Task<byte[]?> GetDanfePdfAsync(Guid id);
-    Task<(bool Sucesso, string? Erro)> EnviarEmailAsync(Guid id, string? emailDestino);
+    Task<(bool Sucesso, string? Mensagem)> EnviarEmailAsync(Guid id, string? emailDestino);
     Task<DashboardDto?> GetDashboardAsync(int? ano = null, int? mes = null);
 }
 
@@ -379,11 +379,15 @@ public class NotaFiscalService : INotaFiscalService
     public async Task<byte[]?> GetDanfePdfAsync(Guid id) =>
         await _api.GetBytesAsync($"api/notas-fiscais/{id}/danfe");
 
-    public async Task<(bool Sucesso, string? Erro)> EnviarEmailAsync(Guid id, string? emailDestino)
+    public async Task<(bool Sucesso, string? Mensagem)> EnviarEmailAsync(Guid id, string? emailDestino)
     {
         var response = await _api.PostRawAsync($"api/notas-fiscais/{id}/enviar-email", new { emailDestino });
-        if (response.IsSuccessStatusCode) return (true, null);
-        return (false, await ApiHelper.ExtrairMensagemErro(response));
+        // Em sucesso, "message" pode trazer um aviso (ex.: e-mail enviado mas falhou registrar
+        // isso no sistema) — não descartar o corpo só porque o status é 2xx.
+        var mensagem = await ApiHelper.ExtrairMensagemErro(response);
+        return response.IsSuccessStatusCode
+            ? (true, mensagem == "E-mail enviado com sucesso." ? null : mensagem)
+            : (false, mensagem);
     }
 
     public async Task<DashboardDto?> GetDashboardAsync(int? ano = null, int? mes = null)

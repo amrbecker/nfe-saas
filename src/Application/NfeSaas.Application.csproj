@@ -16,5 +16,8 @@
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <!-- Só o SDK base (sem ASP.NET Core) — permite capturar exceptions tratadas que não devem
+         propagar (ex.: falha ao registrar envio de e-mail já entregue) sem acoplar ao pipeline HTTP. -->
+    <PackageReference Include="Sentry" Version="6.9.0" />
   </ItemGroup>
 </Project>
