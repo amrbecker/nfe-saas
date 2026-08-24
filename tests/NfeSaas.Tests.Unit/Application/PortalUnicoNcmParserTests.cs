@@ -132,4 +132,12 @@ public class PortalUnicoNcmParserTests
     {
         PortalUnicoNcmParser.Limpar(entrada).Should().Be(esperado);
     }
+
+    [Theory]
+    [InlineData("Telefones inteligentes (<i>smartphones</i>)", "Telefones inteligentes (smartphones)")]
+    [InlineData("<b>Outros</b>", "Outros")]
+    public void Limpar_RemoveTagsHtmlCruasDaFonteOficial(string entrada, string esperado)
+    {
+        PortalUnicoNcmParser.Limpar(entrada).Should().Be(esperado);
+    }
 }

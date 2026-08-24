@@ -16,6 +16,7 @@ public static class PortalUnicoNcmParser
 {
     private static readonly Regex PrefixRegex = new(@"^[\-\s°•·]+", RegexOptions.Compiled);
     private static readonly Regex CollapseWs = new(@"\s+", RegexOptions.Compiled);
+    private static readonly Regex HtmlTagRegex = new(@"<[^>]+>", RegexOptions.Compiled);
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     /// <summary>
@@ -94,7 +95,8 @@ public static class PortalUnicoNcmParser
     internal static string Limpar(string? desc)
     {
         if (string.IsNullOrWhiteSpace(desc)) return "";
-        var s = PrefixRegex.Replace(desc, "").Trim();
+        var s = HtmlTagRegex.Replace(desc, "");
+        s = PrefixRegex.Replace(s, "").Trim();
         s = CollapseWs.Replace(s, " ");
         // Subcategorias visuais do Portal Único terminam com ":" (ex.: "Cavalos:")
         // — atrapalha quando concatenado com a descrição do filho ("Cavalos: — Reprodutores").
