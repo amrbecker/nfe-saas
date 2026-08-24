@@ -24,11 +24,13 @@ from pathlib import Path
 
 PREFIX_RE = re.compile(r"^[\-\s°•·]+")  # remove "- ", "-- ", "---", marcadores de bullet
 COLLAPSE_WS = re.compile(r"\s+")
+HTML_TAG_RE = re.compile(r"<[^>]+>")  # remove tags HTML cruas da fonte (ex.: <i>smartphones</i>)
 
 
 def limpar(desc: str) -> str:
-    """Remove prefixos hierárquicos e colapsa espaços."""
-    s = PREFIX_RE.sub("", desc or "").strip()
+    """Remove tags HTML, prefixos hierárquicos e colapsa espaços."""
+    s = HTML_TAG_RE.sub("", desc or "")
+    s = PREFIX_RE.sub("", s).strip()
     return COLLAPSE_WS.sub(" ", s)
 
 
