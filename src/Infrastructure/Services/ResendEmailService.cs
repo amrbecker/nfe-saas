@@ -23,7 +23,7 @@ public class ResendEmailService : IEmailService
 
     public async Task<bool> EnviarNFeAsync(string destinatario, string chaveAcesso, byte[] xmlBytes, byte[] danfeBytes, CancellationToken ct = default)
     {
-        var apiKey = _config["Resend:ApiKey"];
+        var apiKey = _config["Resend:ApiKey"]?.Trim();
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             _logger.LogWarning("Resend:ApiKey não configurado — email da NF-e {Chave} não enviado para {Destinatario}.",
@@ -31,7 +31,7 @@ public class ResendEmailService : IEmailService
             return false;
         }
 
-        var fromEmail = _config["Resend:FromEmail"];
+        var fromEmail = _config["Resend:FromEmail"]?.Trim();
         if (string.IsNullOrWhiteSpace(fromEmail))
         {
             _logger.LogError("Resend:FromEmail não configurado — email da NF-e {Chave} não enviado.", chaveAcesso);
@@ -51,12 +51,12 @@ public class ResendEmailService : IEmailService
             }
         };
 
-        using var client = _httpFactory.CreateClient();
-        client.BaseAddress = new Uri("https://api.resend.com/");
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
         try
         {
+            using var client = _httpFactory.CreateClient();
+            client.BaseAddress = new Uri("https://api.resend.com/");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
             var response = await client.PostAsJsonAsync("emails", payload, ct);
             if (!response.IsSuccessStatusCode)
             {
