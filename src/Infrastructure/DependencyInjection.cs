@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<IClienteRepository, ClienteRepository>();
         services.AddScoped<IEventoFiscalRepository, EventoFiscalRepository>();
         services.AddScoped<INcmRepository, NcmRepository>();
+        services.AddScoped<ICnaeRepository, CnaeRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Services

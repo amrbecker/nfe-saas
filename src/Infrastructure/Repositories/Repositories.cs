@@ -334,6 +334,44 @@ public class NcmRepository : INcmRepository
     }
 }
 
+public class CnaeRepository : ICnaeRepository
+{
+    private readonly NfeDbContext _ctx;
+    public CnaeRepository(NfeDbContext ctx) => _ctx = ctx;
+
+    public Task<Cnae?> GetByCodigoAsync(string codigo, CancellationToken ct = default)
+    {
+        var d = new string(codigo.Where(char.IsDigit).ToArray());
+        return _ctx.Cnaes.FirstOrDefaultAsync(c => c.Codigo == d && c.Ativo, ct);
+    }
+
+    public async Task<IEnumerable<Cnae>> BuscarAsync(string termo, int limite, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(termo)) return Array.Empty<Cnae>();
+
+        var t = termo.Trim();
+        var digitos = new string(t.Where(char.IsDigit).ToArray());
+
+        // Busca por código: prefixo no Codigo (rápido pelo índice).
+        if (digitos.Length >= 2 && digitos.Length == t.Length)
+        {
+            return await _ctx.Cnaes
+                .Where(c => c.Ativo && c.Codigo.StartsWith(digitos))
+                .OrderBy(c => c.Codigo)
+                .Take(limite)
+                .ToListAsync(ct);
+        }
+
+        // Busca por descrição: ILIKE no Postgres (case-insensitive).
+        var pattern = $"%{t}%";
+        return await _ctx.Cnaes
+            .Where(c => c.Ativo && EF.Functions.ILike(c.Descricao, pattern))
+            .OrderBy(c => c.Codigo)
+            .Take(limite)
+            .ToListAsync(ct);
+    }
+}
+
 public class ConfiguracaoEmpresaRepository : IConfiguracaoEmpresaRepository
 {
     private readonly NfeDbContext _ctx;

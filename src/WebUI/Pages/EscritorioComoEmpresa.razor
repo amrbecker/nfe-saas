@@ -25,6 +25,13 @@
                         @foreach (var uf in _ufs) { <MudSelectItem T="int" Value="@_ufs.IndexOf(uf)">@uf</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
+                <MudItem xs="12" md="3">
+                    <CepInput Value="@_dto.Cep" ValueChanged="@(v => _dto.Cep = v)"
+                              EnderecoEncontrado="OnCepEncontrado" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_dto.CodigoMunicipio" Label="Cód. IBGE Município" Variant="Variant.Outlined" Required />
+                </MudItem>
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_dto.Logradouro" Label="Logradouro" Variant="Variant.Outlined" Required />
                 </MudItem>
@@ -36,12 +43,6 @@
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_dto.Cidade" Label="Cidade" Variant="Variant.Outlined" Required />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField @bind-Value="_dto.Cep" Label="CEP (só dígitos)" Variant="Variant.Outlined" Required />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField @bind-Value="_dto.CodigoMunicipio" Label="Cód. IBGE Município" Variant="Variant.Outlined" Required />
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" @bind-Value="_dto.RegimeTributario" Label="Regime Tributário" Variant="Variant.Outlined" Required>
@@ -57,7 +58,8 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_dto.Cnae" Label="CNAE (7 dígitos) — opcional" Variant="Variant.Outlined" />
+                    <CnaeAutocomplete Value="@_dto.Cnae" ValueChanged="@(v => _dto.Cnae = v)"
+                                      HelperText="Opcional — digite código ou descrição" />
                 </MudItem>
             </MudGrid>
 
@@ -100,6 +102,21 @@
         "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB",
         "PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
     };
+
+    async Task OnCepEncontrado(EnderecoCep e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.Logradouro)) _dto.Logradouro = e.Logradouro;
+        if (!string.IsNullOrWhiteSpace(e.Bairro))     _dto.Bairro     = e.Bairro;
+        if (!string.IsNullOrWhiteSpace(e.Cidade))     _dto.Cidade     = e.Cidade;
+        if (!string.IsNullOrWhiteSpace(e.CodigoMunicipio)) _dto.CodigoMunicipio = e.CodigoMunicipio;
+        if (!string.IsNullOrWhiteSpace(e.Uf))
+        {
+            var idx = _ufs.IndexOf(e.Uf);
+            if (idx >= 0) _dto.Uf = idx;
+        }
+        await _form.Validate();
+        StateHasChanged();
+    }
 
     async Task Salvar()
     {

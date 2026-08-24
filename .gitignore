@@ -54,5 +54,6 @@ coverage/
 
 ## Artefatos gerados pelos scripts de carga (regenerar a partir da fonte oficial)
 scripts/ncm_full_seed.sql
+scripts/cnae_seed.sql
 migration*.sql
 *.bak.sql

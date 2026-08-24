@@ -46,6 +46,7 @@ builder.Services.AddScoped<IEventoFiscalService, EventoFiscalService>();
 builder.Services.AddSingleton<IViaCepService, ViaCepService>();
 builder.Services.AddSingleton<IReceitaApiService, ReceitaApiService>();
 builder.Services.AddScoped<INcmService, NcmService>();
+builder.Services.AddScoped<ICnaeService, CnaeService>();
 builder.Services.AddScoped<IPersonalizacaoService, PersonalizacaoService>();
 builder.Services.AddScoped<ApiClient>();
 

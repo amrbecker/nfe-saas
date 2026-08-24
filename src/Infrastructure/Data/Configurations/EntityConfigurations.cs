@@ -244,6 +244,21 @@ public class NcmConfiguration : IEntityTypeConfiguration<Ncm>
     }
 }
 
+public class CnaeConfiguration : IEntityTypeConfiguration<Cnae>
+{
+    public void Configure(EntityTypeBuilder<Cnae> builder)
+    {
+        builder.ToTable("cnaes");
+        builder.HasKey(c => c.Codigo);
+        builder.Property(c => c.Codigo).HasMaxLength(7).IsRequired();
+        builder.Property(c => c.Descricao).IsRequired().HasMaxLength(500);
+        builder.Property(c => c.Secao).HasMaxLength(1);
+        builder.Property(c => c.Divisao).HasMaxLength(2);
+
+        builder.HasIndex(c => c.Ativo);
+    }
+}
+
 public class ConfiguracaoEmpresaConfiguration : IEntityTypeConfiguration<ConfiguracaoEmpresa>
 {
     public void Configure(EntityTypeBuilder<ConfiguracaoEmpresa> builder)

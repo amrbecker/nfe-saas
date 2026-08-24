@@ -47,6 +47,8 @@
                            Disabled="@(context.Situacao != NfeSaas.Domain.Enums.SituacaoNota.Autorizada)" />
             @if (context.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Autorizada)
             {
+                <MudIconButton Icon="@Icons.Material.Filled.Email" Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => EnviarEmail(context.Id))" Title="Enviar por E-mail" />
                 <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Warning"
                                OnClick="@(() => ConfirmarCancelamento(context.Id))" Title="Cancelar NF-e" />
             }
@@ -83,6 +85,20 @@
         if (pdf == null) { Snackbar.Add("Erro ao gerar DANFE.", Severity.Error); return; }
         // In production: trigger JS interop to download file
         Snackbar.Add("DANFE gerado com sucesso!", Severity.Success);
+    }
+
+    async Task EnviarEmail(Guid id)
+    {
+        var result = await Dialog.ShowMessageBox("Enviar por E-mail",
+            "Enviar XML e DANFE desta NF-e por e-mail para o destinatário cadastrado?",
+            yesText: "Enviar", cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            var (sucesso, erro) = await NotaService.EnviarEmailAsync(id, null);
+            Snackbar.Add(sucesso ? "E-mail enviado com sucesso!" : (erro ?? "Erro ao enviar e-mail."),
+                sucesso ? Severity.Success : Severity.Error);
+        }
     }
 
     async Task ConfirmarCancelamento(Guid id)

@@ -118,10 +118,8 @@ else
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudTextField @bind-Value="_formData.Cep" Label="CEP (só números)" Variant="Variant.Outlined"
-                                  Required RequiredError="CEP é obrigatório"
-                                  Immediate="true"
-                                  Validation="@((string s) => ValidarCep(s))" />
+                    <CepInput Value="@_formData.Cep" ValueChanged="@(v => _formData.Cep = v)"
+                              EnderecoEncontrado="OnCepEncontrado" Required="true" />
                 </MudItem>
                 <MudItem xs="12" md="4">
                     <MudTextField @bind-Value="_formData.Telefone" Label="Telefone" Variant="Variant.Outlined"
@@ -136,10 +134,8 @@ else
                                   Validation="@((string s) => ValidarCodigoMunicipio(s))" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="_formData.Cnae" Label="CNAE (7 dígitos)" Variant="Variant.Outlined"
-                                  Immediate="true"
-                                  HelperText="Código de atividade econômica (opcional)"
-                                  Validation="@((string s) => ValidarCnae(s))" />
+                    <CnaeAutocomplete Value="@_formData.Cnae" ValueChanged="@(v => _formData.Cnae = v)"
+                                      HelperText="Código de atividade econômica (opcional)" />
                 </MudItem>
                 <MudItem xs="12" md="4">
                     <MudSelect @bind-Value="_formData.RegimeTributario" Label="Regime Tributário" Variant="Variant.Outlined">
@@ -198,6 +194,17 @@ else
     {
         _formData.Uf = novaUf;
         if (_mudForm != null) await _mudForm.Validate();
+    }
+
+    async Task OnCepEncontrado(EnderecoCep e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.Logradouro)) _formData.Logradouro = e.Logradouro;
+        if (!string.IsNullOrWhiteSpace(e.Bairro))     _formData.Bairro     = e.Bairro;
+        if (!string.IsNullOrWhiteSpace(e.Cidade))     _formData.Cidade     = e.Cidade;
+        if (!string.IsNullOrWhiteSpace(e.Uf))         _formData.Uf         = e.Uf;
+        if (!string.IsNullOrWhiteSpace(e.CodigoMunicipio)) _formData.CodigoMunicipio = e.CodigoMunicipio;
+        if (_mudForm != null) await _mudForm.Validate();
+        StateHasChanged();
     }
 
     async Task OnEmpresaEncontradaNaReceita(EmpresaReceita e)
@@ -300,13 +307,6 @@ else
         return _emailRegex.IsMatch(email.Trim()) ? null : "E-mail em formato inválido";
     }
 
-    static string? ValidarCep(string? cep)
-    {
-        if (string.IsNullOrWhiteSpace(cep)) return "CEP é obrigatório";
-        var digitos = new string(cep.Where(char.IsDigit).ToArray());
-        return digitos.Length == 8 ? null : "CEP deve ter 8 dígitos";
-    }
-
     static string? ValidarTelefone(string? telefone)
     {
         if (string.IsNullOrWhiteSpace(telefone)) return null;
@@ -319,12 +319,6 @@ else
         if (string.IsNullOrWhiteSpace(codigo)) return "Código do município é obrigatório";
         var digitos = new string(codigo.Where(char.IsDigit).ToArray());
         return digitos.Length == 7 ? null : "Código IBGE deve ter 7 dígitos";
-    }
-
-    static string? ValidarCnae(string? cnae)
-    {
-        if (string.IsNullOrWhiteSpace(cnae)) return null;
-        return CnaeValidator.Validar(cnae) ? null : "CNAE deve ter 7 dígitos";
     }
 
     class FormModel

@@ -64,10 +64,8 @@ else
                                       Validation="@((string s) => ValidarIe(s))" />
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudTextField @bind-Value="_data.Cnae" Label="CNAE (7 dígitos)"
-                                      Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
-                                      Immediate="true"
-                                      Validation="@((string s) => ValidarCnae(s))" />
+                        <CnaeAutocomplete Value="@_data.Cnae" ValueChanged="@(v => _data.Cnae = v)"
+                                          ReadOnly="@(!_canEdit)" />
                     </MudItem>
 
                     <!-- ====== CONTATO ====== -->
@@ -338,12 +336,6 @@ else
         if (string.IsNullOrWhiteSpace(ie)) return "Inscrição estadual é obrigatória (ou 'ISENTO')";
         if (string.IsNullOrWhiteSpace(_data.Uf)) return "Selecione a UF antes";
         return IeValidator.Validar(ie, _data.Uf) ? null : $"IE inválida para {_data.Uf}";
-    }
-
-    static string? ValidarCnae(string? cnae)
-    {
-        if (string.IsNullOrWhiteSpace(cnae)) return null;
-        return CnaeValidator.Validar(cnae) ? null : "CNAE deve ter 7 dígitos";
     }
 
     static string? ValidarEmail(string? email)

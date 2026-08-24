@@ -33,6 +33,7 @@ public class NfeDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<EventoFiscal> EventosFiscais => Set<EventoFiscal>();
     public DbSet<Ncm> Ncms => Set<Ncm>();
+    public DbSet<Cnae> Cnaes => Set<Cnae>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

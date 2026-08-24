@@ -505,6 +505,51 @@ public class NcmService : INcmService
     public Task<NcmStatusDto?> StatusAsync() => _api.GetAsync<NcmStatusDto>("api/ncm/status");
 }
 
+// === CNAE SERVICE ===
+public record CnaeDto(string Codigo, string Descricao, string? Secao, string? Divisao);
+
+public interface ICnaeService
+{
+    Task<List<CnaeDto>> BuscarAsync(string termo, int limite = 10);
+    Task<CnaeDto?> ValidarAsync(string codigo);
+}
+
+public class CnaeService : ICnaeService
+{
+    private readonly ApiClient _api;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<CnaeDto>> _cacheBusca = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CnaeDto?> _cacheValidar = new();
+
+    public CnaeService(ApiClient api) => _api = api;
+
+    public async Task<List<CnaeDto>> BuscarAsync(string termo, int limite = 10)
+    {
+        if (string.IsNullOrWhiteSpace(termo) || termo.Trim().Length < 2)
+            return new();
+
+        var chave = $"{termo.Trim().ToLowerInvariant()}|{limite}";
+        if (_cacheBusca.TryGetValue(chave, out var cached)) return cached;
+
+        var result = await _api.GetAsync<List<CnaeDto>>(
+            $"api/cnae/buscar?termo={Uri.EscapeDataString(termo)}&limite={limite}") ?? new();
+
+        _cacheBusca[chave] = result;
+        return result;
+    }
+
+    public async Task<CnaeDto?> ValidarAsync(string codigo)
+    {
+        var d = new string((codigo ?? "").Where(char.IsDigit).ToArray());
+        if (d.Length != 7) return null;
+
+        if (_cacheValidar.TryGetValue(d, out var cached)) return cached;
+
+        var result = await _api.GetAsync<CnaeDto>($"api/cnae/{d}");
+        _cacheValidar[d] = result;
+        return result;
+    }
+}
+
 // === EVENTOS FISCAIS SERVICE ===
 public interface IEventoFiscalService
 {

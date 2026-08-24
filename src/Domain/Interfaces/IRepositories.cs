@@ -90,6 +90,12 @@ public interface INcmRepository
     Task UpsertManyAsync(IEnumerable<Ncm> ncms, string versaoTabela, CancellationToken ct = default);
 }
 
+public interface ICnaeRepository
+{
+    Task<Cnae?> GetByCodigoAsync(string codigo, CancellationToken ct = default);
+    Task<IEnumerable<Cnae>> BuscarAsync(string termo, int limite, CancellationToken ct = default);
+}
+
 public interface IConfiguracaoEmpresaRepository
 {
     Task<ConfiguracaoEmpresa?> GetByEmpresaAsync(Guid empresaId, CancellationToken ct = default);
