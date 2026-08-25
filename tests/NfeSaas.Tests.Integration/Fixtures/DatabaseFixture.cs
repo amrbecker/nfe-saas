@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NfeSaas.Infrastructure.Data;
+using NfeSaas.Infrastructure.Data.Interceptors;
 using Testcontainers.PostgreSql;
 
 namespace NfeSaas.Tests.Integration.Fixtures;
@@ -38,8 +39,12 @@ public class DatabaseFixture : IAsyncLifetime
                         d => d.ServiceType == typeof(DbContextOptions<NfeDbContext>));
                     if (descriptor != null) services.Remove(descriptor);
 
+                    // Re-adiciona o FiscalImmutabilityInterceptor — sem isso, testes de
+                    // integração não exercitam a proteção de imutabilidade fiscal de verdade,
+                    // igual está registrada em DependencyInjection.cs para produção.
                     services.AddDbContext<NfeDbContext>(opts =>
-                        opts.UseNpgsql(_postgres.GetConnectionString()));
+                        opts.UseNpgsql(_postgres.GetConnectionString())
+                            .AddInterceptors(new FiscalImmutabilityInterceptor()));
                 });
             });
 

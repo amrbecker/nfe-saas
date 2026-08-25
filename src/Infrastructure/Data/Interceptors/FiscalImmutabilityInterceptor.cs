@@ -11,16 +11,27 @@ namespace NfeSaas.Infrastructure.Data.Interceptors;
 /// "imutáveis" de NotaFiscal autorizada/cancelada, mesmo que código de aplicação
 /// tente forçar (ex: bypass do domínio via reflection ou contexto compartilhado).
 ///
-/// Para Autorizada → permite apenas transição para Cancelada (Situacao + XmlCancelamento + DataCancelamento + UpdatedAt).
+/// Para Autorizada → permite transição para Cancelada (Situacao + XmlCancelamento + DataCancelamento + UpdatedAt)
+/// OU alteração de campos que não fazem parte do documento fiscal transmitido à SEFAZ
+/// (ex: EmailEnviadoEm — só controle interno de reenvio, sem manter a Situação em Autorizada).
 /// Para Cancelada → nada pode mudar.
 /// </summary>
 public class FiscalImmutabilityInterceptor : SaveChangesInterceptor
 {
-    private static readonly HashSet<string> _camposPermitidosNoCancelamento = new()
+    private static readonly HashSet<string> _camposCancelamento = new()
     {
         nameof(NotaFiscal.Situacao),
         nameof(NotaFiscal.XmlCancelamento),
         nameof(NotaFiscal.DataCancelamento),
+        nameof(BaseEntityProps.UpdatedAt),
+    };
+
+    // Campos de controle interno que podem mudar numa NFe Autorizada sem envolver
+    // cancelamento — não fazem parte do documento fiscal em si (não alteram o que foi
+    // assinado/transmitido à SEFAZ).
+    private static readonly HashSet<string> _camposPosAutorizacaoSemCancelamento = new()
+    {
+        nameof(NotaFiscal.EmailEnviadoEm),
         nameof(BaseEntityProps.UpdatedAt),
     };
 
@@ -64,24 +75,43 @@ public class FiscalImmutabilityInterceptor : SaveChangesInterceptor
                     "Documentos fiscais cancelados são imutáveis.");
             }
 
-            // Autorizada → só pode ir pra Cancelada (campos restritos)
+            // Autorizada → duas transições legítimas: virar Cancelada, ou só atualizar
+            // campos de controle interno (ex: EmailEnviadoEm) mantendo Situação = Autorizada.
             if (situacaoOriginal == SituacaoNota.Autorizada)
             {
-                var camposNaoPermitidos = camposAlterados
-                    .Where(c => !_camposPermitidosNoCancelamento.Contains(c))
-                    .ToList();
+                var situacaoAlterada = entry.Property(nameof(NotaFiscal.Situacao)).IsModified;
 
-                if (camposNaoPermitidos.Count > 0)
-                    throw new InvalidOperationException(
-                        $"Tentativa de alterar campos imutáveis de NFe autorizada " +
-                        $"(chave {entry.Entity.ChaveAcesso}): {string.Join(", ", camposNaoPermitidos)}. " +
-                        "Apenas o cancelamento (Situação + XmlCancelamento) é permitido após autorização.");
+                if (situacaoAlterada)
+                {
+                    var camposNaoPermitidos = camposAlterados
+                        .Where(c => !_camposCancelamento.Contains(c))
+                        .ToList();
 
-                var novaSituacao = (SituacaoNota)entry.Property(nameof(NotaFiscal.Situacao)).CurrentValue!;
-                if (novaSituacao != SituacaoNota.Cancelada)
-                    throw new InvalidOperationException(
-                        $"NFe autorizada (chave {entry.Entity.ChaveAcesso}) só pode transicionar para Cancelada. " +
-                        $"Tentativa: Autorizada → {novaSituacao}.");
+                    if (camposNaoPermitidos.Count > 0)
+                        throw new InvalidOperationException(
+                            $"Tentativa de alterar campos imutáveis de NFe autorizada " +
+                            $"(chave {entry.Entity.ChaveAcesso}): {string.Join(", ", camposNaoPermitidos)}. " +
+                            "Apenas o cancelamento (Situação + XmlCancelamento) é permitido após autorização.");
+
+                    var novaSituacao = (SituacaoNota)entry.Property(nameof(NotaFiscal.Situacao)).CurrentValue!;
+                    if (novaSituacao != SituacaoNota.Cancelada)
+                        throw new InvalidOperationException(
+                            $"NFe autorizada (chave {entry.Entity.ChaveAcesso}) só pode transicionar para Cancelada. " +
+                            $"Tentativa: Autorizada → {novaSituacao}.");
+                }
+                else
+                {
+                    var camposNaoPermitidos = camposAlterados
+                        .Where(c => !_camposPosAutorizacaoSemCancelamento.Contains(c))
+                        .ToList();
+
+                    if (camposNaoPermitidos.Count > 0)
+                        throw new InvalidOperationException(
+                            $"Tentativa de alterar campos imutáveis de NFe autorizada " +
+                            $"(chave {entry.Entity.ChaveAcesso}): {string.Join(", ", camposNaoPermitidos)}. " +
+                            "Apenas cancelamento ou controle interno (ex: registro de envio de e-mail) " +
+                            "são permitidos após autorização.");
+                }
             }
         }
     }
