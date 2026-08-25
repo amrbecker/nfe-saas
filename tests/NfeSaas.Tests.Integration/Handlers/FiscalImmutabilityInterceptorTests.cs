@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NfeSaas.Domain.Entities;
 using NfeSaas.Domain.Enums;
+using NfeSaas.Infrastructure.Repositories;
 using NfeSaas.Tests.Integration.Fixtures;
 
 namespace NfeSaas.Tests.Integration.Handlers;
@@ -50,6 +51,33 @@ public class FiscalImmutabilityInterceptorTests : IClassFixture<DatabaseFixture>
         var nota = await db.NotasFiscais.FirstAsync(n => n.Id == notaId);
 
         nota.RegistrarEnvioEmail();
+        var act = async () => await db.SaveChangesAsync();
+
+        await act.Should().NotThrowAsync();
+
+        await using var verifyDb = _fixture.CreateDbContext();
+        var atualizada = await verifyDb.NotasFiscais.FirstAsync(n => n.Id == notaId);
+        atualizada.EmailEnviadoEm.Should().NotBeNull();
+        atualizada.Situacao.Should().Be(SituacaoNota.Autorizada);
+    }
+
+    [Fact]
+    public async Task AtualizarEmailEnviadoEm_ViaRepositorio_NaoLancaExcecao()
+    {
+        // Reproduz o caminho real do EnviarNFePorEmailCommandHandler: busca via repositório,
+        // muda o campo pelo método de domínio, chama UpdateAsync (não db.SaveChangesAsync direto).
+        // O teste acima (sem passar pelo repositório) não pegava o bug: NotaFiscalRepository.
+        // UpdateAsync chamava _ctx.NotasFiscais.Update(nota) numa entidade já rastreada, o que
+        // marca TODAS as propriedades como IsModified=true (inclusive Situacao inalterada) e
+        // fazia o interceptor achar que era uma transição de cancelamento inválida.
+        var (_, notaId) = await SeedNotaAutorizadaAsync();
+
+        await using var db = _fixture.CreateDbContext();
+        var repo = new NotaFiscalRepository(db);
+        var nota = await repo.GetByIdAsync(notaId);
+
+        nota!.RegistrarEnvioEmail();
+        await repo.UpdateAsync(nota);
         var act = async () => await db.SaveChangesAsync();
 
         await act.Should().NotThrowAsync();

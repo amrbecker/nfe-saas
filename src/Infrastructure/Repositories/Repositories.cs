@@ -69,7 +69,10 @@ public class NotaFiscalRepository : INotaFiscalRepository
 
     public Task UpdateAsync(NotaFiscal nota, CancellationToken ct = default)
     {
-        _ctx.NotasFiscais.Update(nota);
+        // nota já é rastreada pelo DbContext (veio de GetByIdAsync no mesmo escopo) — o
+        // change tracker já detecta sozinho as alterações feitas pelos métodos de domínio.
+        // Chamar .Update() aqui força TODAS as propriedades para IsModified=true, inclusive
+        // Situacao sem ter mudado, o que disparava o FiscalImmutabilityInterceptor à toa.
         return Task.CompletedTask;
     }
 }
