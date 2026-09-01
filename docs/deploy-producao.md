@@ -156,9 +156,14 @@ cadastrados** — mesmo cuidado que o volume `dp_keys` local.
    genérico `JavaScript` (pra WebUI — o SDK client-side não depende do tipo de projeto Sentry,
    só usa o DSN).
 2. DSN da API → `Sentry__Dsn` no Render (passo 3).
-3. DSN da WebUI → edite `src/WebUI/wwwroot/appsettings.Production.json` no repo (o DSN de
-   client é público por natureza — é assim que o Sentry funciona, não precisa de secret) e
-   faça commit. Redeploy automático na Cloudflare Pages.
+3. DSN da WebUI → edite `src/WebUI/wwwroot/appsettings.Production.json` no repo e faça commit.
+   Redeploy automático na Cloudflare Pages.
+
+   O DSN de client é público por natureza — o Blazor WASM serve esse arquivo pro browser, então
+   ele é legível por qualquer visitante; não é um secret. Ainda assim, **este repositório é
+   público** e o arquivo fica versionado com o valor vazio de propósito: um DSN commitado aqui
+   permite que terceiros injetem eventos falsos e queimem a cota do projeto. Preencha no seu
+   fork/deploy, e rotacione o DSN no painel do Sentry se ele já tiver sido publicado.
 
 ## 7. Resend — necessário para o botão "Enviar por E-mail"
 

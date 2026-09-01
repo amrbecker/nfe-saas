@@ -1,0 +1,6 @@
+# Consolida as identidades usadas ao longo do histórico em uma única.
+# Afeta apenas a exibição (git log/shortlog/blame e a barra de contribuidores
+# do GitHub); os objetos de commit no histórico permanecem inalterados.
+Antonio Becker <amrbecker@hotmail.com> Antonio Marcos <amrbecker@hotmail.com>
+Antonio Becker <amrbecker@hotmail.com> Antonio Becker <antonio.becker@luby.com.br>
+Antonio Becker <amrbecker@hotmail.com> Antonio Becker <amrbecker@hotmail.com>
