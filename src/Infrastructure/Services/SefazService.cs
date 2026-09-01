@@ -12,8 +12,8 @@ using NfeSaas.Domain.Enums;
 namespace NfeSaas.Infrastructure.Services;
 
 // Endpoints e mapeamento UF -> provedor verificados em 2026-08-18 contra o Portal Nacional da
-// NFe (nfe.fazenda.gov.br), o portal da SVRS (dfe-portal.svrs.rs.gov.br) e a SEFAZ/SP — ver
-// docs/setup-mac.md não; registrado apenas aqui pois é dado operacional, não de setup de dev.
+// NFe (nfe.fazenda.gov.br), o portal da SVRS (dfe-portal.svrs.rs.gov.br) e a SEFAZ/SP.
+// A procedência fica registrada aqui, junto das URLs, por ser dado operacional.
 // Revalidar periodicamente: URLs de webservices de governo mudam sem aviso prévio ao contribuinte.
 public class SefazService : ISefazService
 {
