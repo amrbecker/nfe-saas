@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@using NfeSaas.WebUI.Theme
 @inject IAuthService AuthService
 @inject IEscritorioService EscritorioService
 @inject IPersonalizacaoService Personalizacao
@@ -6,17 +7,25 @@
 @inject ILocalStorageService Storage
 @inject AuthenticationStateProvider AuthStateProvider
 
-<MudThemeProvider Theme="_theme" />
+<MudThemeProvider Theme="NfeFlowTheme.Instance" @bind-IsDarkMode="_isDarkMode" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <AuthorizeView>
     <Authorized>
         <MudLayout>
-            <MudAppBar Elevation="1" Color="Color.Primary">
+            <MudAppBar Elevation="1">
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
                                OnClick="@ToggleDrawer" />
-                <MudText Typo="Typo.h6" Class="ml-3">🧾 NfeSaas</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ml-3">
+                    <svg width="26" height="26" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect width="64" height="64" rx="14" fill="rgba(255,255,255,0.12)"/>
+                        <polygon points="18,14 30,14 46,50 34,50" fill="#C08A2E"/>
+                        <rect x="18" y="14" width="8" height="36" fill="#FFFFFF"/>
+                        <rect x="38" y="14" width="8" height="36" fill="#FFFFFF"/>
+                    </svg>
+                    <MudText Typo="Typo.h6" Class="nfeflow-wordmark">NFeFlow</MudText>
+                </MudStack>
                 <MudSpacer />
                 @if (_empresaSelecionada != null)
                 {
@@ -52,6 +61,10 @@
                         }
                     </div>
                 }
+                <MudTooltip Text="@(_isDarkMode ? "Tema claro" : "Tema escuro")">
+                    <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                                   Color="Color.Inherit" OnClick="ToggleTema" />
+                </MudTooltip>
                 <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="Logout" Title="Sair" />
             </MudAppBar>
 
@@ -94,7 +107,7 @@
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <Authorized>
                             <MudDivider />
-                            <MudText Typo="Typo.overline" Class="px-4 pt-2 pb-1" Style="color:#888;font-size:10px">ADMINISTRAÇÃO</MudText>
+                            <MudText Typo="Typo.overline" Class="px-4 pt-2 pb-1" Style="color:var(--mud-palette-text-secondary);font-size:10px">ADMINISTRAÇÃO</MudText>
                             <MudNavLink Href="/empresas" Icon="@Icons.Material.Filled.Apartment">Empresas Clientes</MudNavLink>
                             <MudNavLink Href="/usuarios" Icon="@Icons.Material.Filled.People">Usuários</MudNavLink>
                         </Authorized>
@@ -104,7 +117,9 @@
 
             <MudMainContent>
                 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-4">
-                    @Body
+                    <div class="nfeflow-route-transition" @key="Nav.Uri">
+                        @Body
+                    </div>
                 </MudContainer>
             </MudMainContent>
         </MudLayout>
@@ -116,6 +131,7 @@
 
 @code {
     private bool _drawerOpen = true;
+    private bool _isDarkMode;
     private List<EmpresaResumoDto>? _empresas;
     private Guid _empresaIdSelecionada;
     private EmpresaResumoDto? _empresaSelecionada;
@@ -124,19 +140,10 @@
     string NomeExibicao(EmpresaResumoDto? e) =>
         string.IsNullOrWhiteSpace(e?.NomeFantasia) ? e?.RazaoSocial ?? "" : e.NomeFantasia;
 
-    private readonly MudTheme _theme = new()
-    {
-        Palette = new Palette
-        {
-            Primary = "#1565C0",
-            Secondary = "#00897B",
-            AppbarBackground = "#1565C0",
-            Background = "#F5F5F5"
-        }
-    };
-
     protected override async Task OnInitializedAsync()
     {
+        _isDarkMode = await Storage.GetItemAsync<bool?>("tema_escuro") ?? false;
+
         _empresas = await EscritorioService.GetEmpresasAsync();
         var empresaIdStr = await Storage.GetItemAsStringAsync("empresa_id");
         if (Guid.TryParse(empresaIdStr, out var eid))
@@ -148,6 +155,12 @@
     }
 
     void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    async Task ToggleTema()
+    {
+        _isDarkMode = !_isDarkMode;
+        await Storage.SetItemAsync("tema_escuro", _isDarkMode);
+    }
 
     async Task TrocarEmpresa(Guid empresaId)
     {

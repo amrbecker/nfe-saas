@@ -3,30 +3,34 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NfeSaas — Emissão de NF-e/NFC-e</title>
+    <title>NFeFlow — Emissão de NF-e/NFC-e</title>
     <base href="/" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600&family=Public+Sans:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="stylesheet" href="css/nfeflow-theme.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <style>
         html, body { height: 100%; margin: 0; padding: 0; }
         #app { height: 100%; }
         .loading-overlay {
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; height: 100vh;
-            background: linear-gradient(135deg, #1565C0 0%, #0D47A1 60%, #00897B 100%);
-            color: white; font-family: Roboto, sans-serif;
+            background: linear-gradient(160deg, #132A52 0%, #0D1B36 65%, #0F6E5E 130%);
+            color: #F5F6FA; font-family: "Public Sans", -apple-system, "Segoe UI", sans-serif;
         }
-        .loading-logo { font-size: 3rem; margin-bottom: 1rem; }
-        .loading-title { font-size: 1.8rem; font-weight: 300; margin-bottom: 0.5rem; }
-        .loading-sub { font-size: 0.9rem; opacity: 0.8; margin-bottom: 2rem; }
+        .loading-logo { width: 56px; height: 56px; margin-bottom: 1.25rem; }
+        .loading-title {
+            font-family: Newsreader, Georgia, serif; font-size: 2rem; font-weight: 600;
+            letter-spacing: .01em; margin-bottom: 0.4rem;
+        }
+        .loading-sub { font-size: 0.9rem; opacity: 0.75; margin-bottom: 2rem; }
         .loading-spinner {
-            width: 40px; height: 40px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: white;
+            width: 32px; height: 32px;
+            border: 3px solid rgba(245,246,250,0.25);
+            border-top-color: #C08A2E;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 0.9s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
@@ -34,9 +38,14 @@
 <body>
     <div id="app">
         <div class="loading-overlay">
-            <div class="loading-logo">🧾</div>
-            <div class="loading-title">NfeSaas</div>
-            <div class="loading-sub">Sistema de Emissão Fiscal</div>
+            <svg class="loading-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <rect width="64" height="64" rx="14" fill="#0D1B36"/>
+                <polygon points="18,14 30,14 46,50 34,50" fill="#C08A2E"/>
+                <rect x="18" y="14" width="8" height="36" fill="#F5F6FA"/>
+                <rect x="38" y="14" width="8" height="36" fill="#F5F6FA"/>
+            </svg>
+            <div class="loading-title">NFeFlow</div>
+            <div class="loading-sub">Emissão fiscal para escritórios contábeis</div>
             <div class="loading-spinner"></div>
         </div>
     </div>

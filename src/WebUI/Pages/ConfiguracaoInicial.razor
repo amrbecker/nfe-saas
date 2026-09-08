@@ -7,7 +7,7 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<PageTitle>Configuração Inicial - NfeSaas</PageTitle>
+<PageTitle>Configuração Inicial - NFeFlow</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="pa-2 pa-sm-4">
     <MudText Typo="Typo.h5" Class="mb-2">Configuração Inicial</MudText>
@@ -74,10 +74,10 @@
                         var ativo = selecionado == opt.Valor;
                         var corBorda = opt.Cor switch
                         {
-                            Color.Success => "#43a047",
-                            Color.Warning => "#fb8c00",
-                            Color.Error   => "#e53935",
-                            _ => "#1565C0"
+                            Color.Success => "var(--mud-palette-success)",
+                            Color.Warning => "var(--mud-palette-warning)",
+                            Color.Error   => "var(--mud-palette-error)",
+                            _ => "var(--mud-palette-primary)"
                         };
                         var capturedValor = opt.Valor;
                         var capturedPasso = passoCorrente;
@@ -85,7 +85,7 @@
                         <MudPaper Elevation="@(ativo ? 4 : 0)"
                                   Outlined="@(!ativo)"
                                   Class="pa-3 opcao-card"
-                                  Style="@($"cursor:pointer; transition:all .15s; {(ativo ? $"border:2px solid {corBorda}; background:rgba(21,101,192,0.04)" : "border:1px solid rgba(0,0,0,0.12)")}")"
+                                  Style="@($"cursor:pointer; transition:all .15s; {(ativo ? $"border:2px solid {corBorda}; background:rgba(36,84,160,0.06)" : "border:1px solid rgba(0,0,0,0.12)")}")"
                                   @onclick="@(() => DefinirResposta(capturedPasso, capturedValor))">
                             <div style="display:flex; align-items:center; gap:14px">
                                 <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@opt.Cor" Size="Size.Medium" />

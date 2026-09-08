@@ -1,9 +1,12 @@
 @inherits LayoutComponentBase
+@using NfeSaas.WebUI.Theme
 
-<MudThemeProvider />
+<MudThemeProvider Theme="NfeFlowTheme.Instance" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 50%, #00897B 100%); min-height: 100vh;">
-    @Body
+<div style="background: linear-gradient(160deg, #132A52 0%, #0D1B36 60%, #0F6E5E 130%); min-height: 100vh; display:flex; align-items:safe center; padding: 2rem 0;">
+    <div class="nfeflow-route-transition" style="width:100%">
+        @Body
+    </div>
 </div>

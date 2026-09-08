@@ -5,9 +5,10 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<PageTitle>Dashboard - NfeSaas</PageTitle>
+<PageTitle>Dashboard - NFeFlow</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Dashboard</MudText>
+<MudText Typo="Typo.h3" Class="mb-1">Painel</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Visão geral da empresa selecionada</MudText>
 
 @if (_loading)
 {
@@ -16,7 +17,7 @@
 else if (!_temEmpresa)
 {
     <MudAlert Severity="Severity.Info" Class="mb-4">
-        <MudText Typo="Typo.subtitle1"><b>Bem-vindo ao NfeSaas!</b></MudText>
+        <MudText Typo="Typo.subtitle1"><b>Bem-vindo ao NFeFlow!</b></MudText>
         <MudText Typo="Typo.body2">
             Para começar a usar o sistema, cadastre sua primeira empresa cliente.
         </MudText>
@@ -41,7 +42,7 @@ else if (_dashboard != null)
             <MudCard Elevation="2">
                 <MudCardContent>
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Faturamento do Mês</MudText>
-                    <MudText Typo="Typo.h5" Color="Color.Primary">R$ @_dashboard.TotalEmitidoMes.ToString("N2")</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Primary" Class="nfeflow-num">R$ @_dashboard.TotalEmitidoMes.ToString("N2")</MudText>
                 </MudCardContent>
             </MudCard>
         </MudItem>
@@ -85,11 +86,11 @@ else if (_dashboard != null)
                 <MudTh>Situação</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd>@context.Serie.ToString("D3")-@context.Numero.ToString("D9")</MudTd>
+                <MudTd Class="nfeflow-num">@context.Serie.ToString("D3")-@context.Numero.ToString("D9")</MudTd>
                 <MudTd><MudChip Size="Size.Small" Color="@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? Color.Info : Color.Secondary)">@(context.Tipo == NfeSaas.Domain.Enums.TipoNota.NFe ? "NF-e" : "NFC-e")</MudChip></MudTd>
                 <MudTd>@(context.DestinatarioRazaoSocial ?? "Consumidor Final")</MudTd>
-                <MudTd>R$ @context.TotalNota.ToString("N2")</MudTd>
-                <MudTd>@context.DataEmissao.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd Class="nfeflow-num">R$ @context.TotalNota.ToString("N2")</MudTd>
+                <MudTd Class="nfeflow-num">@context.DataEmissao.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>
                     <MudChip Size="Size.Small" Color="@GetCorSituacao(context.Situacao)">
                         @NomeSituacao(context.Situacao)
