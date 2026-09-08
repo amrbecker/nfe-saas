@@ -404,6 +404,10 @@
     private string _infoAdicionais = "";
     private bool _emitindo;
     private string? _erroEmissao;
+    // Estável por tentativa de emissão — só muda quando o servidor responde de forma definitiva
+    // (sucesso ou rejeição) ou quando a página é recarregada. Protege contra nota duplicada em
+    // caso de retry após falha de comunicação (ver EmitirNota()).
+    private string _idempotencyKey = Guid.NewGuid().ToString();
 
     // Itens
     private List<ItemForm> _itens = new();
@@ -597,7 +601,8 @@
                         !_isSimples && i.AliquotaCbs > 0 ? i.AliquotaCbs : null))).ToList(),
                 new NfeSaas.Application.DTOs.TransporteDto(_modalidadeFrete, null, null, _valorFrete, _valorSeguro),
                 new NfeSaas.Application.DTOs.PagamentoDto(_formaPagamento, totalNota),
-                _infoAdicionais);
+                _infoAdicionais,
+                _idempotencyKey);
 
             var result = await NotaService.EmitirAsync(dto);
             if (result?.Sucesso == true)
@@ -605,10 +610,12 @@
                 Snackbar.Add($"NF-e autorizada! Chave: {result.ChaveAcesso?[..8]}...", Severity.Success);
                 Nav.NavigateTo("/notas");
             }
-            else
+            else if (result != null)
             {
-                _erroEmissao = result?.MensagemErro
-                    ?? "Não foi possível contatar a API para emitir a nota. Verifique sua conexão e tente novamente.";
+                // Resposta definitiva do servidor (ex.: rejeição da SEFAZ) — a próxima tentativa,
+                // depois de o usuário corrigir algo, é uma emissão nova, não um retry.
+                _idempotencyKey = Guid.NewGuid().ToString();
+                _erroEmissao = result.MensagemErro ?? "Não foi possível emitir a nota.";
                 Snackbar.Add(_erroEmissao, Severity.Error, cfg =>
                 {
                     cfg.VisibleStateDuration = 10000;
@@ -619,8 +626,16 @@
         }
         catch (Exception ex)
         {
-            _erroEmissao = $"Erro inesperado ao emitir: {ex.Message}";
-            Snackbar.Add(_erroEmissao, Severity.Error);
+            // Sem resposta definitiva do servidor (timeout, conexão caiu) — mantém a mesma
+            // IdempotencyKey: se a nota já tiver sido processada do outro lado, o retry não duplica.
+            _erroEmissao = $"Não foi possível confirmar se a nota foi emitida (falha de comunicação: {ex.Message}). " +
+                "Tentar novamente é seguro — não vai duplicar a nota.";
+            Snackbar.Add(_erroEmissao, Severity.Error, cfg =>
+            {
+                cfg.VisibleStateDuration = 10000;
+                cfg.HideTransitionDuration = 500;
+                cfg.ShowCloseIcon = true;
+            });
         }
         finally
         {

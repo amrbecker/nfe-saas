@@ -8,6 +8,7 @@ public interface INotaFiscalRepository
     Task<NotaFiscal?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<NotaFiscal?> GetByChaveAcessoAsync(string chaveAcesso, CancellationToken ct = default);
     Task<NotaFiscal?> GetBySerieNumeroAsync(Guid empresaId, TipoNota tipo, int serie, int numero, AmbienteSefaz ambiente, CancellationToken ct = default);
+    Task<NotaFiscal?> GetByIdempotencyKeyAsync(Guid empresaId, string idempotencyKey, CancellationToken ct = default);
     Task<IEnumerable<NotaFiscal>> GetByEmpresaAsync(Guid empresaId, int pagina, int tamanhoPagina, CancellationToken ct = default);
     Task<int> CountByEmpresaAsync(Guid empresaId, CancellationToken ct = default);
     Task<IEnumerable<NotaFiscal>> GetByPeriodoAsync(Guid empresaId, DateTime inicio, DateTime fim, CancellationToken ct = default);

@@ -15,10 +15,11 @@ public class CancelarNFeHandlerTests
     private readonly Mock<IEmpresaRepository> _empresaRepo = new();
     private readonly Mock<ISefazService> _sefaz = new();
     private readonly Mock<IXmlNFeService> _xml = new();
+    private readonly Mock<IAuditService> _auditService = new();
     private readonly Mock<IUnitOfWork> _uow = new();
 
     private CancelarNFeCommandHandler Handler() => new(
-        _notaRepo.Object, _empresaRepo.Object, _sefaz.Object, _xml.Object, _uow.Object,
+        _notaRepo.Object, _empresaRepo.Object, _sefaz.Object, _xml.Object, _auditService.Object, _uow.Object,
         NullLogger<CancelarNFeCommandHandler>.Instance);
 
     private static NotaFiscal CriarNotaAutorizada()

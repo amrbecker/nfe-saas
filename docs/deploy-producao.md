@@ -58,6 +58,21 @@ captura como log da plataforma.
    Host=<seu-endpoint>.neon.tech;Database=nfesaas;Username=<usuario>;Password=<senha>;SSL Mode=Require;Trust Server Certificate=true
    ```
    Guarde essa string — vai para `ConnectionStrings__DefaultConnection` no Render (passo 3).
+4. **Backup / PITR (point-in-time recovery)** — confirme no dashboard Neon (**Settings → Backup**
+   no projeto) a janela de retenção do plano atual. No free tier a Neon mantém PITR por um período
+   curto (poucos dias) automaticamente, sem configuração adicional — mas **isso não foi testado**
+   neste projeto e não deve ser assumido como suficiente sem verificar. Notas fiscais têm retenção
+   legal obrigatória de 5 anos (`NotaFiscal.AnosRetencaoFiscal`) — perder o banco é perda de dado
+   com obrigação legal de guarda, não só inconveniência operacional. Antes de aceitar clientes reais:
+   - Confirme a janela de retenção exata do plano contratado.
+   - Faça um teste de restore uma vez (branch de restore na Neon a partir de um ponto no passado)
+     e documente que funcionou, com data.
+   - Se o plano free não for suficiente, considere um `pg_dump` agendado (cron externo, ex. GitHub
+     Actions com schedule) como camada adicional independente da plataforma.
+   - Migrations rodam automaticamente no boot em produção (`Database__MigrateOnStartup=true`,
+     `render.yaml`) — sem snapshot manual prévio. Antes de um deploy com migration destrutiva
+     (`DropColumn`/`DropTable`), tire um snapshot manual (Neon → branch a partir do momento atual)
+     como precaução extra.
 
 ## 2. Cloudflare — DNS
 
@@ -176,6 +191,36 @@ envio automático após autorização. Sem configurar isso, o botão sempre reto
    `sideral.app.br` ou um subdomínio lá antes de usar).
 2. Testar: autorizar uma NF-e em homologação, abrir a nota na WebUI, clicar "Enviar por E-mail".
 
+## 8. Alertas no Sentry (não é código — configurar no dashboard)
+
+Sentry captura exceções e 10% das transações (`TracesSampleRate = 0.1` em `Program.cs`), mas isso
+sozinho não avisa ninguém — sem alerta configurado, um erro em produção só é descoberto se alguém
+for olhar o dashboard manualmente. Configure em **Sentry → Alerts** (por projeto, API e WebUI):
+- Taxa de erro acima de um limite (ex.: > 5% das transações num período de 5-10 min).
+- Um erro novo (nunca visto antes) — sinaliza regressão logo após deploy.
+- Latência p95 acima de ~1s (usa a amostra de 10% do tracing).
+Aponte os alertas para um canal que alguém de fato monitore (e-mail, Slack). Documente aqui a data
+em que os alertas foram configurados, para não ficar assumido silenciosamente que "alguém já fez isso".
+
+## 9. Rollback — procedimento
+
+**Rollback de deploy (código):** tanto Render quanto Cloudflare Pages guardam o histórico de builds
+e permitem reverter para um deploy anterior pelo próprio dashboard (Render → Deploys → "..." →
+Rollback; Cloudflare Pages → Deployments → "..." → Rollback to this deployment). Não depende de
+git revert nem de reconstruir nada — é a via mais rápida para reverter um deploy ruim.
+
+**Rollback de migration (banco):** mais delicado, porque `Database__MigrateOnStartup=true` aplica
+migrations automaticamente no boot — revertê-las não é automático.
+1. Gere o script de reversão localmente: `dotnet ef migrations script <MigrationAnterior> <MigrationAtual> --project src/Infrastructure --startup-project src/API` (a ordem inverte o `Up`, usando o `Down()` de cada migration — confirme que o `Down()` existe e faz sentido antes de aplicar).
+2. Rode esse script direto contra o Neon (via `psql` com a connection string de produção) **antes**
+   de fazer o rollback do deploy de código — código antigo não espera colunas/tabelas novas.
+3. Se a migration já rodou e causou perda de dados (ex.: um `DropColumn` que não devia ter rodado),
+   pare aqui e recorra ao backup/PITR (seção 1, item 4) em vez de tentar reconstruir manualmente.
+
+Nenhum destes dois procedimentos foi testado em produção neste projeto até o momento — antes de
+depender deles num incidente real, execute um simulacro controlado (ex.: em homologação) pelo menos
+uma vez.
+
 ## Checklist antes de dar acesso ao escritório piloto
 
 - [ ] `https://api.nfe.sideral.app.br/health` responde `Healthy`
@@ -189,3 +234,6 @@ envio automático após autorização. Sem configurar isso, o botão sempre reto
 - [ ] Primeira emissão de teste em Produção acompanhada manualmente, e o primeiro
       cancelamento cruzado com a consulta pública do portal da SEFAZ (ver ressalva na revisão
       de produção: não há como testar contra o webservice real sem um cliente de verdade)
+- [ ] Janela de PITR do Neon confirmada e teste de restore feito pelo menos uma vez (seção 1, item 4)
+- [ ] Alertas do Sentry configurados (taxa de erro, erro novo, latência) — seção 8
+- [ ] Rollback de deploy testado uma vez em homologação (seção 9)

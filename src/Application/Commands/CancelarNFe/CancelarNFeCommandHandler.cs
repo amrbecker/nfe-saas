@@ -5,7 +5,11 @@ using Microsoft.Extensions.Logging;
 
 namespace NfeSaas.Application.Commands.CancelarNFe;
 
-public record CancelarNFeCommand(Guid NotaFiscalId, Guid EmpresaId, string Justificativa) : IRequest<CancelarNFeResult>;
+// UsuarioId é opcional (default) para não quebrar chamadores/testes existentes que ainda
+// não repassam o usuário autenticado — quando ausente (Guid.Empty), a auditoria não associa
+// um usuário específico ao evento.
+public record CancelarNFeCommand(Guid NotaFiscalId, Guid EmpresaId, string Justificativa, Guid UsuarioId = default)
+    : IRequest<CancelarNFeResult>;
 public record CancelarNFeResult(bool Sucesso, string? MensagemErro);
 
 public class CancelarNFeCommandHandler : IRequestHandler<CancelarNFeCommand, CancelarNFeResult>
@@ -14,18 +18,20 @@ public class CancelarNFeCommandHandler : IRequestHandler<CancelarNFeCommand, Can
     private readonly IEmpresaRepository _empresaRepo;
     private readonly ISefazService _sefaz;
     private readonly IXmlNFeService _xmlService;
+    private readonly IAuditService _auditService;
     private readonly IUnitOfWork _uow;
     private readonly ILogger<CancelarNFeCommandHandler> _logger;
 
     public CancelarNFeCommandHandler(
         INotaFiscalRepository notaRepo, IEmpresaRepository empresaRepo,
         ISefazService sefaz, IXmlNFeService xmlService,
-        IUnitOfWork uow, ILogger<CancelarNFeCommandHandler> logger)
+        IAuditService auditService, IUnitOfWork uow, ILogger<CancelarNFeCommandHandler> logger)
     {
         _notaRepo = notaRepo;
         _empresaRepo = empresaRepo;
         _sefaz = sefaz;
         _xmlService = xmlService;
+        _auditService = auditService;
         _uow = uow;
         _logger = logger;
     }
@@ -69,6 +75,13 @@ public class CancelarNFeCommandHandler : IRequestHandler<CancelarNFeCommand, Can
             await _uow.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("NF-e {Chave} cancelada com sucesso.", nota.ChaveAcesso);
         }
+
+        var usuarioAuditoria = request.UsuarioId == Guid.Empty ? (Guid?)null : request.UsuarioId;
+        await _auditService.RegistrarAsync(empresa.Id,
+            resultado.Sucesso ? "NFe.Cancelada" : "NFe.CancelamentoRejeitado",
+            usuarioAuditoria, nota.ChaveAcesso,
+            resultado.Sucesso ? $"Justificativa: {justificativa}" : $"Rejeitado: {resultado.MensagemErro}",
+            ct: cancellationToken);
 
         return new CancelarNFeResult(resultado.Sucesso, resultado.MensagemErro);
     }

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using NfeSaas.Application.Commands.EscritorioCommands;
 using NfeSaas.Application.DTOs;
+using NfeSaas.Application.Interfaces;
 using NfeSaas.Domain.Entities;
 using NfeSaas.Domain.Enums;
 using NfeSaas.Domain.Interfaces;
@@ -13,6 +14,7 @@ public class EscritorioHandlersTests
     private readonly Mock<IEscritorioRepository> _escritorioRepo = new();
     private readonly Mock<IEmpresaRepository> _empresaRepo = new();
     private readonly Mock<IUsuarioRepository> _usuarioRepo = new();
+    private readonly Mock<IAuditService> _auditService = new();
     private readonly Mock<IUnitOfWork> _uow = new();
 
     // ==========================================================
@@ -379,7 +381,7 @@ public class EscritorioHandlersTests
     // CreateUsuarioCommand
     // ==========================================================
     private CreateUsuarioCommandHandler CreateUsuarioH() =>
-        new(_usuarioRepo.Object, _escritorioRepo.Object, _uow.Object);
+        new(_usuarioRepo.Object, _escritorioRepo.Object, _auditService.Object, _uow.Object);
 
     [Fact]
     public async Task CreateUsuario_EscritorioNaoExiste_RetornaNull()
@@ -428,7 +430,7 @@ public class EscritorioHandlersTests
     // UpdateUsuarioCommand
     // ==========================================================
     private UpdateUsuarioCommandHandler UpdateUsuarioH() =>
-        new(_usuarioRepo.Object, _uow.Object);
+        new(_usuarioRepo.Object, _auditService.Object, _uow.Object);
 
     [Fact]
     public async Task UpdateUsuario_NaoExiste_RetornaNull()
@@ -474,7 +476,7 @@ public class EscritorioHandlersTests
     // ==========================================================
     // ToggleAtivoUsuarioCommand
     // ==========================================================
-    private ToggleAtivoUsuarioCommandHandler ToggleH() => new(_usuarioRepo.Object, _uow.Object);
+    private ToggleAtivoUsuarioCommandHandler ToggleH() => new(_usuarioRepo.Object, _auditService.Object, _uow.Object);
 
     [Fact]
     public async Task ToggleAtivoUsuario_AtivoParaInativo_DesativaUsuario()
@@ -507,7 +509,7 @@ public class EscritorioHandlersTests
     // ==========================================================
     // DeleteUsuarioCommand
     // ==========================================================
-    private DeleteUsuarioCommandHandler DeleteH() => new(_usuarioRepo.Object, _uow.Object);
+    private DeleteUsuarioCommandHandler DeleteH() => new(_usuarioRepo.Object, _auditService.Object, _uow.Object);
 
     [Fact]
     public async Task DeleteUsuario_NaoExiste_RetornaFalse()

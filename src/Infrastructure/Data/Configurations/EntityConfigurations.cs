@@ -83,6 +83,13 @@ public class NotaFiscalConfiguration : IEntityTypeConfiguration<NotaFiscal>
         builder.HasIndex(n => new { n.EmpresaId, n.Tipo, n.Serie, n.Numero, n.Ambiente })
                .IsUnique()
                .HasDatabaseName("ix_notas_fiscais_dedup");
+        builder.Property(n => n.IdempotencyKey).HasMaxLength(100);
+        // Índice parcial: só notas com IdempotencyKey preenchida entram na checagem de unicidade —
+        // notas antigas (sem a proteção) e chamadores que não enviam a chave continuam livres.
+        builder.HasIndex(n => new { n.EmpresaId, n.IdempotencyKey })
+               .IsUnique()
+               .HasFilter("\"IdempotencyKey\" IS NOT NULL")
+               .HasDatabaseName("ix_notas_fiscais_idempotency_key");
         builder.Property(n => n.Protocolo).HasMaxLength(50);
         builder.Property(n => n.DestinatarioCpfCnpj).HasMaxLength(14);
         builder.Property(n => n.DestinatarioRazaoSocial).HasMaxLength(150);

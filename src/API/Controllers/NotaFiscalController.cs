@@ -42,7 +42,7 @@ public class NotaFiscalController : BaseApiController
     [HttpPost("{id:guid}/cancelar")]
     public async Task<IActionResult> Cancelar(Guid id, [FromBody] CancelarRequest req)
     {
-        var result = await Mediator.Send(new CancelarNFeCommand(id, EmpresaId, req.Justificativa));
+        var result = await Mediator.Send(new CancelarNFeCommand(id, EmpresaId, req.Justificativa, UserId));
         if (!result.Sucesso)
             return BadRequest(new { message = result.MensagemErro });
         return Ok(new { message = "Nota cancelada com sucesso." });

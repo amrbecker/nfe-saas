@@ -8,6 +8,10 @@ using Microsoft.Extensions.Logging;
 using NfeSaas.Application.Interfaces;
 using NfeSaas.Domain.Entities;
 using NfeSaas.Domain.Enums;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
+using Polly.Wrap;
 
 namespace NfeSaas.Infrastructure.Services;
 
@@ -127,6 +131,69 @@ public class SefazService : ISefazService
     // (continha CE/PA/PI/RN/RS, que na verdade usam SVC-AN, e não tinha PR).
     private static readonly HashSet<string> _estadosSvcRs = ["AM", "BA", "GO", "MA", "MS", "MT", "PE", "PR"];
 
+    // ---- Resiliência (retry + circuit breaker) das chamadas HTTP à SEFAZ --------------------
+    //
+    // SefazService é registrado como Scoped (uma instância nova por requisição HTTP da API), mas
+    // o circuit breaker só cumpre seu papel — parar de bombardear uma SEFAZ fora do ar — se o
+    // estado de "circuito aberto" sobreviver entre requisições. Por isso é `static`: compartilhado
+    // por todas as instâncias/threads do processo. Cada (Servico) teria idealmente seu próprio
+    // circuito, mas como cada chamada de autorização/evento/inutilização já usa uma URL diferente
+    // e o volume é baixo, um único circuito para todas as chamadas à SEFAZ é suficiente e mais
+    // simples — evita popular um dicionário de circuitos por serviço/UF sem necessidade real.
+    //
+    // Abre após 5 falhas consecutivas (timeout, erro de conexão ou 5xx); fica meio-aberto após
+    // 30s deixando uma chamada de teste passar — se ela suceder o circuito fecha, se falhar volta
+    // a abrir por mais 30s.
+    private static readonly AsyncCircuitBreakerPolicy<HttpResponseMessage> _circuitBreaker =
+        Policy<HttpResponseMessage>
+            .Handle<HttpRequestException>()
+            .Or<TaskCanceledException>()
+            .OrResult(r => (int)r.StatusCode >= 500)
+            .CircuitBreakerAsync(
+                handledEventsAllowedBeforeBreaking: 5,
+                durationOfBreak: TimeSpan.FromSeconds(30));
+
+    /// <summary>
+    /// Monta a política de resiliência (retry com backoff exponencial envolvendo o circuit
+    /// breaker compartilhado) para uma única chamada HTTP contra UMA URL da SEFAZ.
+    ///
+    /// Importante: isto NÃO trata como falha uma resposta HTTP 2xx contendo XML de rejeição de
+    /// negócio da SEFAZ (ex.: nota rejeitada por erro de preenchimento) — isso é uma resposta
+    /// válida do webservice, não uma falha transiente, e é tratada depois pelos
+    /// Parsear*() correspondentes. O predicado abaixo só olha StatusCode/exceções de rede.
+    ///
+    /// O failover de URL primária → contingência (SVC-AN/SVC-RS) continua em EnviarNFeAsync,
+    /// como uma camada acima desta: cada tentativa de failover chama TentarEnvioAsync, que por
+    /// sua vez já embute 3 tentativas de retry contra a URL escolhida antes de desistir dela.
+    /// </summary>
+    private IAsyncPolicy<HttpResponseMessage> CriarPoliticaResiliencia(CancellationToken ct)
+    {
+        var retry = Policy<HttpResponseMessage>
+            .Handle<HttpRequestException>()
+            // Não faz sentido retentar se foi o próprio caller (ct) que cancelou a requisição —
+            // só timeout do HttpClient (que também lança TaskCanceledException) deve ser retentado.
+            .Or<TaskCanceledException>(_ => !ct.IsCancellationRequested)
+            .OrResult(r => (int)r.StatusCode >= 500)
+            .WaitAndRetryAsync(
+                retryCount: 3,
+                sleepDurationProvider: tentativa => TimeSpan.FromSeconds(Math.Pow(2, tentativa)),
+                onRetry: (outcome, delay, tentativa, _) =>
+                {
+                    outcome.Result?.Dispose();
+                    var motivo = outcome.Exception?.Message
+                        ?? $"HTTP {(int?)outcome.Result?.StatusCode}";
+                    _logger.LogWarning(
+                        "Tentativa {Tentativa}/3 falhou ao chamar a SEFAZ ({Motivo}). Nova tentativa em {Delay}s.",
+                        tentativa, motivo, delay.TotalSeconds);
+                });
+
+        // Retry (externo) envolvendo circuit breaker (interno, compartilhado): cada tentativa de
+        // retry passa pelo circuito. Se o circuito estiver aberto, a chamada lança
+        // BrokenCircuitException — exceção que o retry acima não trata — então a política para
+        // imediatamente em vez de gastar as 3 tentativas contra um serviço já sabidamente fora do ar.
+        return Policy.WrapAsync(retry, _circuitBreaker);
+    }
+
     public SefazService(ILogger<SefazService> logger, IHttpClientFactory httpFactory, IConfiguration config)
     {
         _logger = logger;
@@ -174,10 +241,17 @@ public class SefazService : ISefazService
             var content = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote");
 
-            var response = await client.PostAsync(url, content, ct);
+            using var response = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => client.PostAsync(url, content, ct));
             var responseXml = await response.Content.ReadAsStringAsync(ct);
 
             return ParsearRetornoAutorizacao(responseXml);
+        }
+        catch (BrokenCircuitException)
+        {
+            _logger.LogWarning("Circuito aberto para SEFAZ na URL {Url} — chamada bloqueada após falhas consecutivas.", url);
+            return new SefazResultado(false, null, null, null,
+                "SEFAZ temporariamente indisponível (circuito aberto após falhas consecutivas).", -2);
         }
         catch (TaskCanceledException)
         {
@@ -227,10 +301,16 @@ public class SefazService : ISefazService
             var content = new StringContent(envelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF");
 
-            var response = await client.PostAsync(url, content, ct);
+            using var response = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => client.PostAsync(url, content, ct));
             var xml = await response.Content.ReadAsStringAsync(ct);
 
             return ParsearConsultaProtocolo(xml);
+        }
+        catch (BrokenCircuitException)
+        {
+            _logger.LogWarning("Circuito aberto para SEFAZ — consulta da chave {Chave} bloqueada após falhas consecutivas.", chaveAcesso);
+            return new SefazConsultaResultado(false, null, null, null, null);
         }
         catch (Exception ex)
         {
@@ -287,7 +367,9 @@ public class SefazService : ISefazService
 
             using var client = CriarHttpClientComCertificado(empresa, timeoutSeconds: 10);
             var url = ObterUrl(empresa.Uf, empresa.AmbienteSefaz, Servico.Autorizacao);
-            var response = await client.GetAsync(url, ct);
+            // Consulta de "está no ar?" não precisa de retry/circuit breaker: é ela própria a
+            // sondagem, uma falha aqui já é a resposta (false) que o chamador está pedindo.
+            using var response = await client.GetAsync(url, ct);
             return response.IsSuccessStatusCode;
         }
         catch
@@ -327,10 +409,17 @@ public class SefazService : ISefazService
             var content = new StringContent(envelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento");
 
-            var response = await client.PostAsync(url, content, ct);
+            using var response = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => client.PostAsync(url, content, ct));
             var xml = await response.Content.ReadAsStringAsync(ct);
 
             return ParsearRetornoEvento(xml);
+        }
+        catch (BrokenCircuitException)
+        {
+            _logger.LogWarning("Circuito aberto para SEFAZ — evento bloqueado após falhas consecutivas ({Contexto}).", contexto);
+            return new SefazResultado(false, null, null, null,
+                "SEFAZ temporariamente indisponível (circuito aberto após falhas consecutivas).", -2);
         }
         catch (TaskCanceledException)
         {
@@ -410,10 +499,17 @@ public class SefazService : ISefazService
             var content = new StringContent(envelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF");
 
-            var response = await client.PostAsync(url, content, ct);
+            using var response = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => client.PostAsync(url, content, ct));
             var xml = await response.Content.ReadAsStringAsync(ct);
 
             return ParsearRetornoInutilizacao(xml);
+        }
+        catch (BrokenCircuitException)
+        {
+            _logger.LogWarning("Circuito aberto para SEFAZ — inutilização bloqueada após falhas consecutivas.");
+            return new SefazResultado(false, null, null, null,
+                "SEFAZ temporariamente indisponível (circuito aberto após falhas consecutivas).", -2);
         }
         catch (TaskCanceledException)
         {

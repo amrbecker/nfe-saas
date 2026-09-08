@@ -46,6 +46,21 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
 
     public async Task<EmitirNFeResult> Handle(EmitirNFeCommand request, CancellationToken cancellationToken)
     {
+        // Idempotência: retry do cliente (ex.: timeout de rede na resposta) com a mesma chave não
+        // reprocessa nada — devolve o resultado da tentativa original, mesmo que tenha sido rejeitada.
+        // Sem isso, um retry pega o próximo número da sequência e emite uma segunda NF-e real na SEFAZ.
+        if (!string.IsNullOrWhiteSpace(request.Dados.IdempotencyKey))
+        {
+            var existentePorChave = await _notaRepo.GetByIdempotencyKeyAsync(
+                request.EmpresaId, request.Dados.IdempotencyKey, cancellationToken);
+            if (existentePorChave != null)
+            {
+                return existentePorChave.Situacao == SituacaoNota.Autorizada
+                    ? new EmitirNFeResult(true, existentePorChave.Id, existentePorChave.ChaveAcesso, existentePorChave.Protocolo, null)
+                    : new EmitirNFeResult(false, existentePorChave.Id, null, null, existentePorChave.MotivoRejeicao ?? "Tentativa anterior não autorizada.");
+            }
+        }
+
         var empresa = await _empresaRepo.GetByIdAsync(request.EmpresaId, cancellationToken);
         if (empresa == null)
             return new EmitirNFeResult(false, null, null, null, "Empresa não encontrada.");
@@ -108,7 +123,8 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
             var serie = dados.Tipo == TipoNota.NFe ? empresa.SerieNFe : empresa.SerieNFCe;
 
             var nota = NotaFiscal.Criar(empresa.Id, dados.Tipo, serie, numero,
-                dados.Finalidade, dados.TipoOperacao, empresa.AmbienteSefaz);
+                dados.Finalidade, dados.TipoOperacao, empresa.AmbienteSefaz,
+                string.IsNullOrWhiteSpace(dados.IdempotencyKey) ? null : dados.IdempotencyKey);
 
             var dest = dados.Destinatario;
             nota.SetDestinatario(dest.CpfCnpj, dest.RazaoSocial, dest.Email, dest.TipoPessoa,

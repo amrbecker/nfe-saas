@@ -40,6 +40,11 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+    <!-- Retry com backoff exponencial + circuit breaker nas chamadas HTTP à SEFAZ
+         (ver SefazService.cs). Polly 7.x (API clássica Policy/WaitAndRetryAsync/
+         CircuitBreakerAsync) — suficiente para o uso pontual aqui, sem precisar da
+         reescrita para ResiliencePipeline (Polly 8+). -->
+    <PackageReference Include="Polly" Version="7.2.4" />
     <!-- Pins de segurança para dependências transitivas com CVE conhecido, mantendo a mesma
          linha 8.0.x (sem mudança de API) — ver GHSA-qj66-m88j-hmgj, GHSA-447r-wph3-92pm,
          GHSA-37gx-xxp4-5rgx (+ 6 outros advisories na mesma família) e GHSA-hh2w-p6rv-4g7w. -->

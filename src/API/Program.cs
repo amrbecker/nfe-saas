@@ -13,9 +13,12 @@ using NfeSaas.Infrastructure.Data;
 using Serilog;
 using Microsoft.EntityFrameworkCore;
 
+// JSON estruturado (não o formatter default de texto) + LogContext habilitado — necessário para o
+// middleware de correlation id/user id abaixo conseguir anexar propriedades a cada linha de log.
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .WriteTo.File("logs/nfesaas-.log", rollingInterval: RollingInterval.Day)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
+    .WriteTo.File(new Serilog.Formatting.Json.JsonFormatter(), "logs/nfesaas-.log", rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
@@ -109,8 +112,9 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Health Checks
-builder.Services.AddHealthChecks();
+// Health Checks — checa conexão real com o Postgres, não só "processo de pé".
+builder.Services.AddHealthChecks()
+    .AddCheck<NfeSaas.API.HealthChecks.PostgresHealthCheck>("postgres");
 
 // Worker de atualização semanal da tabela NCM (configurado via seção `Ncm`).
 builder.Services.Configure<NcmUpdateWorkerOptions>(builder.Configuration.GetSection("Ncm"));
@@ -149,6 +153,31 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+// Correlation id: TraceIdentifier do ASP.NET Core anexado a toda linha de log gerada durante a
+// requisição (inclusive dentro dos handlers MediatR, via LoggingBehavior) — precisa envolver TODO
+// o pipeline abaixo, por isso vem antes até do exception handler.
+app.Use(async (context, next) =>
+{
+    using (Serilog.Context.LogContext.PushProperty("TraceId", context.TraceIdentifier))
+    {
+        await next();
+    }
+});
+
+// Headers de segurança — defesa em profundidade além do que Render/Cloudflare já fazem na borda.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+app.UseHttpsRedirection();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    await next();
+});
+
 // Handler global de exceções — formata ValidationException/erros inesperados como JSON
 // estruturado em vez do corpo vazio padrão do ASP.NET Core em produção.
 app.UseExceptionHandling();
@@ -177,6 +206,20 @@ app.UseCors("AllowWebUI");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Anexa user_id/empresa_id (dos claims do JWT, quando autenticado) ao log context — depois de
+// UseAuthentication para o ClaimsPrincipal já estar populado.
+app.Use(async (context, next) =>
+{
+    var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var empresaId = context.User.FindFirst("empresa_id")?.Value;
+    using (Serilog.Context.LogContext.PushProperty("UserId", userId))
+    using (Serilog.Context.LogContext.PushProperty("EmpresaId", empresaId))
+    {
+        await next();
+    }
+});
+
 app.MapControllers();
 app.MapHealthChecks("/health");
 

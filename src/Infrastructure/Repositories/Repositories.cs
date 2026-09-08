@@ -21,6 +21,10 @@ public class NotaFiscalRepository : INotaFiscalRepository
         await _ctx.NotasFiscais.FirstOrDefaultAsync(n =>
             n.EmpresaId == empresaId && n.Tipo == tipo && n.Serie == serie && n.Numero == numero && n.Ambiente == ambiente, ct);
 
+    public async Task<NotaFiscal?> GetByIdempotencyKeyAsync(Guid empresaId, string idempotencyKey, CancellationToken ct = default) =>
+        await _ctx.NotasFiscais.FirstOrDefaultAsync(n =>
+            n.EmpresaId == empresaId && n.IdempotencyKey == idempotencyKey, ct);
+
     public async Task<IEnumerable<NotaFiscal>> GetElegiveisDescarteAsync(Guid empresaId, CancellationToken ct = default)
     {
         var limite = DateTime.UtcNow.AddYears(-5);

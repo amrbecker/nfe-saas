@@ -1,5 +1,6 @@
 using MediatR;
 using NfeSaas.Application.DTOs;
+using NfeSaas.Application.Interfaces;
 using NfeSaas.Domain.Entities;
 using NfeSaas.Domain.Enums;
 using NfeSaas.Domain.Interfaces;
@@ -187,18 +188,23 @@ public class CadastrarEscritorioComoEmpresaCommandHandler : IRequestHandler<Cada
 }
 
 // === CRIAR USUÁRIO NO ESCRITÓRIO ===
-public record CreateUsuarioCommand(Guid EscritorioId, CreateUsuarioDto Dto) : IRequest<UsuarioResumoDto?>;
+// AtorId (default) identifica o admin que está realizando a operação, para fins de auditoria —
+// opcional para não quebrar chamadores/testes existentes que ainda não o repassam.
+public record CreateUsuarioCommand(Guid EscritorioId, CreateUsuarioDto Dto, Guid AtorId = default) : IRequest<UsuarioResumoDto?>;
 
 public class CreateUsuarioCommandHandler : IRequestHandler<CreateUsuarioCommand, UsuarioResumoDto?>
 {
     private readonly IUsuarioRepository _usuarioRepo;
     private readonly IEscritorioRepository _escritorioRepo;
+    private readonly IAuditService _auditService;
     private readonly IUnitOfWork _uow;
 
-    public CreateUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IEscritorioRepository escritorioRepo, IUnitOfWork uow)
+    public CreateUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IEscritorioRepository escritorioRepo,
+        IAuditService auditService, IUnitOfWork uow)
     {
         _usuarioRepo = usuarioRepo;
         _escritorioRepo = escritorioRepo;
+        _auditService = auditService;
         _uow = uow;
     }
 
@@ -216,21 +222,31 @@ public class CreateUsuarioCommandHandler : IRequestHandler<CreateUsuarioCommand,
         await _usuarioRepo.AddAsync(usuario, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 
+        // Gestão de usuário é operação de nível Escritório (não há Empresa envolvida) — reaproveitamos
+        // o campo EmpresaId do AuditLog (Guid sem FK para a tabela Empresas) para o EscritorioId,
+        // mesma decisão adotada no login. Nunca logamos a senha (nem em texto claro, nem hash).
+        await _auditService.RegistrarAsync(request.EscritorioId, "Usuario.Criado",
+            request.AtorId == Guid.Empty ? null : request.AtorId,
+            detalhes: $"Usuário criado: {usuario.Email} (role {usuario.Role}).", ct: cancellationToken);
+
         return new UsuarioResumoDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo);
     }
 }
 
 // === ATUALIZAR USUÁRIO ===
-public record UpdateUsuarioCommand(Guid EscritorioId, Guid UsuarioId, UpdateUsuarioDto Dto) : IRequest<UsuarioResumoDto?>;
+public record UpdateUsuarioCommand(Guid EscritorioId, Guid UsuarioId, UpdateUsuarioDto Dto, Guid AtorId = default)
+    : IRequest<UsuarioResumoDto?>;
 
 public class UpdateUsuarioCommandHandler : IRequestHandler<UpdateUsuarioCommand, UsuarioResumoDto?>
 {
     private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IAuditService _auditService;
     private readonly IUnitOfWork _uow;
 
-    public UpdateUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IUnitOfWork uow)
+    public UpdateUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IAuditService auditService, IUnitOfWork uow)
     {
         _usuarioRepo = usuarioRepo;
+        _auditService = auditService;
         _uow = uow;
     }
 
@@ -240,25 +256,41 @@ public class UpdateUsuarioCommandHandler : IRequestHandler<UpdateUsuarioCommand,
         if (usuario == null || usuario.EscritorioId != request.EscritorioId || usuario.IsDeleted)
             return null;
 
+        var roleAnterior = usuario.Role;
         usuario.Atualizar(request.Dto.Nome, request.Dto.Role);
         await _usuarioRepo.UpdateAsync(usuario, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
+
+        // Se a role mudou, registramos como "RoleAlterada" (ação sensível de permissão);
+        // caso contrário, é apenas uma atualização de dados cadastrais (nome).
+        var roleMudou = !string.Equals(roleAnterior, usuario.Role, StringComparison.Ordinal);
+        var atorId = request.AtorId == Guid.Empty ? (Guid?)null : request.AtorId;
+        await _auditService.RegistrarAsync(request.EscritorioId,
+            roleMudou ? "Usuario.RoleAlterada" : "Usuario.Atualizado",
+            atorId,
+            detalhes: roleMudou
+                ? $"Usuário {usuario.Email}: role alterada de '{roleAnterior}' para '{usuario.Role}'."
+                : $"Usuário {usuario.Email} atualizado (nome: {usuario.Nome}).",
+            ct: cancellationToken);
 
         return new UsuarioResumoDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo);
     }
 }
 
 // === TOGGLE ATIVO USUÁRIO ===
-public record ToggleAtivoUsuarioCommand(Guid EscritorioId, Guid UsuarioId) : IRequest<UsuarioResumoDto?>;
+public record ToggleAtivoUsuarioCommand(Guid EscritorioId, Guid UsuarioId, Guid AtorId = default)
+    : IRequest<UsuarioResumoDto?>;
 
 public class ToggleAtivoUsuarioCommandHandler : IRequestHandler<ToggleAtivoUsuarioCommand, UsuarioResumoDto?>
 {
     private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IAuditService _auditService;
     private readonly IUnitOfWork _uow;
 
-    public ToggleAtivoUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IUnitOfWork uow)
+    public ToggleAtivoUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IAuditService auditService, IUnitOfWork uow)
     {
         _usuarioRepo = usuarioRepo;
+        _auditService = auditService;
         _uow = uow;
     }
 
@@ -272,21 +304,28 @@ public class ToggleAtivoUsuarioCommandHandler : IRequestHandler<ToggleAtivoUsuar
         await _usuarioRepo.UpdateAsync(usuario, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 
+        await _auditService.RegistrarAsync(request.EscritorioId,
+            usuario.Ativo ? "Usuario.Ativado" : "Usuario.Desativado",
+            request.AtorId == Guid.Empty ? null : request.AtorId,
+            detalhes: $"Usuário {usuario.Email}.", ct: cancellationToken);
+
         return new UsuarioResumoDto(usuario.Id, usuario.Nome, usuario.Email, usuario.Role, usuario.Ativo);
     }
 }
 
 // === EXCLUIR USUÁRIO (soft delete) ===
-public record DeleteUsuarioCommand(Guid EscritorioId, Guid UsuarioId) : IRequest<bool>;
+public record DeleteUsuarioCommand(Guid EscritorioId, Guid UsuarioId, Guid AtorId = default) : IRequest<bool>;
 
 public class DeleteUsuarioCommandHandler : IRequestHandler<DeleteUsuarioCommand, bool>
 {
     private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IAuditService _auditService;
     private readonly IUnitOfWork _uow;
 
-    public DeleteUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IUnitOfWork uow)
+    public DeleteUsuarioCommandHandler(IUsuarioRepository usuarioRepo, IAuditService auditService, IUnitOfWork uow)
     {
         _usuarioRepo = usuarioRepo;
+        _auditService = auditService;
         _uow = uow;
     }
 
@@ -299,6 +338,11 @@ public class DeleteUsuarioCommandHandler : IRequestHandler<DeleteUsuarioCommand,
         usuario.Delete();
         await _usuarioRepo.UpdateAsync(usuario, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
+
+        await _auditService.RegistrarAsync(request.EscritorioId, "Usuario.Excluido",
+            request.AtorId == Guid.Empty ? null : request.AtorId,
+            detalhes: $"Usuário {usuario.Email} excluído (soft delete).", ct: cancellationToken);
+
         return true;
     }
 }

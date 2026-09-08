@@ -21,6 +21,11 @@ public class NotaFiscal : BaseEntity
     public SituacaoNota Situacao { get; private set; } = SituacaoNota.Rascunho;
     public TipoEmissao TipoEmissao { get; private set; } = TipoEmissao.Normal;
 
+    // Idempotência — GUID gerado pelo cliente por tentativa de emissão. Protege contra emissão
+    // duplicada real quando a resposta HTTP se perde após a nota já ter sido transmitida à SEFAZ
+    // (timeout no cliente + retry). Nula para notas emitidas antes desta proteção existir.
+    public string? IdempotencyKey { get; private set; }
+
     // Destinatário
     public string? DestinatarioCpfCnpj { get; private set; }
     public string? DestinatarioRazaoSocial { get; private set; }
@@ -108,7 +113,8 @@ public class NotaFiscal : BaseEntity
 
     public static NotaFiscal Criar(
         Guid empresaId, TipoNota tipo, int serie, int numero,
-        FinalidadeNota finalidade, TipoOperacao operacao, AmbienteSefaz ambiente)
+        FinalidadeNota finalidade, TipoOperacao operacao, AmbienteSefaz ambiente,
+        string? idempotencyKey = null)
     {
         return new NotaFiscal
         {
@@ -118,7 +124,8 @@ public class NotaFiscal : BaseEntity
             Numero = numero,
             Finalidade = finalidade,
             TipoOperacao = operacao,
-            Ambiente = ambiente
+            Ambiente = ambiente,
+            IdempotencyKey = idempotencyKey
         };
     }
 

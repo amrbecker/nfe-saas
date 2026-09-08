@@ -60,6 +60,85 @@ public class EncryptedSecretsTests : IClassFixture<DatabaseFixture>
     }
 
     [Fact]
+    public async Task CertificadoBytes_SaoCifradosNoBancoEDecifradosNaLeitura()
+    {
+        var pfxClaro = new byte[] { 0x30, 0x82, 0x01, 0x02, 0x03, 0x04, 0x05 }; // simula início de PFX (DER SEQUENCE)
+        Guid empresaId;
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var escritorio = Escritorio.Criar(
+                "Esc CertBytes", "Esc", "12345678000355",
+                "certbytes@teste.com", null, PlanoSaas.Basico);
+            db.Escritorios.Add(escritorio);
+            await db.SaveChangesAsync();
+
+            var empresa = Empresa.Criar(escritorio.Id,
+                "Emp CertBytes", "Emp", "98765432000344", "IE",
+                "Rua", "1", "Centro", "São Paulo", "SP",
+                "01310100", "3550308", "11000000000",
+                "emp@certbytes.com",
+                RegimeTributario.SimplesNacional, AmbienteSefaz.Homologacao);
+            empresa.AtualizarCertificado(pfxClaro, "senha", DateTime.UtcNow.AddYears(1), "98765432000344");
+            db.Empresas.Add(empresa);
+            await db.SaveChangesAsync();
+
+            empresaId = empresa.Id;
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var empresa = await db.Empresas.FirstAsync(e => e.Id == empresaId);
+            empresa.CertificadoBytes.Should().BeEquivalentTo(pfxClaro);
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var bruto = await LerCertificadoBytesCruAsync(db, empresaId);
+            var marcador = "ENCB1:"u8.ToArray();
+            bruto.Take(marcador.Length).Should().BeEquivalentTo(marcador);
+            bruto.Should().NotBeEquivalentTo(pfxClaro);
+        }
+    }
+
+    [Fact]
+    public async Task CertificadoBytes_ValorLegadoSemMarcador_RetornadoComoEstaParaCompatibilidade()
+    {
+        var pfxLegado = new byte[] { 0x30, 0x82, 0xAA, 0xBB, 0xCC };
+        Guid empresaId;
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var escritorio = Escritorio.Criar(
+                "Esc CertLegado", "Esc", "12345678000433",
+                "certlegado@teste.com", null, PlanoSaas.Basico);
+            db.Escritorios.Add(escritorio);
+            await db.SaveChangesAsync();
+
+            var empresa = Empresa.Criar(escritorio.Id,
+                "Emp CertLegado", "Emp", "98765432000422", "IE",
+                "Rua", "1", "Centro", "São Paulo", "SP",
+                "01310100", "3550308", "11000000000",
+                "emp@certlegado.com",
+                RegimeTributario.SimplesNacional, AmbienteSefaz.Homologacao);
+            db.Empresas.Add(empresa);
+            await db.SaveChangesAsync();
+
+            empresaId = empresa.Id;
+
+            // Simula dado legado em claro escrevendo direto na coluna, bypassando o converter.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE empresas SET ""CertificadoBytes"" = {pfxLegado} WHERE ""Id"" = {empresaId}");
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var empresa = await db.Empresas.FirstAsync(e => e.Id == empresaId);
+            empresa.CertificadoBytes.Should().BeEquivalentTo(pfxLegado);
+        }
+    }
+
+    [Fact]
     public async Task ValorLegadoSemPrefixo_RetornadoComoTextoClaro_ParaCompatibilidade()
     {
         const string senhaLegada = "senha-pre-cifragem";
@@ -93,6 +172,31 @@ public class EncryptedSecretsTests : IClassFixture<DatabaseFixture>
         {
             var empresa = await db.Empresas.FirstAsync(e => e.Id == empresaId);
             empresa.CertificadoSenha.Should().Be(senhaLegada);
+        }
+    }
+
+    private static async Task<byte[]> LerCertificadoBytesCruAsync(
+        Infrastructure.Data.NfeDbContext db, Guid empresaId)
+    {
+        var conn = db.Database.GetDbConnection();
+        await conn.OpenAsync();
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"SELECT ""CertificadoBytes"" FROM empresas WHERE ""Id"" = @id";
+            var p = cmd.CreateParameter();
+            p.ParameterName = "@id";
+            p.Value = empresaId;
+            cmd.Parameters.Add(p);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            var ok = await reader.ReadAsync();
+            ok.Should().BeTrue("a empresa salva deve existir no banco");
+            return (byte[])reader.GetValue(0);
+        }
+        finally
+        {
+            await conn.CloseAsync();
         }
     }
 

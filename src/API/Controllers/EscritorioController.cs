@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NfeSaas.Application.Commands.EscritorioCommands;
 using NfeSaas.Application.DTOs;
 using NfeSaas.Application.Queries;
@@ -12,7 +13,9 @@ public class EscritorioController : BaseApiController
 {
     // Auto-cadastro público — qualquer pessoa pode criar um escritório.
     // Todo novo escritório recebe 30 dias de trial do plano escolhido.
+    // Rate limit (mesma política de /api/auth) — sem isso é vetor de spam de contas/abuso de trial.
     [HttpPost("registrar")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Registrar([FromBody] CreateEscritorioDto dto)
     {
         var result = await Mediator.Send(new CreateEscritorioCommand(dto));
@@ -82,7 +85,7 @@ public class EscritorioController : BaseApiController
     [HttpPost("usuarios")]
     public async Task<IActionResult> CriarUsuario([FromBody] CreateUsuarioDto dto)
     {
-        var result = await Mediator.Send(new CreateUsuarioCommand(EscritorioId, dto));
+        var result = await Mediator.Send(new CreateUsuarioCommand(EscritorioId, dto, UserId));
         if (result == null) return Conflict(new { message = "E-mail já cadastrado." });
         return Ok(result);
     }
@@ -91,7 +94,7 @@ public class EscritorioController : BaseApiController
     [HttpPut("usuarios/{id:guid}")]
     public async Task<IActionResult> AtualizarUsuario(Guid id, [FromBody] UpdateUsuarioDto dto)
     {
-        var result = await Mediator.Send(new UpdateUsuarioCommand(EscritorioId, id, dto));
+        var result = await Mediator.Send(new UpdateUsuarioCommand(EscritorioId, id, dto, UserId));
         if (result == null) return NotFound();
         return Ok(result);
     }
@@ -100,7 +103,7 @@ public class EscritorioController : BaseApiController
     [HttpPatch("usuarios/{id:guid}/toggle-ativo")]
     public async Task<IActionResult> ToggleAtivoUsuario(Guid id)
     {
-        var result = await Mediator.Send(new ToggleAtivoUsuarioCommand(EscritorioId, id));
+        var result = await Mediator.Send(new ToggleAtivoUsuarioCommand(EscritorioId, id, UserId));
         if (result == null) return NotFound();
         return Ok(result);
     }
@@ -109,7 +112,7 @@ public class EscritorioController : BaseApiController
     [HttpDelete("usuarios/{id:guid}")]
     public async Task<IActionResult> ExcluirUsuario(Guid id)
     {
-        var ok = await Mediator.Send(new DeleteUsuarioCommand(EscritorioId, id));
+        var ok = await Mediator.Send(new DeleteUsuarioCommand(EscritorioId, id, UserId));
         if (!ok) return NotFound();
         return NoContent();
     }

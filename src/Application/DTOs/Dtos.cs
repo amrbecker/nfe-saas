@@ -10,7 +10,11 @@ public record EmitirNotaFiscalDto(
     List<ItemNotaDto> Itens,
     TransporteDto Transporte,
     PagamentoDto Pagamento,
-    string? InformacoesAdicionais
+    string? InformacoesAdicionais,
+    // GUID gerado pelo cliente, estável entre retries da mesma tentativa de emissão — protege
+    // contra nota fiscal duplicada quando a resposta HTTP se perde após a nota já ter sido
+    // transmitida à SEFAZ. Opcional para não quebrar chamadores existentes (ex.: API externa).
+    string? IdempotencyKey = null
 );
 
 public record DestinatarioDto(

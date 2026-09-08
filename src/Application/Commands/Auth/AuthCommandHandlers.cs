@@ -19,6 +19,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginCommandRes
     private readonly IEmpresaRepository _empresaRepo;
     private readonly IEscritorioRepository _escritorioRepo;
     private readonly ITokenService _tokenService;
+    private readonly IAuditService _auditService;
     private readonly IUnitOfWork _uow;
 
     public LoginCommandHandler(
@@ -26,12 +27,14 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginCommandRes
         IEmpresaRepository empresaRepo,
         IEscritorioRepository escritorioRepo,
         ITokenService tokenService,
+        IAuditService auditService,
         IUnitOfWork uow)
     {
         _usuarioRepo = usuarioRepo;
         _empresaRepo = empresaRepo;
         _escritorioRepo = escritorioRepo;
         _tokenService = tokenService;
+        _auditService = auditService;
         _uow = uow;
     }
 
@@ -39,27 +42,54 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginCommandRes
     {
         var usuario = await _usuarioRepo.GetByEmailAsync(request.Email, cancellationToken);
         if (usuario == null || !usuario.Ativo)
+        {
+            // Sem usuário resolvido não há Escritório/Empresa real para associar ao log
+            // (AuditLog.EmpresaId é NOT NULL, mas não tem FK para a tabela Empresas — é só
+            // um Guid de agrupamento). Usamos o EscritorioId quando o usuário existe (mas
+            // está inativo) e Guid.Empty como "bucket" genérico quando nem o e-mail existe,
+            // para não deixar de registrar tentativas de força-bruta/enumeração.
+            await _auditService.RegistrarAsync(usuario?.EscritorioId ?? Guid.Empty, "Login.Falha",
+                usuario?.Id, detalhes: usuario == null ? "E-mail não cadastrado." : "Usuário inativo.",
+                ct: cancellationToken);
             return new(null, new LoginFailureDto("E-mail ou senha inválidos.", "CredenciaisInvalidas", null));
+        }
 
         if (!BCrypt.Net.BCrypt.Verify(request.Senha, usuario.SenhaHash))
+        {
+            // Nunca logar a senha (nem em texto claro, nem hash) — apenas o motivo da falha.
+            await _auditService.RegistrarAsync(usuario.EscritorioId, "Login.Falha", usuario.Id,
+                detalhes: "Senha incorreta.", ct: cancellationToken);
             return new(null, new LoginFailureDto("E-mail ou senha inválidos.", "CredenciaisInvalidas", null));
+        }
 
         var escritorio = await _escritorioRepo.GetByIdAsync(usuario.EscritorioId, cancellationToken);
         if (escritorio == null)
+        {
+            await _auditService.RegistrarAsync(usuario.EscritorioId, "Login.Falha", usuario.Id,
+                detalhes: "Escritório não encontrado.", ct: cancellationToken);
             return new(null, new LoginFailureDto("Escritório não encontrado.", "EscritorioInvalido", null));
+        }
 
         var status = escritorio.CalcularStatusAssinatura();
         var assinatura = MapAssinatura(escritorio);
 
         if (status == StatusAssinaturaEscritorio.Suspenso)
+        {
+            await _auditService.RegistrarAsync(escritorio.Id, "Login.Falha", usuario.Id,
+                detalhes: "Escritório suspenso.", ct: cancellationToken);
             return new(null, new LoginFailureDto(
                 "Escritório suspenso. Entre em contato com o suporte.",
                 "EscritorioSuspenso", assinatura));
+        }
 
         if (status == StatusAssinaturaEscritorio.TrialExpirado)
+        {
+            await _auditService.RegistrarAsync(escritorio.Id, "Login.Falha", usuario.Id,
+                detalhes: "Trial expirado.", ct: cancellationToken);
             return new(null, new LoginFailureDto(
                 "Seu período de avaliação de 30 dias expirou. Ative seu plano para continuar usando o NfeSaas.",
                 "TrialExpirado", assinatura));
+        }
 
         var empresas = await _empresaRepo.GetByEscritorioAsync(usuario.EscritorioId, cancellationToken);
         var empresaDtos = empresas.Select(e => new EmpresaResumoDto(e.Id, e.RazaoSocial, e.NomeFantasia, e.Cnpj)).ToList();
@@ -70,6 +100,11 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginCommandRes
 
         await _usuarioRepo.UpdateAsync(usuario, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
+
+        // Login ainda não tem Empresa selecionada (só ocorre em /selecionar-empresa) — usamos
+        // o EscritorioId como bucket do AuditLog, mesma decisão adotada nas falhas acima.
+        await _auditService.RegistrarAsync(escritorio.Id, "Login.Sucesso", usuario.Id,
+            ct: cancellationToken);
 
         return new(new LoginResultDto(
             accessToken, refreshToken, usuario.Nome, usuario.Email, usuario.Role,

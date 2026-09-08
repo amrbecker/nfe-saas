@@ -13,6 +13,7 @@ namespace NfeSaas.Infrastructure.Data;
 public class NfeDbContext : DbContext, IDataProtectionKeyContext
 {
     private readonly IDataProtector? _secretsProtector;
+    private readonly IDataProtector? _certificadoProtector;
 
     public NfeDbContext(DbContextOptions<NfeDbContext> options) : base(options) { }
 
@@ -20,6 +21,9 @@ public class NfeDbContext : DbContext, IDataProtectionKeyContext
         : base(options)
     {
         _secretsProtector = dataProtection.CreateProtector("NfeSaas.Empresa.Secrets.v1");
+        // Purpose distinto do de CertificadoSenha/CscToken: isola a chave derivada para o
+        // secret de maior valor do sistema (a chave privada ICP-Brasil do certificado A1).
+        _certificadoProtector = dataProtection.CreateProtector("NfeSaas.Empresa.CertificadoBytes.v1");
     }
 
     public DbSet<Escritorio> Escritorios => Set<Escritorio>();
@@ -65,6 +69,13 @@ public class NfeDbContext : DbContext, IDataProtectionKeyContext
                 .Property(e => e.CscToken)
                 .HasConversion(converter)
                 .HasMaxLength(1000);
+        }
+
+        if (_certificadoProtector != null)
+        {
+            modelBuilder.Entity<Empresa>()
+                .Property(e => e.CertificadoBytes)
+                .HasConversion(new EncryptedBytesConverter(_certificadoProtector));
         }
     }
 

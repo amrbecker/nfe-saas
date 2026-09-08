@@ -56,6 +56,10 @@ public class ResendEmailService : IEmailService
             using var client = _httpFactory.CreateClient();
             client.BaseAddress = new Uri("https://api.resend.com/");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            // Sem timeout explícito o HttpClient usa o default de 100s — tempo demais para uma
+            // API transacional de e-mail (mesmo padrão de CepValidationService, que usa 5s para
+            // ViaCEP; aqui 15s dá folga para anexos maiores de XML+DANFE).
+            client.Timeout = TimeSpan.FromSeconds(15);
 
             var response = await client.PostAsJsonAsync("emails", payload, ct);
             if (!response.IsSuccessStatusCode)

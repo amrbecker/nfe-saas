@@ -14,11 +14,12 @@ public class LoginHandlerTests
     private readonly Mock<IEmpresaRepository> _empresaRepo = new();
     private readonly Mock<IEscritorioRepository> _escritorioRepo = new();
     private readonly Mock<ITokenService> _tokenService = new();
+    private readonly Mock<IAuditService> _auditService = new();
     private readonly Mock<IUnitOfWork> _uow = new();
 
     private LoginCommandHandler Handler() => new(
         _usuarioRepo.Object, _empresaRepo.Object, _escritorioRepo.Object,
-        _tokenService.Object, _uow.Object);
+        _tokenService.Object, _auditService.Object, _uow.Object);
 
     private const string SenhaPlana = "Senha@123";
     private static string HashSenha() => BCrypt.Net.BCrypt.HashPassword(SenhaPlana);
