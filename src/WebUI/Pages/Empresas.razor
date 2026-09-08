@@ -97,7 +97,15 @@ else
                                   Immediate="true"
                                   Validation="@((string s) => ValidarEmail(s))" />
                 </MudItem>
-                <MudItem xs="12" md="6">
+                <!-- CEP primeiro: preenche Logradouro/Bairro/Cidade/UF/Código do Município automaticamente
+                     (ver OnCepEncontrado) — mesmo padrão já usado em EmitirNFe.razor/Clientes.razor. Pedir
+                     esses campos antes do CEP induzia o usuário a digitar manualmente o que seria preenchido
+                     sozinho. -->
+                <MudItem xs="12" md="3">
+                    <CepInput Value="@_formData.Cep" ValueChanged="@(v => _formData.Cep = v)"
+                              EnderecoEncontrado="OnCepEncontrado" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="9">
                     <MudTextField @bind-Value="_formData.Logradouro" Label="Logradouro" Variant="Variant.Outlined"
                                   Required RequiredError="Logradouro é obrigatório"
                                   Validation="@((string s) => ValidarObrigatorio(s, "Logradouro"))" />
@@ -112,7 +120,7 @@ else
                                   Required RequiredError="Bairro é obrigatório"
                                   Validation="@((string s) => ValidarObrigatorio(s, "Bairro"))" />
                 </MudItem>
-                <MudItem xs="12" md="5">
+                <MudItem xs="12" md="4">
                     <MudTextField @bind-Value="_formData.Cidade" Label="Cidade" Variant="Variant.Outlined"
                                   Required RequiredError="Cidade é obrigatória"
                                   Validation="@((string s) => ValidarObrigatorio(s, "Cidade"))" />
@@ -128,21 +136,17 @@ else
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <CepInput Value="@_formData.Cep" ValueChanged="@(v => _formData.Cep = v)"
-                              EnderecoEncontrado="OnCepEncontrado" Required="true" />
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_formData.CodigoMunicipio" Label="Cód. Município (IBGE)" Variant="Variant.Outlined"
+                                  Required RequiredError="Código do município é obrigatório"
+                                  Immediate="true"
+                                  Validation="@((string s) => ValidarCodigoMunicipio(s))" />
                 </MudItem>
                 <MudItem xs="12" md="4">
                     <MudTextField @bind-Value="_formData.Telefone" Label="Telefone" Variant="Variant.Outlined"
                                   Immediate="true"
                                   HelperText="10 ou 11 dígitos (com DDD)"
                                   Validation="@((string s) => ValidarTelefone(s))" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="_formData.CodigoMunicipio" Label="Cód. Município (IBGE)" Variant="Variant.Outlined"
-                                  Required RequiredError="Código do município é obrigatório"
-                                  Immediate="true"
-                                  Validation="@((string s) => ValidarCodigoMunicipio(s))" />
                 </MudItem>
                 <MudItem xs="12" md="4">
                     <CnaeAutocomplete Value="@_formData.Cnae" ValueChanged="@(v => _formData.Cnae = v)"
