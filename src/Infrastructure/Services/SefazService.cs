@@ -141,47 +141,57 @@ public class SefazService : ISefazService
     // e o volume é baixo, um único circuito para todas as chamadas à SEFAZ é suficiente e mais
     // simples — evita popular um dicionário de circuitos por serviço/UF sem necessidade real.
     //
-    // Abre após 5 falhas consecutivas (timeout, erro de conexão ou 5xx); fica meio-aberto após
-    // 30s deixando uma chamada de teste passar — se ela suceder o circuito fecha, se falhar volta
-    // a abrir por mais 30s.
-    private static readonly AsyncCircuitBreakerPolicy<HttpResponseMessage> _circuitBreaker =
-        Policy<HttpResponseMessage>
+    // Abre após 5 falhas consecutivas (timeout, erro de conexão, 5xx ou corpo vazio); fica
+    // meio-aberto após 30s deixando uma chamada de teste passar — se ela suceder o circuito
+    // fecha, se falhar volta a abrir por mais 30s.
+    //
+    // O resultado é (StatusCode, Body) em vez de HttpResponseMessage: o corpo já é lido e o
+    // HttpResponseMessage já descartado dentro do delegate de cada chamada (ver
+    // CriarPoliticaResiliencia) — evita ter que gerenciar Dispose() através do retry/circuit
+    // breaker, e permite tratar "HTTP 200 com corpo vazio" como falha transiente também (SEFAZ
+    // já foi observada devolvendo isso sob instabilidade — sem essa checagem, a chamada "sucede"
+    // com um corpo vazio que quebra no parse de XML depois, sem nunca ter sido retentada).
+    private static readonly AsyncCircuitBreakerPolicy<(int StatusCode, string Body)> _circuitBreaker =
+        Policy<(int StatusCode, string Body)>
             .Handle<HttpRequestException>()
             .Or<TaskCanceledException>()
-            .OrResult(r => (int)r.StatusCode >= 500)
+            .OrResult(r => r.StatusCode >= 500 || string.IsNullOrWhiteSpace(r.Body))
             .CircuitBreakerAsync(
                 handledEventsAllowedBeforeBreaking: 5,
                 durationOfBreak: TimeSpan.FromSeconds(30));
 
     /// <summary>
     /// Monta a política de resiliência (retry com backoff exponencial envolvendo o circuit
-    /// breaker compartilhado) para uma única chamada HTTP contra UMA URL da SEFAZ.
+    /// breaker compartilhado) para uma única chamada HTTP contra UMA URL da SEFAZ. O delegate
+    /// passado a <c>ExecuteAsync</c> deve fazer o POST, ler o corpo como string e devolver
+    /// <c>(StatusCode, Body)</c> — já descartando o <c>HttpResponseMessage</c> antes de retornar.
     ///
-    /// Importante: isto NÃO trata como falha uma resposta HTTP 2xx contendo XML de rejeição de
-    /// negócio da SEFAZ (ex.: nota rejeitada por erro de preenchimento) — isso é uma resposta
-    /// válida do webservice, não uma falha transiente, e é tratada depois pelos
-    /// Parsear*() correspondentes. O predicado abaixo só olha StatusCode/exceções de rede.
+    /// Importante: isto NÃO trata como falha uma resposta HTTP 2xx com corpo não-vazio contendo
+    /// XML de rejeição de negócio da SEFAZ (ex.: nota rejeitada por erro de preenchimento) — isso
+    /// é uma resposta válida do webservice, não uma falha transiente, e é tratada depois pelos
+    /// Parsear*() correspondentes. Só corpo vazio (qualquer status) ou 5xx contam como transiente.
     ///
     /// O failover de URL primária → contingência (SVC-AN/SVC-RS) continua em EnviarNFeAsync,
     /// como uma camada acima desta: cada tentativa de failover chama TentarEnvioAsync, que por
     /// sua vez já embute 3 tentativas de retry contra a URL escolhida antes de desistir dela.
     /// </summary>
-    private IAsyncPolicy<HttpResponseMessage> CriarPoliticaResiliencia(CancellationToken ct)
+    private IAsyncPolicy<(int StatusCode, string Body)> CriarPoliticaResiliencia(CancellationToken ct)
     {
-        var retry = Policy<HttpResponseMessage>
+        var retry = Policy<(int StatusCode, string Body)>
             .Handle<HttpRequestException>()
             // Não faz sentido retentar se foi o próprio caller (ct) que cancelou a requisição —
             // só timeout do HttpClient (que também lança TaskCanceledException) deve ser retentado.
             .Or<TaskCanceledException>(_ => !ct.IsCancellationRequested)
-            .OrResult(r => (int)r.StatusCode >= 500)
+            .OrResult(r => r.StatusCode >= 500 || string.IsNullOrWhiteSpace(r.Body))
             .WaitAndRetryAsync(
                 retryCount: 3,
                 sleepDurationProvider: tentativa => TimeSpan.FromSeconds(Math.Pow(2, tentativa)),
                 onRetry: (outcome, delay, tentativa, _) =>
                 {
-                    outcome.Result?.Dispose();
                     var motivo = outcome.Exception?.Message
-                        ?? $"HTTP {(int?)outcome.Result?.StatusCode}";
+                        ?? (string.IsNullOrWhiteSpace(outcome.Result.Body)
+                            ? $"HTTP {outcome.Result.StatusCode} com corpo vazio"
+                            : $"HTTP {outcome.Result.StatusCode}");
                     _logger.LogWarning(
                         "Tentativa {Tentativa}/3 falhou ao chamar a SEFAZ ({Motivo}). Nova tentativa em {Delay}s.",
                         tentativa, motivo, delay.TotalSeconds);
@@ -192,6 +202,14 @@ public class SefazService : ISefazService
         // BrokenCircuitException — exceção que o retry acima não trata — então a política para
         // imediatamente em vez de gastar as 3 tentativas contra um serviço já sabidamente fora do ar.
         return Policy.WrapAsync(retry, _circuitBreaker);
+    }
+
+    private static async Task<(int StatusCode, string Body)> PostarELerAsync(
+        HttpClient client, string url, HttpContent content, CancellationToken ct)
+    {
+        using var resp = await client.PostAsync(url, content, ct);
+        var body = await resp.Content.ReadAsStringAsync(ct);
+        return ((int)resp.StatusCode, body);
     }
 
     public SefazService(ILogger<SefazService> logger, IHttpClientFactory httpFactory, IConfiguration config)
@@ -241,9 +259,8 @@ public class SefazService : ISefazService
             var content = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote");
 
-            using var response = await CriarPoliticaResiliencia(ct)
-                .ExecuteAsync(() => client.PostAsync(url, content, ct));
-            var responseXml = await response.Content.ReadAsStringAsync(ct);
+            var (_, responseXml) = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => PostarELerAsync(client, url, content, ct));
 
             return ParsearRetornoAutorizacao(responseXml);
         }
@@ -301,9 +318,8 @@ public class SefazService : ISefazService
             var content = new StringContent(envelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF");
 
-            using var response = await CriarPoliticaResiliencia(ct)
-                .ExecuteAsync(() => client.PostAsync(url, content, ct));
-            var xml = await response.Content.ReadAsStringAsync(ct);
+            var (_, xml) = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => PostarELerAsync(client, url, content, ct));
 
             return ParsearConsultaProtocolo(xml);
         }
@@ -409,9 +425,8 @@ public class SefazService : ISefazService
             var content = new StringContent(envelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento");
 
-            using var response = await CriarPoliticaResiliencia(ct)
-                .ExecuteAsync(() => client.PostAsync(url, content, ct));
-            var xml = await response.Content.ReadAsStringAsync(ct);
+            var (_, xml) = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => PostarELerAsync(client, url, content, ct));
 
             return ParsearRetornoEvento(xml);
         }
@@ -499,9 +514,8 @@ public class SefazService : ISefazService
             var content = new StringContent(envelope, Encoding.UTF8, "text/xml");
             content.Headers.Add("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF");
 
-            using var response = await CriarPoliticaResiliencia(ct)
-                .ExecuteAsync(() => client.PostAsync(url, content, ct));
-            var xml = await response.Content.ReadAsStringAsync(ct);
+            var (_, xml) = await CriarPoliticaResiliencia(ct)
+                .ExecuteAsync(() => PostarELerAsync(client, url, content, ct));
 
             return ParsearRetornoInutilizacao(xml);
         }
