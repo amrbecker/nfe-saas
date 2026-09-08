@@ -46,9 +46,15 @@ public static class NfeFlowTheme
             Error = "#B3261E",
             Info = Sapphire,
 
-            Background = "#F5F6FA",
+            // Background e Surface propositalmente iguais: o label flutuante do MudBlazor
+            // (Variant.Outlined) pinta um retalho com --mud-palette-surface atrás de si para
+            // "cortar" a borda — em qualquer formulário que não esteja dentro de um MudCard/
+            // MudPaper explícito (vários neste app), esse retalho fica sobre --mud-palette-
+            // background. Se forem cores diferentes, aparece como uma caixa clara destacada
+            // atrás do label. Cards ainda se distinguem pela sombra (Elevation), não pelo tom.
+            Background = "#F6F7FA",
             BackgroundGrey = "#EEF0F6",
-            Surface = "#FFFFFF",
+            Surface = "#F6F7FA",
 
             AppbarBackground = Navy,
             AppbarText = "#F5F6FA",
@@ -78,9 +84,12 @@ public static class NfeFlowTheme
             Error = "#E2897E",
             Info = "#5B8AD1",
 
-            Background = "#0D1420",
+            // Ver comentário equivalente em PaletteLight — Background e Surface propositalmente
+            // iguais, para o retalho do label flutuante nunca aparecer como uma caixa destacada
+            // em formulários fora de um MudCard/MudPaper.
+            Background = "#111A2C",
             BackgroundGrey = "#0A1120",
-            Surface = "#161F30",
+            Surface = "#111A2C",
 
             AppbarBackground = "#0A1120",
             AppbarText = "#E8ECF4",

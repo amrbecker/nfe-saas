@@ -36,9 +36,27 @@ body,
 /* ---------- Micro-interações: cards e linhas de navegação ganham leve elevação ---------- */
 .mud-card {
   transition: transform 0.18s var(--nfeflow-ease), box-shadow 0.18s var(--nfeflow-ease), background-color 0.2s ease;
+  /* Background e Surface são a mesma cor de propósito (ver NfeFlowTheme.cs) — sem isso os
+     cards só se distinguiam da página por sombra, que sozinha é sutil demais em telas mais
+     planas/impressões de tela. A borda de 1px devolve a definição sem depender de contraste
+     de cor. */
+  border: 1px solid var(--mud-palette-lines-default);
 }
 .mud-card:hover {
   transform: translateY(-2px);
+}
+
+/* ---------- Autofill do Chrome (login) — sem isso o navegador pinta o campo com o amarelo/azul
+   nativo dele, ignorando completamente o tema. -webkit-text-fill-color é necessário porque
+   Chrome ignora `color` normal em campos autofilled; o box-shadow "empurra" o fundo nativo pra
+   fora sem alterar o layout do campo (truque padrão, já que background-color é ignorado ali). */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--mud-palette-text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--mud-palette-surface) inset;
+  box-shadow: 0 0 0 1000px var(--mud-palette-surface) inset;
+  transition: background-color 0s 600000s, color 0s 600000s;
 }
 
 .mud-nav-link .mud-nav-link-text,
