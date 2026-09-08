@@ -256,6 +256,22 @@ public class ImpostoCalculoService : IImpostoCalculoService
         // Partilha: a partir de 2019, 100% para UF de destino (EC 87/2015 + Convênio 93/2015 — partilha gradual encerrada).
         return new DifalResultado(baseCalculo, aliquotaInternaUfDestino, aliquotaInterestadual, valorUfDestino, 0m);
     }
+
+    public IbsCbsResultado CalcularIbsCbs(decimal valorProduto,
+        decimal aliquotaIbsUf = AliquotasIbsCbsVigentes.IbsUf,
+        decimal aliquotaIbsMun = AliquotasIbsCbsVigentes.IbsMun,
+        decimal aliquotaCbs = AliquotasIbsCbsVigentes.Cbs)
+    {
+        var baseCalculo = Math.Round(valorProduto, 2);
+        var valorIbsUf = Math.Round(baseCalculo * (aliquotaIbsUf / 100m), 2);
+        var valorIbsMun = Math.Round(baseCalculo * (aliquotaIbsMun / 100m), 2);
+        var valorCbs = Math.Round(baseCalculo * (aliquotaCbs / 100m), 2);
+        return new IbsCbsResultado(baseCalculo,
+            aliquotaIbsUf, valorIbsUf,
+            aliquotaIbsMun, valorIbsMun,
+            valorIbsUf + valorIbsMun,
+            aliquotaCbs, valorCbs);
+    }
 }
 
 public class CepValidationService : ICepValidationService

@@ -51,6 +51,9 @@ public class NotaFiscal : BaseEntity
     public decimal TotalSeguro { get; private set; }
     public decimal TotalOutrasDespesas { get; private set; }
     public decimal TotalNota { get; private set; }
+    public decimal TotalIbs { get; private set; }             // Reforma Tributária — IBS (UF + Município)
+    public decimal TotalCbs { get; private set; }              // Reforma Tributária — CBS
+    public decimal TotalNotaComIbsCbs => TotalNota + TotalIbs + TotalCbs; // vNFTot — informativo, não é o valor cobrado
 
     // Transporte
     public ModalidadeFrete ModalidadeFrete { get; private set; }
@@ -246,6 +249,8 @@ public class NotaFiscal : BaseEntity
         TotalFcp = _itens.Sum(i => i.ValorFcp ?? 0m);
         TotalIcmsUfDestino = _itens.Sum(i => i.ValorIcmsUfDestino ?? 0m);
         TotalIcmsUfRemetente = _itens.Sum(i => i.ValorIcmsUfRemetente ?? 0m);
+        TotalIbs = _itens.Sum(i => i.ValorIbs ?? 0m);
+        TotalCbs = _itens.Sum(i => i.ValorCbs ?? 0m);
         // vNF inclui IPI e FCP (FCP-ST inclusive). DIFAL é informativo e não soma em vNF.
         TotalNota = TotalProdutos - TotalDesconto + TotalIcmsSt + TotalFrete + TotalSeguro
                   + TotalOutrasDespesas + TotalIpi + TotalFcp;

@@ -106,6 +106,21 @@ public class ItemNotaFiscalTests
     }
 
     [Fact]
+    public void SetIbsCbs_DeveCalcularValoresECstPadrao()
+    {
+        var item = Criar();
+        item.SetIbsCbs(baseCalculo: 1000m, aliquotaIbsUf: 0.08m, aliquotaIbsMun: 0.02m, aliquotaCbs: 0.90m);
+
+        item.CstIbsCbs.Should().Be("000");
+        item.ClassTribIbsCbs.Should().Be("000001");
+        item.BaseCalculoIbsCbs.Should().Be(1000m);
+        item.ValorIbsUf.Should().Be(0.80m);
+        item.ValorIbsMun.Should().Be(0.20m);
+        item.ValorIbs.Should().Be(1.00m);
+        item.ValorCbs.Should().Be(9.00m);
+    }
+
+    [Fact]
     public void SetIcms_AposSetIcmsSimples_DeveLimparCsosn()
     {
         var item = Criar();

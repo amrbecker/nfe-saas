@@ -104,4 +104,43 @@ public class ImpostoCalculoServiceTests
         resultado.BaseCalculo.Should().Be(1000m);
         resultado.Valor.Should().Be(50m); // 120 - 70
     }
+
+    // === IBS/CBS (Reforma Tributária, fase-teste 2026) ===
+
+    [Fact]
+    public void CalcularIbsCbs_ComAliquotasPadrao_RetornaAliquotasTeste2026()
+    {
+        // Fase-teste 2026: IBS-UF 0,08% + IBS-Mun 0,02% + CBS 0,90% sobre 1000 = 0,80 + 0,20 + 9,00
+        var resultado = _service.CalcularIbsCbs(valorProduto: 1000m);
+
+        resultado.BaseCalculo.Should().Be(1000m);
+        resultado.AliquotaIbsUf.Should().Be(0.08m);
+        resultado.ValorIbsUf.Should().Be(0.80m);
+        resultado.AliquotaIbsMun.Should().Be(0.02m);
+        resultado.ValorIbsMun.Should().Be(0.20m);
+        resultado.ValorIbs.Should().Be(1.00m);
+        resultado.AliquotaCbs.Should().Be(0.90m);
+        resultado.ValorCbs.Should().Be(9.00m);
+    }
+
+    [Fact]
+    public void CalcularIbsCbs_ComAliquotasCustomizadas_UsaValoresInformados()
+    {
+        var resultado = _service.CalcularIbsCbs(valorProduto: 2000m,
+            aliquotaIbsUf: 1m, aliquotaIbsMun: 0.5m, aliquotaCbs: 2m);
+
+        resultado.ValorIbsUf.Should().Be(20m);
+        resultado.ValorIbsMun.Should().Be(10m);
+        resultado.ValorIbs.Should().Be(30m);
+        resultado.ValorCbs.Should().Be(40m);
+    }
+
+    [Fact]
+    public void CalcularIbsCbs_ValorProdutoZero_ValoresZerados()
+    {
+        var resultado = _service.CalcularIbsCbs(valorProduto: 0m);
+
+        resultado.ValorIbs.Should().Be(0m);
+        resultado.ValorCbs.Should().Be(0m);
+    }
 }

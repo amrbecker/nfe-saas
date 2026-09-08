@@ -59,7 +59,10 @@ public record ImpostosItemDto(
     decimal? AliquotaIpi = null,           // IPI — % (0-100). null/zero = sem IPI.
     string? CstIpi = null,                 // CST IPI (string 2-dig: 50, 49, 99…). Default "50" quando AliquotaIpi > 0.
     decimal? AliquotaFcp = null,           // FCP — % adicional sobre BC ICMS (0 a ~4 dependendo da UF/produto)
-    decimal? AliquotaInternaUfDestino = null  // DIFAL — alíquota interna da UF de destino (usada quando interestadual a não-contribuinte)
+    decimal? AliquotaInternaUfDestino = null,  // DIFAL — alíquota interna da UF de destino (usada quando interestadual a não-contribuinte)
+    decimal? AliquotaIbsUf = null,         // IBS/CBS (Reforma Tributária) — null usa as alíquotas-teste vigentes (AliquotasIbsCbsVigentes)
+    decimal? AliquotaIbsMun = null,
+    decimal? AliquotaCbs = null
 );
 
 public record TransporteDto(

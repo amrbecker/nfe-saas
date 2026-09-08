@@ -147,6 +147,41 @@ public class XmlNFeServiceTests
     }
 
     [Fact]
+    public void GerarXmlNFe_ItemComIbsCbs_DeveRenderizarBlocoIbsCbs()
+    {
+        var empresa = CriarEmpresa();
+        var nota = CriarNotaCompleta(empresa);
+        var item = nota.Itens.First();
+        item.SetIbsCbs(baseCalculo: 200m, aliquotaIbsUf: 0.08m, aliquotaIbsMun: 0.02m, aliquotaCbs: 0.90m);
+
+        var xml = _service.GerarXmlNFe(nota, empresa);
+
+        xml.Should().Contain("<IBSCBS>");
+        xml.Should().Contain("<CST>000</CST>");
+        xml.Should().Contain("<cClassTrib>000001</cClassTrib>");
+        xml.Should().Contain("<pIBSUF>0.08</pIBSUF>");
+        xml.Should().Contain("<vIBSUF>0.16</vIBSUF>");
+        xml.Should().Contain("<pIBSMun>0.02</pIBSMun>");
+        xml.Should().Contain("<vIBSMun>0.04</vIBSMun>");
+        xml.Should().Contain("<pCBS>0.90</pCBS>");
+        xml.Should().Contain("<vCBS>1.80</vCBS>");
+        xml.Should().Contain("<IBSCBSTot>");
+        xml.Should().Contain("<vNFTot>");
+    }
+
+    [Fact]
+    public void GerarXmlNFe_ItemSemIbsCbs_NaoRenderizaBloco()
+    {
+        var empresa = CriarEmpresa();
+        var nota = CriarNotaCompleta(empresa);
+
+        var xml = _service.GerarXmlNFe(nota, empresa);
+
+        xml.Should().NotContain("<IBSCBS>");
+        xml.Should().NotContain("<IBSCBSTot>");
+    }
+
+    [Fact]
     public void GerarXmlCancelamento_DeveProduzirXmlValido()
     {
         var empresa = CriarEmpresa();

@@ -243,6 +243,18 @@
                     <MudItem xs="12" md="2">
                         <MudNumericField @bind-Value="item.AliquotaCofins" Label="Alíq. COFINS %" Variant="Variant.Outlined" Min="0m" Max="100m" />
                     </MudItem>
+                    @if (!_isSimples)
+                    {
+                        <!-- IBS/CBS — Reforma Tributária (obrigatório para Regime Normal desde 03/08/2026, NT 2025.002). -->
+                        <MudItem xs="12" md="2">
+                            <MudNumericField @bind-Value="item.AliquotaIbs" Label="Alíq. IBS %" Variant="Variant.Outlined" Min="0m" Max="100m"
+                                             HelperText="Fase-teste 2026: 0,10%" />
+                        </MudItem>
+                        <MudItem xs="12" md="2">
+                            <MudNumericField @bind-Value="item.AliquotaCbs" Label="Alíq. CBS %" Variant="Variant.Outlined" Min="0m" Max="100m"
+                                             HelperText="Fase-teste 2026: 0,90%" />
+                        </MudItem>
+                    }
                     @if (_perfil.MostrarTributacaoAvancada)
                     {
                         <!-- Tributação avançada — IPI, FCP, DIFAL. Oculto no modo simples (configuração do escritório). -->
@@ -395,6 +407,15 @@
 
     // Itens
     private List<ItemForm> _itens = new();
+
+    // IBS informado na UI vem somado (UF+Mun); divide na proporção 0,08/0,02 da fase-teste 2026 (AliquotasIbsCbsVigentes).
+    private static decimal SplitIbsUf(decimal aliquotaIbsTotal) =>
+        aliquotaIbsTotal * (NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsUf /
+            (NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsUf + NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsMun));
+
+    private static decimal SplitIbsMun(decimal aliquotaIbsTotal) =>
+        aliquotaIbsTotal * (NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsMun /
+            (NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsUf + NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsMun));
 
     // Cadastros master
     private List<ClienteResumoDto> _clientes = new();
@@ -570,7 +591,10 @@
                         i.AliquotaIpi > 0 ? i.AliquotaIpi : null,
                         i.AliquotaIpi > 0 ? i.CstIpi : null,
                         i.AliquotaFcp > 0 ? i.AliquotaFcp : null,
-                        i.AliquotaInternaUfDestino > 0 ? i.AliquotaInternaUfDestino : null))).ToList(),
+                        i.AliquotaInternaUfDestino > 0 ? i.AliquotaInternaUfDestino : null,
+                        !_isSimples && i.AliquotaIbs > 0 ? SplitIbsUf(i.AliquotaIbs) : null,
+                        !_isSimples && i.AliquotaIbs > 0 ? SplitIbsMun(i.AliquotaIbs) : null,
+                        !_isSimples && i.AliquotaCbs > 0 ? i.AliquotaCbs : null))).ToList(),
                 new NfeSaas.Application.DTOs.TransporteDto(_modalidadeFrete, null, null, _valorFrete, _valorSeguro),
                 new NfeSaas.Application.DTOs.PagamentoDto(_formaPagamento, totalNota),
                 _infoAdicionais);
@@ -650,5 +674,8 @@
         public string CstIpi { get; set; } = "50";
         public decimal AliquotaFcp { get; set; } = 0;
         public decimal AliquotaInternaUfDestino { get; set; } = 0;
+        // IBS/CBS (Reforma Tributária, fase-teste 2026)
+        public decimal AliquotaIbs { get; set; } = NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsUf + NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsMun;
+        public decimal AliquotaCbs { get; set; } = NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.Cbs;
     }
 }

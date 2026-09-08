@@ -63,6 +63,21 @@ public class ItemNotaFiscal : BaseEntity
     public decimal? ValorIcmsUfDestino { get; private set; }
     public decimal? ValorIcmsUfRemetente { get; private set; }
 
+    // IBS/CBS — Reforma Tributária (LC 214/2025, NT 2025.002). Só preenchido para Regime Normal
+    // (obrigatório desde 03/08/2026). Cobre apenas o caso padrão de tributação integral
+    // (CST 000 / cClassTrib 000001) — regimes especiais (monofasia, ZFM, crédito presumido etc.)
+    // ainda não são suportados.
+    public string? CstIbsCbs { get; private set; }
+    public string? ClassTribIbsCbs { get; private set; }
+    public decimal? BaseCalculoIbsCbs { get; private set; }
+    public decimal? AliquotaIbsUf { get; private set; }
+    public decimal? ValorIbsUf { get; private set; }
+    public decimal? AliquotaIbsMun { get; private set; }
+    public decimal? ValorIbsMun { get; private set; }
+    public decimal? ValorIbs { get; private set; }
+    public decimal? AliquotaCbs { get; private set; }
+    public decimal? ValorCbs { get; private set; }
+
     protected ItemNotaFiscal() { }
 
     public static ItemNotaFiscal Criar(
@@ -159,5 +174,20 @@ public class ItemNotaFiscal : BaseEntity
         var diferenca = Math.Max(0, aliquotaInternaUfDestino - aliquotaInterestadual);
         ValorIcmsUfDestino = Math.Round(baseCalculo * (diferenca / 100m), 2);
         ValorIcmsUfRemetente = 0; // Partilha 100% destino desde 2019
+    }
+
+    public void SetIbsCbs(decimal baseCalculo, decimal aliquotaIbsUf, decimal aliquotaIbsMun, decimal aliquotaCbs,
+        string cst = "000", string classTrib = "000001")
+    {
+        CstIbsCbs = cst;
+        ClassTribIbsCbs = classTrib;
+        BaseCalculoIbsCbs = baseCalculo;
+        AliquotaIbsUf = aliquotaIbsUf;
+        ValorIbsUf = Math.Round(baseCalculo * (aliquotaIbsUf / 100m), 2);
+        AliquotaIbsMun = aliquotaIbsMun;
+        ValorIbsMun = Math.Round(baseCalculo * (aliquotaIbsMun / 100m), 2);
+        ValorIbs = ValorIbsUf + ValorIbsMun;
+        AliquotaCbs = aliquotaCbs;
+        ValorCbs = Math.Round(baseCalculo * (aliquotaCbs / 100m), 2);
     }
 }

@@ -92,11 +92,35 @@ public interface IImpostoCalculoService
     ImpostoResultado CalcularIpi(decimal valorProduto, decimal aliquota);
     ImpostoResultado CalcularFcp(decimal baseCalculoIcms, decimal aliquota);
     DifalResultado CalcularDifal(decimal valorProduto, decimal aliquotaInternaUfDestino, decimal aliquotaInterestadual);
+    IbsCbsResultado CalcularIbsCbs(decimal valorProduto,
+        decimal aliquotaIbsUf = AliquotasIbsCbsVigentes.IbsUf,
+        decimal aliquotaIbsMun = AliquotasIbsCbsVigentes.IbsMun,
+        decimal aliquotaCbs = AliquotasIbsCbsVigentes.Cbs);
 }
 
 public record DifalResultado(decimal BaseCalculo, decimal AliquotaInterna, decimal AliquotaInterestadual, decimal ValorUfDestino, decimal ValorUfRemetente);
 
 public record ImpostoResultado(decimal BaseCalculo, decimal Aliquota, decimal Valor);
+
+public record IbsCbsResultado(decimal BaseCalculo,
+    decimal AliquotaIbsUf, decimal ValorIbsUf,
+    decimal AliquotaIbsMun, decimal ValorIbsMun,
+    decimal ValorIbs,
+    decimal AliquotaCbs, decimal ValorCbs);
+
+/// <summary>
+/// Alíquotas do IBS/CBS vigentes na fase de teste da Reforma Tributária (LC 214/2025).
+/// 2026: 1% total "por fora" (0,90% CBS + 0,10% IBS, dividido 0,08% UF + 0,02% Município),
+/// dispensado de recolhimento para quem cumprir as obrigações acessórias (art. 348, §1º da LC 214/2025).
+/// O cronograma legal aumenta essas alíquotas a partir de 2027 — revisar estes valores quando a
+/// próxima fase for publicada (acompanhar Notas Técnicas em nfe.fazenda.gov.br).
+/// </summary>
+public static class AliquotasIbsCbsVigentes
+{
+    public const decimal IbsUf = 0.08m;
+    public const decimal IbsMun = 0.02m;
+    public const decimal Cbs = 0.90m;
+}
 
 public interface ITokenService
 {

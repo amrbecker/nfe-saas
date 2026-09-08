@@ -176,6 +176,18 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
                     item.SetDifal(difal.BaseCalculo, difal.AliquotaInterna, difal.AliquotaInterestadual);
                 }
 
+                // IBS/CBS (Reforma Tributária) — obrigatório para Regime Normal desde 03/08/2026 (NT 2025.002).
+                // Simples Nacional/MEI só entram a partir de 04/01/2027 — não aplicado aqui ainda.
+                // Cobre apenas tributação integral (CST 000/cClassTrib 000001); regimes especiais ficam de fora.
+                if (!isSimples)
+                {
+                    var ibsCbs = _impostoService.CalcularIbsCbs(valorBase,
+                        imp.AliquotaIbsUf ?? AliquotasIbsCbsVigentes.IbsUf,
+                        imp.AliquotaIbsMun ?? AliquotasIbsCbsVigentes.IbsMun,
+                        imp.AliquotaCbs ?? AliquotasIbsCbsVigentes.Cbs);
+                    item.SetIbsCbs(ibsCbs.BaseCalculo, ibsCbs.AliquotaIbsUf, ibsCbs.AliquotaIbsMun, ibsCbs.AliquotaCbs);
+                }
+
                 nota.AdicionarItem(item);
             }
 

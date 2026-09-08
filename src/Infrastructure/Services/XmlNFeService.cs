@@ -241,6 +241,32 @@ public class XmlNFeService : IXmlNFeService
                 sb.AppendLine("</ICMSUFDest>");
             }
 
+            // IBS/CBS — Reforma Tributária (NT 2025.002). Só emitido para Regime Normal (item.SetIbsCbs
+            // é chamado apenas nesse caso pelo EmitirNFeCommandHandler).
+            if (item.ValorCbs.HasValue)
+            {
+                sb.AppendLine("<IBSCBS>");
+                sb.AppendLine($"<CST>{item.CstIbsCbs}</CST>");
+                sb.AppendLine($"<cClassTrib>{item.ClassTribIbsCbs}</cClassTrib>");
+                sb.AppendLine("<gIBSCBS>");
+                sb.AppendLine($"<vBC>{F2(item.BaseCalculoIbsCbs ?? 0)}</vBC>");
+                sb.AppendLine("<gIBSUF>");
+                sb.AppendLine($"<pIBSUF>{F2(item.AliquotaIbsUf ?? 0)}</pIBSUF>");
+                sb.AppendLine($"<vIBSUF>{F2(item.ValorIbsUf ?? 0)}</vIBSUF>");
+                sb.AppendLine("</gIBSUF>");
+                sb.AppendLine("<gIBSMun>");
+                sb.AppendLine($"<pIBSMun>{F2(item.AliquotaIbsMun ?? 0)}</pIBSMun>");
+                sb.AppendLine($"<vIBSMun>{F2(item.ValorIbsMun ?? 0)}</vIBSMun>");
+                sb.AppendLine("</gIBSMun>");
+                sb.AppendLine($"<vIBS>{F2(item.ValorIbs ?? 0)}</vIBS>");
+                sb.AppendLine("<gCBS>");
+                sb.AppendLine($"<pCBS>{F2(item.AliquotaCbs ?? 0)}</pCBS>");
+                sb.AppendLine($"<vCBS>{F2(item.ValorCbs.Value)}</vCBS>");
+                sb.AppendLine("</gCBS>");
+                sb.AppendLine("</gIBSCBS>");
+                sb.AppendLine("</IBSCBS>");
+            }
+
             sb.AppendLine("</imposto>");
             sb.AppendLine("</det>");
         }
@@ -271,6 +297,36 @@ public class XmlNFeService : IXmlNFeService
         sb.AppendLine($"<vOutro>0.00</vOutro>");
         sb.AppendLine($"<vNF>{F2(nota.TotalNota)}</vNF>");
         sb.AppendLine("</ICMSTot>");
+        // IBSCBSTot/vNFTot são irmãos de ICMSTot dentro de <total> (não filhos dele) — leiauteNFe_v4.00.xsd:5622.
+        if (nota.Itens.Any(i => i.ValorCbs.HasValue))
+        {
+            sb.AppendLine("<IBSCBSTot>");
+            sb.AppendLine($"<vBCIBSCBS>{F2(nota.Itens.Sum(i => i.BaseCalculoIbsCbs ?? 0))}</vBCIBSCBS>");
+            sb.AppendLine("<gIBS>");
+            sb.AppendLine("<gIBSUF>");
+            sb.AppendLine("<vDif>0.00</vDif>");
+            sb.AppendLine("<vDevTrib>0.00</vDevTrib>");
+            sb.AppendLine($"<vIBSUF>{F2(nota.Itens.Sum(i => i.ValorIbsUf ?? 0))}</vIBSUF>");
+            sb.AppendLine("</gIBSUF>");
+            sb.AppendLine("<gIBSMun>");
+            sb.AppendLine("<vDif>0.00</vDif>");
+            sb.AppendLine("<vDevTrib>0.00</vDevTrib>");
+            sb.AppendLine($"<vIBSMun>{F2(nota.Itens.Sum(i => i.ValorIbsMun ?? 0))}</vIBSMun>");
+            sb.AppendLine("</gIBSMun>");
+            sb.AppendLine($"<vIBS>{F2(nota.TotalIbs)}</vIBS>");
+            sb.AppendLine("<vCredPres>0.00</vCredPres>");
+            sb.AppendLine("<vCredPresCondSus>0.00</vCredPresCondSus>");
+            sb.AppendLine("</gIBS>");
+            sb.AppendLine("<gCBS>");
+            sb.AppendLine("<vDif>0.00</vDif>");
+            sb.AppendLine("<vDevTrib>0.00</vDevTrib>");
+            sb.AppendLine($"<vCBS>{F2(nota.TotalCbs)}</vCBS>");
+            sb.AppendLine("<vCredPres>0.00</vCredPres>");
+            sb.AppendLine("<vCredPresCondSus>0.00</vCredPresCondSus>");
+            sb.AppendLine("</gCBS>");
+            sb.AppendLine("</IBSCBSTot>");
+            sb.AppendLine($"<vNFTot>{F2(nota.TotalNotaComIbsCbs)}</vNFTot>");
+        }
         sb.AppendLine("</total>");
 
         // TRANSPORTE
