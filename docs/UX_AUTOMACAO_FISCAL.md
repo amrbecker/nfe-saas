@@ -117,9 +117,13 @@ Sugiro instrumentar (não foi implementado nesta entrega):
    desnecessária; idempotente; tolerante a falhas (não derruba o worker).
 2. **Tabela CEST** — o JSON do Portal Único não traz CEST. Carregar tabela oficial Confaz
    (Convênio 142/2018) e atualizar `ExigeCest=TRUE` nos NCMs presentes.
-3. **IBS/CBS (Reforma Tributária 2026)** — aguardar publicação final da NT 2025 pela SEFAZ
-   antes de implementar. O domínio (`ItemNotaFiscal`) já permite extensão sem migration
-   destrutiva.
+3. **IBS/CBS (Reforma Tributária 2026)** — ✅ ENTREGUE (parcial) em 2026-09-08. NT 2025.002
+   já publicada e obrigatória desde 03/08/2026 para Regime Normal. `ItemNotaFiscal.SetIbsCbs`,
+   `ImpostoCalculoService.CalcularIbsCbs` e o bloco `<IBSCBS>`/`<IBSCBSTot>` em `XmlNFeService`
+   cobrem apenas o caso padrão (CST 000/cClassTrib 000001, tributação integral) com as
+   alíquotas-teste 2026 (`AliquotasIbsCbsVigentes`). Ainda faltam: regimes especiais
+   (monofasia, ZFM, crédito presumido, Imposto Seletivo, diferimento, redução de base,
+   compras governamentais) e Simples Nacional/MEI (obrigatório só a partir de 04/01/2027).
 4. **Validação de CFOP cruzada com NCM** — ✅ ENTREGUE. `CfopNcmConsistencia.Verificar()`
    detecta 3 cenários inconsistentes e exibe warning inline por item em `EmitirNFe`.
 5. **Carga inicial da NCM completa** — ✅ ENTREGUE. 10.515 NCMs vigentes carregados via
