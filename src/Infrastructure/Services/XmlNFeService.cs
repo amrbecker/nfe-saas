@@ -44,8 +44,10 @@ public class XmlNFeService : IXmlNFeService
         sb.AppendLine($"<cNF>{CodigoNumericoAleatorio()}</cNF>");
         sb.AppendLine($"<natOp>VENDA DE MERCADORIA</natOp>");
         sb.AppendLine($"<mod>{(int)nota.Tipo}</mod>");
-        sb.AppendLine($"<serie>{nota.Serie:D3}</serie>");
-        sb.AppendLine($"<nNF>{nota.Numero:D9}</nNF>");
+        // <serie>/<nNF> não podem ter zero à esquerda (TSerie: "0|[1-9][0-9]{0,2}", TNF: "[1-9][0-9]{0,8}")
+        // — diferente da chave de acesso (GerarChaveAcesso), que exige largura fixa com zero-padding.
+        sb.AppendLine($"<serie>{nota.Serie}</serie>");
+        sb.AppendLine($"<nNF>{nota.Numero}</nNF>");
         sb.AppendLine($"<dhEmi>{nota.DataEmissao:yyyy-MM-ddTHH:mm:sszzz}</dhEmi>");
         sb.AppendLine($"<tpNF>{(int)nota.TipoOperacao}</tpNF>");
         sb.AppendLine($"<idDest>1</idDest>");

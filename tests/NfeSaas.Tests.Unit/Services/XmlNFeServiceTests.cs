@@ -86,6 +86,21 @@ public class XmlNFeServiceTests
     }
 
     [Fact]
+    public void GerarXmlNFe_SerieENumero_NaoDevemTerZeroAEsquerda()
+    {
+        // TSerie/TNF (XSD oficial) proíbem zero à esquerda em <serie>/<nNF> — diferente da chave de
+        // acesso, que usa largura fixa. CriarNotaCompleta usa serie=1, numero=1.
+        var empresa = CriarEmpresa();
+        var nota = CriarNotaCompleta(empresa);
+        var xml = _service.GerarXmlNFe(nota, empresa);
+
+        xml.Should().Contain("<serie>1</serie>");
+        xml.Should().Contain("<nNF>1</nNF>");
+        xml.Should().NotContain("<serie>001</serie>");
+        xml.Should().NotContain("<nNF>000000001</nNF>");
+    }
+
+    [Fact]
     public void GerarXmlNFe_ItemComIpi_DeveRenderizarBlocoIpi()
     {
         var empresa = CriarEmpresa();
