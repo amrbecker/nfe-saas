@@ -391,4 +391,15 @@ public class ConfiguracaoEmpresaRepository : IConfiguracaoEmpresaRepository
         _ctx.ConfiguracoesEmpresa.Update(configuracao);
         return Task.CompletedTask;
     }
+
+    public async Task<HashSet<Guid>> GetEmpresaIdsConfiguradosAsync(IEnumerable<Guid> empresaIds, CancellationToken ct = default)
+    {
+        var ids = empresaIds.ToList();
+        if (ids.Count == 0) return new HashSet<Guid>();
+        var configurados = await _ctx.ConfiguracoesEmpresa
+            .Where(c => ids.Contains(c.EmpresaId) && c.ConcluidoEm != null)
+            .Select(c => c.EmpresaId)
+            .ToListAsync(ct);
+        return configurados.ToHashSet();
+    }
 }

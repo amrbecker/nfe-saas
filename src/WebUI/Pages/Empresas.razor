@@ -37,12 +37,23 @@ else
             <MudTh>Razão Social</MudTh>
             <MudTh>Nome Fantasia</MudTh>
             <MudTh>CNPJ</MudTh>
+            <MudTh>Configuração</MudTh>
             <MudTh>Ações</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.RazaoSocial</MudTd>
             <MudTd>@context.NomeFantasia</MudTd>
             <MudTd>@context.Cnpj</MudTd>
+            <MudTd>
+                @if (context.ConfiguracaoConcluida)
+                {
+                    <MudChip Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Configurada</MudChip>
+                }
+                else
+                {
+                    <MudChip Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">Pendente</MudChip>
+                }
+            </MudTd>
             <MudTd>
                 <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
                            OnClick="@(() => Acessar(context.Id))">

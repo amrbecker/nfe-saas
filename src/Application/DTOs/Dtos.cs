@@ -169,7 +169,7 @@ public record LoginFailureDto(string Motivo, string Codigo, AssinaturaDto? Assin
 public record RefreshTokenDto(string RefreshToken);
 public record SelecionarEmpresaDto(Guid EmpresaId);
 
-public record EmpresaResumoDto(Guid Id, string RazaoSocial, string NomeFantasia, string Cnpj);
+public record EmpresaResumoDto(Guid Id, string RazaoSocial, string NomeFantasia, string Cnpj, bool ConfiguracaoConcluida = false);
 public record EscritorioDto(Guid Id, string RazaoSocial, string NomeFantasia, string Cnpj, string Email, string? Telefone, string Plano, bool Ativo);
 
 public record CreateEscritorioDto(

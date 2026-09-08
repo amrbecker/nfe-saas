@@ -94,31 +94,38 @@ public class PersonalizacaoService : IPersonalizacaoService
     {
         if (_cache != null && !forceRefresh) return _cache;
 
+        // GetAsync() retorna null tanto para "empresa ainda não configurada" (204, caso normal)
+        // quanto para qualquer resposta HTTP de falha (ApiClient.GetAsync trata ambos como default).
+        // Uma exceção aqui já não é o caminho esperado para "não configurada" — é falha real
+        // (rede, desserialização) e não deveria ser silenciada como se fosse a mesma coisa.
+        ConfiguracaoEmpresaDto? dto;
         try
         {
-            var dto = await _configService.GetAsync();
-            if (dto == null)
-            {
-                _cache = PerfilSimplificado.Default();
-                return _cache;
-            }
-
-            _cache = new PerfilSimplificado(
-                ConfiguracaoConcluida: dto.ConcluidoEm.HasValue,
-                PerfilCliente: (PerfilCliente)dto.PerfilCliente,
-                TipoProduto: (TipoProduto)dto.TipoProduto,
-                VolumeNotas: (VolumeNotas)dto.VolumeNotas,
-                NivelAutomacao: (NivelAutomacao)dto.NivelAutomacao,
-                NivelRelatorio: (NivelRelatorio)dto.NivelRelatorio,
-                EmiteParaConsumidorFinal: dto.EmiteParaConsumidorFinal,
-                OperaIcmsSt: dto.OperaIcmsSt);
+            dto = await _configService.GetAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[PersonalizacaoService] Falha ao obter configuração da empresa: {ex.Message}");
+            _cache = PerfilSimplificado.Default();
             return _cache;
         }
-        catch
+
+        if (dto == null)
         {
             _cache = PerfilSimplificado.Default();
             return _cache;
         }
+
+        _cache = new PerfilSimplificado(
+            ConfiguracaoConcluida: dto.ConcluidoEm.HasValue,
+            PerfilCliente: (PerfilCliente)dto.PerfilCliente,
+            TipoProduto: (TipoProduto)dto.TipoProduto,
+            VolumeNotas: (VolumeNotas)dto.VolumeNotas,
+            NivelAutomacao: (NivelAutomacao)dto.NivelAutomacao,
+            NivelRelatorio: (NivelRelatorio)dto.NivelRelatorio,
+            EmiteParaConsumidorFinal: dto.EmiteParaConsumidorFinal,
+            OperaIcmsSt: dto.OperaIcmsSt);
+        return _cache;
     }
 
     public Task InvalidarAsync()

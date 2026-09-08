@@ -9,13 +9,20 @@ public record GetEmpresasQuery(Guid EscritorioId) : IRequest<List<EmpresaResumoD
 public class GetEmpresasQueryHandler : IRequestHandler<GetEmpresasQuery, List<EmpresaResumoDto>>
 {
     private readonly IEmpresaRepository _repo;
+    private readonly IConfiguracaoEmpresaRepository _configRepo;
 
-    public GetEmpresasQueryHandler(IEmpresaRepository repo) => _repo = repo;
+    public GetEmpresasQueryHandler(IEmpresaRepository repo, IConfiguracaoEmpresaRepository configRepo)
+    {
+        _repo = repo;
+        _configRepo = configRepo;
+    }
 
     public async Task<List<EmpresaResumoDto>> Handle(GetEmpresasQuery request, CancellationToken cancellationToken)
     {
         var empresas = await _repo.GetByEscritorioAsync(request.EscritorioId, cancellationToken);
-        return empresas.Select(e => new EmpresaResumoDto(e.Id, e.RazaoSocial, e.NomeFantasia, e.Cnpj)).ToList();
+        var configuradas = await _configRepo.GetEmpresaIdsConfiguradosAsync(empresas.Select(e => e.Id), cancellationToken);
+        return empresas.Select(e => new EmpresaResumoDto(
+            e.Id, e.RazaoSocial, e.NomeFantasia, e.Cnpj, configuradas.Contains(e.Id))).ToList();
     }
 }
 

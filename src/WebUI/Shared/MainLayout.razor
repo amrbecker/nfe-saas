@@ -78,7 +78,18 @@
                     }
                     <MudDivider />
                     <MudNavLink Href="/empresa" Icon="@Icons.Material.Filled.Business">Config. Empresa</MudNavLink>
-                    <MudNavLink Href="/configuracao-inicial" Icon="@Icons.Material.Filled.Tune">Personalização</MudNavLink>
+                    @if (!_perfil.ConfiguracaoConcluida)
+                    {
+                        <MudTooltip Text="Configuração inicial pendente">
+                            <MudBadge Color="Color.Warning" Dot="true" Overlap="true" Class="mud-width-full">
+                                <MudNavLink Href="/configuracao-inicial" Icon="@Icons.Material.Filled.Tune">Personalização</MudNavLink>
+                            </MudBadge>
+                        </MudTooltip>
+                    }
+                    else
+                    {
+                        <MudNavLink Href="/configuracao-inicial" Icon="@Icons.Material.Filled.Tune">Personalização</MudNavLink>
+                    }
                     <MudNavLink Href="/certificado" Icon="@Icons.Material.Filled.Security">Certificado Digital</MudNavLink>
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <Authorized>

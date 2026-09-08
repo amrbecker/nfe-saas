@@ -101,6 +101,8 @@ public interface IConfiguracaoEmpresaRepository
     Task<ConfiguracaoEmpresa?> GetByEmpresaAsync(Guid empresaId, CancellationToken ct = default);
     Task AddAsync(ConfiguracaoEmpresa configuracao, CancellationToken ct = default);
     Task UpdateAsync(ConfiguracaoEmpresa configuracao, CancellationToken ct = default);
+    /// <summary>Ids, dentre os informados, que já concluíram o wizard de personalização (ConcluidoEm != null).</summary>
+    Task<HashSet<Guid>> GetEmpresaIdsConfiguradosAsync(IEnumerable<Guid> empresaIds, CancellationToken ct = default);
 }
 
 public interface IUnitOfWork

@@ -3,6 +3,7 @@
 @using NfeSaas.Domain.Enums
 @inject IConfiguracaoEmpresaService ConfigService
 @inject IAuthService AuthService
+@inject IPersonalizacaoService Personalizacao
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
@@ -35,6 +36,16 @@
     }
     else
     {
+        @if (_concluidoEm.HasValue)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-4" Icon="@Icons.Material.Filled.History">
+                <MudText Typo="Typo.body2">
+                    Esta empresa já foi configurada em <b>@_concluidoEm.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</b>.
+                    As respostas abaixo estão pré-preenchidas com a configuração atual — finalize para atualizá-la.
+                </MudText>
+            </MudAlert>
+        }
+
         <div class="mb-4">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -135,6 +146,7 @@
     bool _salvando;
     bool _temEmpresa;
     int _passoAtual;
+    DateTime? _concluidoEm;
 
     PerfilCliente _perfilCliente = PerfilCliente.PequenasEmpresasSimples;
     TipoProduto _tipoProduto = TipoProduto.ServicosBasicos;
@@ -156,6 +168,8 @@
 
             try
             {
+                // GetAsync() retorna null tanto para "204 sem configuração ainda" quanto para
+                // qualquer resposta de falha — só uma exceção aqui é falha real (rede, parsing).
                 var existing = await ConfigService.GetAsync();
                 if (existing != null)
                 {
@@ -166,9 +180,16 @@
                     _emiteParaConsumidorFinal = existing.EmiteParaConsumidorFinal;
                     _operaIcmsSt = existing.OperaIcmsSt;
                     _nivelRelatorio = (NivelRelatorio)existing.NivelRelatorio;
+                    _concluidoEm = existing.ConcluidoEm;
                 }
             }
-            catch { /* configuração ainda não existe — segue com defaults */ }
+            catch (Exception ex)
+            {
+                Snackbar.Add(
+                    "Não foi possível carregar a configuração atual desta empresa — respeitando os valores padrão.",
+                    Severity.Warning);
+                Console.Error.WriteLine($"[ConfiguracaoInicial] Falha ao carregar configuração existente: {ex.Message}");
+            }
 
             ReconstruirPassos();
         }
@@ -329,7 +350,11 @@
                     return;
                 }
                 Snackbar.Add("Configuração salva com sucesso!", Severity.Success);
-                Nav.NavigateTo("/");
+                // IPersonalizacaoService é Scoped = vive a sessão inteira em Blazor WASM; sem invalidar
+                // e recarregar, o menu lateral e outras páginas continuam com o perfil antigo em cache
+                // até o usuário trocar de empresa ou dar F5 manualmente (mesmo padrão do TrocarEmpresa).
+                await Personalizacao.InvalidarAsync();
+                Nav.NavigateTo("/", forceLoad: true);
             }
             catch (HttpRequestException ex)
             {

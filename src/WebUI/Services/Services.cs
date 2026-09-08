@@ -60,6 +60,9 @@ public class ApiClient
     {
         await SetAuthHeader();
         var response = await _http.GetAsync(url);
+        // 204 é sucesso com corpo vazio (ex.: recurso opcional ainda não existe) — nunca chamar
+        // ReadFromJsonAsync aqui, pois lança JsonException em corpo vazio (input sem tokens JSON).
+        if (response.StatusCode == System.Net.HttpStatusCode.NoContent) return default;
         if (!response.IsSuccessStatusCode) return default;
         return await response.Content.ReadFromJsonAsync<T>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }
