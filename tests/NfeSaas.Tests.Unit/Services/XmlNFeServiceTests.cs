@@ -185,6 +185,21 @@ public class XmlNFeServiceTests
     }
 
     [Fact]
+    public void GerarXmlNFe_ItemComCstClassTribCustomizados_RenderizaValoresInformados()
+    {
+        var empresa = CriarEmpresa();
+        var nota = CriarNotaCompleta(empresa);
+        var item = nota.Itens.First();
+        item.SetIbsCbs(baseCalculo: 200m, aliquotaIbsUf: 0.08m, aliquotaIbsMun: 0.02m, aliquotaCbs: 0.90m,
+            cst: "410", classTrib: "200004");
+
+        var xml = _service.GerarXmlNFe(nota, empresa);
+
+        xml.Should().Contain("<CST>410</CST>");
+        xml.Should().Contain("<cClassTrib>200004</cClassTrib>");
+    }
+
+    [Fact]
     public void GerarXmlNFe_ItemSemIbsCbs_NaoRenderizaBloco()
     {
         var empresa = CriarEmpresa();

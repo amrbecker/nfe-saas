@@ -66,7 +66,9 @@ public record ImpostosItemDto(
     decimal? AliquotaInternaUfDestino = null,  // DIFAL — alíquota interna da UF de destino (usada quando interestadual a não-contribuinte)
     decimal? AliquotaIbsUf = null,         // IBS/CBS (Reforma Tributária) — null usa as alíquotas-teste vigentes (AliquotasIbsCbsVigentes)
     decimal? AliquotaIbsMun = null,
-    decimal? AliquotaCbs = null
+    decimal? AliquotaCbs = null,
+    string? CstIbsCbs = null,              // CST do grupo IBS/CBS (3 díg.: 000, 200, 400, 410, 500, 900…). Default "000" (tributação integral) em ItemNotaFiscal.SetIbsCbs
+    string? ClassTribIbsCbs = null         // cClassTrib (6 díg., tabela oficial da Reforma). Default "000001" (sem benefício) em ItemNotaFiscal.SetIbsCbs
 );
 
 public record TransporteDto(

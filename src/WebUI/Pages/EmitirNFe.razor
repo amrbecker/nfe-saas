@@ -247,6 +247,22 @@
                     {
                         <!-- IBS/CBS — Reforma Tributária (obrigatório para Regime Normal desde 03/08/2026, NT 2025.002). -->
                         <MudItem xs="12" md="2">
+                            <MudSelect @bind-Value="item.CstIbsCbs" Label="CST IBS/CBS" Variant="Variant.Outlined">
+                                <MudSelectItem Value="@("000")">000 - Tributação integral</MudSelectItem>
+                                <MudSelectItem Value="@("200")">200 - Alíquota reduzida</MudSelectItem>
+                                <MudSelectItem Value="@("400")">400 - Isenção</MudSelectItem>
+                                <MudSelectItem Value="@("410")">410 - Imunidade</MudSelectItem>
+                                <MudSelectItem Value="@("500")">500 - Suspensão</MudSelectItem>
+                                <MudSelectItem Value="@("900")">900 - Outros</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="2">
+                            <MudTextField @bind-Value="item.ClassTribIbsCbs" Label="cClassTrib" Variant="Variant.Outlined"
+                                          MaxLength="6" Immediate="true"
+                                          HelperText="Código de 6 díg. da tabela oficial. 000001 = sem benefício"
+                                          Validation="@((string s) => ValidarClassTrib(s))" />
+                        </MudItem>
+                        <MudItem xs="12" md="2">
                             <MudNumericField @bind-Value="item.AliquotaIbs" Label="Alíq. IBS %" Variant="Variant.Outlined" Min="0m" Max="100m"
                                              HelperText="Fase-teste 2026: 0,10%" />
                         </MudItem>
@@ -420,6 +436,12 @@
     private static decimal SplitIbsMun(decimal aliquotaIbsTotal) =>
         aliquotaIbsTotal * (NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsMun /
             (NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsUf + NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsMun));
+
+    static string? ValidarClassTrib(string? classTrib)
+    {
+        if (string.IsNullOrWhiteSpace(classTrib)) return "cClassTrib é obrigatório";
+        return classTrib.Length == 6 && classTrib.All(char.IsDigit) ? null : "cClassTrib deve ter 6 dígitos";
+    }
 
     // Cadastros master
     private List<ClienteResumoDto> _clientes = new();
@@ -598,7 +620,9 @@
                         i.AliquotaInternaUfDestino > 0 ? i.AliquotaInternaUfDestino : null,
                         !_isSimples && i.AliquotaIbs > 0 ? SplitIbsUf(i.AliquotaIbs) : null,
                         !_isSimples && i.AliquotaIbs > 0 ? SplitIbsMun(i.AliquotaIbs) : null,
-                        !_isSimples && i.AliquotaCbs > 0 ? i.AliquotaCbs : null))).ToList(),
+                        !_isSimples && i.AliquotaCbs > 0 ? i.AliquotaCbs : null,
+                        !_isSimples ? i.CstIbsCbs : null,
+                        !_isSimples ? i.ClassTribIbsCbs : null))).ToList(),
                 new NfeSaas.Application.DTOs.TransporteDto(_modalidadeFrete, null, null, _valorFrete, _valorSeguro),
                 new NfeSaas.Application.DTOs.PagamentoDto(_formaPagamento, totalNota),
                 _infoAdicionais,
@@ -692,5 +716,7 @@
         // IBS/CBS (Reforma Tributária, fase-teste 2026)
         public decimal AliquotaIbs { get; set; } = NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsUf + NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.IbsMun;
         public decimal AliquotaCbs { get; set; } = NfeSaas.Application.Interfaces.AliquotasIbsCbsVigentes.Cbs;
+        public string CstIbsCbs { get; set; } = "000";
+        public string ClassTribIbsCbs { get; set; } = "000001";
     }
 }

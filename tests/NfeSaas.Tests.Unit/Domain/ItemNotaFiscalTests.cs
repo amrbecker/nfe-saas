@@ -121,6 +121,17 @@ public class ItemNotaFiscalTests
     }
 
     [Fact]
+    public void SetIbsCbs_ComCstEClassTribCustomizados_DevePersistirValoresInformados()
+    {
+        var item = Criar();
+        item.SetIbsCbs(baseCalculo: 1000m, aliquotaIbsUf: 0.08m, aliquotaIbsMun: 0.02m, aliquotaCbs: 0.90m,
+            cst: "410", classTrib: "200004");
+
+        item.CstIbsCbs.Should().Be("410");
+        item.ClassTribIbsCbs.Should().Be("200004");
+    }
+
+    [Fact]
     public void SetIcms_AposSetIcmsSimples_DeveLimparCsosn()
     {
         var item = Criar();
