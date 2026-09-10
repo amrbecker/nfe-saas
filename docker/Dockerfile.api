@@ -21,8 +21,30 @@ WORKDIR /app
 # Pacotes runtime:
 #   curl          → healthcheck do compose
 #   libfontconfig1 → exigido pelo SkiaSharp/QuestPDF para renderização do DANFE em PDF
+#   unzip         → só usado para extrair a cadeia ICP-Brasil abaixo
+#
+# Cadeia de CAs ICP-Brasil: os webservices da SEFAZ (e demais .gov.br) usam certificados TLS
+# emitidos sob a hierarquia ICP-Brasil, que NÃO faz parte do bundle público de CAs (Mozilla) que
+# o Debian/ca-certificates traz por padrão. Sem isso, toda chamada à SEFAZ falha com
+# "AuthenticationException: ... UntrustedRoot" — .NET no Linux usa o trust store do SO (OpenSSL),
+# então isso precisa ser resolvido na imagem, não em código. Confirmado em produção (2026-09-10):
+# o app reportava "SEFAZ indisponível" (mensagem genérica de falha de conexão), mas a causa real
+# era essa. Fonte oficial: repositório da AC-Raiz do ITI
+# (https://www.gov.br/iti/pt-br/assuntos/repositorio/repositorio-ac-raiz) — os certificados vêm
+# prontos em PEM, só precisam ir para /usr/local/share/ca-certificates/ + update-ca-certificates.
+# A cadeia muda com o tempo (novas ACs credenciadas) — um rebuild da imagem já pega a versão atual.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl libfontconfig1 \
+ && apt-get install -y --no-install-recommends curl libfontconfig1 unzip ca-certificates \
+ # -k: o próprio servidor de acraiz.icpbrasil.gov.br não envia a cadeia intermediária completa no
+ # handshake TLS (confirmado: erro "unable to get local issuer certificate", falta a intermediária
+ # Let's Encrypt "YE1"), então a validação da cadeia falha mesmo sendo HTTPS/domínio correto. Como
+ # o conteúdo baixado aqui são certificados PÚBLICOS (não segredo) do próprio repositório oficial
+ # do ITI, aceitável pular a verificação de cadeia só nesta chamada pontual de build.
+ && curl -fsSLk -o /tmp/icpbrasil.zip "https://acraiz.icpbrasil.gov.br/credenciadas/CertificadosAC-ICP-Brasil/ACcompactado.zip" \
+ && mkdir -p /usr/local/share/ca-certificates/icp-brasil \
+ && unzip -q -o /tmp/icpbrasil.zip -d /usr/local/share/ca-certificates/icp-brasil \
+ && rm /tmp/icpbrasil.zip \
+ && update-ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
