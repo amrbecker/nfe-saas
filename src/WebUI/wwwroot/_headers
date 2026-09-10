@@ -4,14 +4,30 @@
   Referrer-Policy: no-referrer
   Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.nfe.sideral.app.br https://viacep.com.br https://brasilapi.com.br https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io; frame-ancestors 'none'
 
-/*.js
-  Cache-Control: public, max-age=31536000, immutable
-/*.css
-  Cache-Control: public, max-age=31536000, immutable
-/*.wasm
-  Cache-Control: public, max-age=31536000, immutable
 /*.woff2
   Cache-Control: public, max-age=31536000, immutable
+
+# .js/.css/.wasm/.dll/.dat/.pdb NÃO têm hash de conteúdo no nome (Blazor WASM publica
+# NfeSaas.WebUI.wasm, MudBlazor.wasm etc. com o MESMO nome sempre, build após build —
+# confirmado inspecionando o publish: nenhum arquivo em _framework/ é content-hashed).
+# "immutable, max-age=31536000" nesses arquivos faz o navegador NUNCA revalidar — uma vez
+# cacheado, o código antigo fica preso lá por até 1 ano, mesmo com deploys novos sucessivos
+# (bug real encontrado em produção 2026-09-10: fix client-side não "chegava" nos navegadores
+# que já tinham visitado o site). "no-cache" ainda cacheia, mas sempre revalida via ETag —
+# arquivo igual = resposta 304 rápida; arquivo mudou = baixa a versão nova.
+/*.js
+  Cache-Control: no-cache
+/*.css
+  Cache-Control: no-cache
+/*.wasm
+  Cache-Control: no-cache
+/*.dll
+  Cache-Control: no-cache
+/*.dat
+  Cache-Control: no-cache
+/*.pdb
+  Cache-Control: no-cache
+
 /index.html
   Cache-Control: no-cache, no-store, must-revalidate
 /_framework/blazor.boot.json
