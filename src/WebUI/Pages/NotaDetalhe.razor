@@ -427,16 +427,24 @@ else
 
     async Task DownloadDanfe()
     {
-        var pdf = await NotaService.GetDanfePdfAsync(Id);
-        if (pdf == null)
+        try
         {
-            Snackbar.Add("Erro ao gerar DANFE.", Severity.Error);
-            return;
-        }
+            var pdf = await NotaService.GetDanfePdfAsync(Id);
+            if (pdf == null)
+            {
+                Snackbar.Add("Erro ao gerar DANFE.", Severity.Error);
+                return;
+            }
 
-        var filename = $"DANFE_{_nota!.Numero:D9}.pdf";
-        await JS.InvokeVoidAsync("downloadFile", filename, "application/pdf", Convert.ToBase64String(pdf));
-        Snackbar.Add("DANFE gerado com sucesso!", Severity.Success);
+            var filename = $"DANFE_{_nota!.Numero:D9}.pdf";
+            await JS.InvokeVoidAsync("downloadFile", filename, "application/pdf", Convert.ToBase64String(pdf));
+            Snackbar.Add("DANFE gerado com sucesso!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"DownloadDanfe falhou: {ex}");
+            Snackbar.Add("Erro ao baixar o DANFE. Tente novamente.", Severity.Error);
+        }
     }
 
     Color GetCorSituacao(NfeSaas.Domain.Enums.SituacaoNota s) => s switch
