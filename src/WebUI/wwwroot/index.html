@@ -56,17 +56,7 @@
     </div>
 
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="js/download.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
-    <script>
-        // Download file helper
-        window.downloadFile = function(filename, contentType, content) {
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = "data:" + contentType + ";base64," + content;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
-    </script>
 </body>
 </html>
