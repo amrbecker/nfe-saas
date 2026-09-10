@@ -84,6 +84,14 @@ else
                             @(_nota.EmailEnviadoEm.HasValue ? "Reenviar por E-mail" : "Enviar por E-mail")
                         </MudButton>
                     }
+                    @if (_nota.Situacao == NfeSaas.Domain.Enums.SituacaoNota.PendenteRetransmissao)
+                    {
+                        <MudButton StartIcon="@Icons.Material.Filled.Sync" Color="Color.Warning"
+                                   OnClick="Retransmitir" Variant="Variant.Outlined" Disabled="@_retransmitindo">
+                            @if (_retransmitindo) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                            Retransmitir para a SEFAZ
+                        </MudButton>
+                    }
                     <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Href="/notas" Variant="Variant.Text">Voltar</MudButton>
                 </MudCardActions>
             </MudCard>
@@ -302,6 +310,7 @@ else
     private bool _mostrarDialogEmail;
     private bool _enviandoEvento;
     private bool _enviandoEmail;
+    private bool _retransmitindo;
     private string _cceCorrecao = "";
     private int _manifTipo = 210210; // Ciência por padrão
     private string _manifJust = "";
@@ -447,6 +456,18 @@ else
         }
     }
 
+    async Task Retransmitir()
+    {
+        _retransmitindo = true;
+        var (sucesso, mensagem) = await NotaService.RetransmitirAsync(Id);
+        _retransmitindo = false;
+
+        Snackbar.Add(sucesso ? "Nota retransmitida e autorizada com sucesso!" : (mensagem ?? "SEFAZ ainda indisponível — tente novamente mais tarde."),
+            sucesso ? Severity.Success : Severity.Warning);
+
+        _nota = await NotaService.GetNotaAsync(Id);
+    }
+
     Color GetCorSituacao(NfeSaas.Domain.Enums.SituacaoNota s) => s switch
     {
         NfeSaas.Domain.Enums.SituacaoNota.Autorizada => Color.Success,
@@ -454,6 +475,7 @@ else
         NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
         NfeSaas.Domain.Enums.SituacaoNota.Denegada  => Color.Error,
         NfeSaas.Domain.Enums.SituacaoNota.Enviada   => Color.Info,
+        NfeSaas.Domain.Enums.SituacaoNota.PendenteRetransmissao => Color.Warning,
         _ => Color.Default
     };
 
@@ -465,6 +487,7 @@ else
         NfeSaas.Domain.Enums.SituacaoNota.Cancelada => "Cancelada",
         NfeSaas.Domain.Enums.SituacaoNota.Denegada  => "Denegada",
         NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => "Rejeitada",
+        NfeSaas.Domain.Enums.SituacaoNota.PendenteRetransmissao => "Pendente retransmissão",
         _ => s.ToString()
     };
 }

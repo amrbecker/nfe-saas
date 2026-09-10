@@ -188,6 +188,7 @@ public class NotaFiscal : BaseEntity
         XmlRetorno = xmlRetorno;
         DataAutorizacao = DateTime.UtcNow;
         Situacao = SituacaoNota.Autorizada;
+        MotivoRejeicao = null; // limpa um motivo de rejeição/pendência de tentativa anterior (ex.: retransmissão)
         SetUpdated();
     }
 
@@ -202,6 +203,17 @@ public class NotaFiscal : BaseEntity
     {
         MotivoRejeicao = motivo;
         Situacao = SituacaoNota.Rejeitada;
+        SetUpdated();
+    }
+
+    // SEFAZ (primária + contingência SVC) inacessível — diferente de Rejeitar: o XML já assinado
+    // permanece válido para uma nova tentativa de transmissão (RetransmitirNFeCommand), sem
+    // consumir um novo número de sequência. Chamável repetidamente enquanto a indisponibilidade persistir.
+    public void MarcarPendenteRetransmissao(string motivo)
+    {
+        EnsureMutavel("marcar pendente de retransmissão");
+        MotivoRejeicao = motivo;
+        Situacao = SituacaoNota.PendenteRetransmissao;
         SetUpdated();
     }
 

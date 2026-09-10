@@ -92,7 +92,8 @@ public class GetDashboardQueryHandler : IRequestHandler<GetDashboardQuery, Dashb
         contagemPorSituacao.TryGetValue(NfeSaas.Domain.Enums.SituacaoNota.Autorizada, out var autorizadas);
         contagemPorSituacao.TryGetValue(NfeSaas.Domain.Enums.SituacaoNota.Cancelada, out var canceladas);
         int pendentes = contagemPorSituacao
-            .Where(k => k.Key is NfeSaas.Domain.Enums.SituacaoNota.Rascunho or NfeSaas.Domain.Enums.SituacaoNota.Enviada)
+            .Where(k => k.Key is NfeSaas.Domain.Enums.SituacaoNota.Rascunho or NfeSaas.Domain.Enums.SituacaoNota.Enviada
+                or NfeSaas.Domain.Enums.SituacaoNota.PendenteRetransmissao)
             .Sum(k => k.Value);
         int total = contagemPorSituacao.Values.Sum();
 

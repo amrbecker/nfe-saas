@@ -54,6 +54,53 @@ public class NotaFiscalTests
     }
 
     [Fact]
+    public void MarcarPendenteRetransmissao_DeveMudarSituacaoEGuardarMotivo()
+    {
+        var nota = CriarNota();
+        nota.MarcarEnviada("<xml/>");
+        nota.MarcarPendenteRetransmissao("SEFAZ indisponível. Nota salva em contingência. Retransmitir quando o serviço retornar.");
+
+        nota.Situacao.Should().Be(SituacaoNota.PendenteRetransmissao);
+        nota.MotivoRejeicao.Should().Contain("SEFAZ indisponível");
+    }
+
+    [Fact]
+    public void MarcarPendenteRetransmissao_ApartirDePendente_PermiteNovaTentativa()
+    {
+        var nota = CriarNota();
+        nota.MarcarEnviada("<xml/>");
+        nota.MarcarPendenteRetransmissao("Primeira falha.");
+        nota.MarcarPendenteRetransmissao("Segunda falha.");
+
+        nota.Situacao.Should().Be(SituacaoNota.PendenteRetransmissao);
+        nota.MotivoRejeicao.Should().Be("Segunda falha.");
+    }
+
+    [Fact]
+    public void MarcarPendenteRetransmissao_ApartirDePendente_PermiteAutorizarNaRetransmissao()
+    {
+        var nota = CriarNota();
+        nota.MarcarEnviada("<xml/>");
+        nota.MarcarPendenteRetransmissao("SEFAZ indisponível.");
+        nota.Autorizar("CHAVE123", "PROTO456", "<xml>retorno</xml>");
+
+        nota.Situacao.Should().Be(SituacaoNota.Autorizada);
+        nota.MotivoRejeicao.Should().BeNull();
+    }
+
+    [Fact]
+    public void MarcarPendenteRetransmissao_EmNotaAutorizada_DeveLancar()
+    {
+        var nota = CriarNota();
+        nota.MarcarEnviada("<xml/>");
+        nota.Autorizar("CHAVE", "PROTO", "<xml/>");
+
+        var act = () => nota.MarcarPendenteRetransmissao("SEFAZ indisponível.");
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
     public void Cancelar_DeveMudarSituacaoEGuardarXml()
     {
         var nota = CriarNota();

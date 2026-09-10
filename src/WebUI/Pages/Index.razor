@@ -134,6 +134,7 @@ else if (_dashboard != null)
         NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => Color.Warning,
         NfeSaas.Domain.Enums.SituacaoNota.Denegada  => Color.Error,
         NfeSaas.Domain.Enums.SituacaoNota.Enviada   => Color.Info,
+        NfeSaas.Domain.Enums.SituacaoNota.PendenteRetransmissao => Color.Warning,
         _ => Color.Default
     };
 
@@ -145,6 +146,7 @@ else if (_dashboard != null)
         NfeSaas.Domain.Enums.SituacaoNota.Cancelada => "Cancelada",
         NfeSaas.Domain.Enums.SituacaoNota.Denegada  => "Denegada",
         NfeSaas.Domain.Enums.SituacaoNota.Rejeitada => "Rejeitada",
+        NfeSaas.Domain.Enums.SituacaoNota.PendenteRetransmissao => "Pendente retransmissão",
         _ => s.ToString()
     };
 }

@@ -31,7 +31,10 @@ public enum SituacaoNota
     Autorizada = 2,
     Cancelada = 3,
     Denegada = 4,
-    Rejeitada = 5
+    Rejeitada = 5,
+    // SEFAZ (primária e contingência SVC) inacessível na tentativa de emissão — XML já assinado
+    // e a numeração já consumida, aguardando retransmissão manual do mesmo XML (não gera nota nova).
+    PendenteRetransmissao = 6
 }
 
 public enum AmbienteSefaz

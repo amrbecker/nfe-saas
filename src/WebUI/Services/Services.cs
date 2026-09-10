@@ -345,6 +345,7 @@ public interface INotaFiscalService
     Task<bool> CancelarAsync(Guid id, string justificativa);
     Task<byte[]?> GetDanfePdfAsync(Guid id);
     Task<(bool Sucesso, string? Mensagem)> EnviarEmailAsync(Guid id, string? emailDestino);
+    Task<(bool Sucesso, string? Mensagem)> RetransmitirAsync(Guid id);
     Task<DashboardDto?> GetDashboardAsync(int? ano = null, int? mes = null);
 }
 
@@ -381,6 +382,13 @@ public class NotaFiscalService : INotaFiscalService
 
     public async Task<byte[]?> GetDanfePdfAsync(Guid id) =>
         await _api.GetBytesAsync($"api/notas-fiscais/{id}/danfe");
+
+    public async Task<(bool Sucesso, string? Mensagem)> RetransmitirAsync(Guid id)
+    {
+        var response = await _api.PostRawAsync($"api/notas-fiscais/{id}/retransmitir", new { });
+        if (response.IsSuccessStatusCode) return (true, null);
+        return (false, await ApiHelper.ExtrairMensagemErro(response));
+    }
 
     public async Task<(bool Sucesso, string? Mensagem)> EnviarEmailAsync(Guid id, string? emailDestino)
     {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using NfeSaas.Application.Commands.CancelarNFe;
 using NfeSaas.Application.Commands.EmitirNFe;
 using NfeSaas.Application.Commands.EnviarNFePorEmail;
+using NfeSaas.Application.Commands.RetransmitirNFe;
 using NfeSaas.Application.Commands.EventosFiscaisCommands;
 using NfeSaas.Application.DTOs;
 using NfeSaas.Application.Interfaces;
@@ -36,6 +37,15 @@ public class NotaFiscalController : BaseApiController
         if (!result.Sucesso)
             return BadRequest(new { message = result.MensagemErro });
 
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/retransmitir")]
+    public async Task<IActionResult> Retransmitir(Guid id)
+    {
+        var result = await Mediator.Send(new RetransmitirNFeCommand(id, EmpresaId, UserId));
+        if (!result.Sucesso)
+            return BadRequest(new { message = result.MensagemErro });
         return Ok(result);
     }
 

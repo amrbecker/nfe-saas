@@ -225,10 +225,21 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
             // Enviar para SEFAZ
             var resultado = await _sefaz.EnviarNFeAsync(nota, empresa, cancellationToken);
 
+            // CodigoRetorno -1 é o sentinel exclusivo de "SEFAZ primária E contingência SVC
+            // inacessíveis" (ver SefazService.EnviarNFeAsync) — distinto de uma rejeição de
+            // negócio real (CST/CFOP inválido, duplicidade, etc.), que sempre vem com o código
+            // de status (cStat) retornado pela própria SEFAZ.
+            var semAcessoSefaz = !resultado.Sucesso && resultado.CodigoRetorno == -1;
+
             if (resultado.Sucesso)
             {
                 nota.Autorizar(resultado.ChaveAcesso!, resultado.Protocolo!, resultado.XmlRetorno!);
                 _logger.LogInformation("NF-e {Numero} autorizada. Chave: {Chave}", nota.Numero, resultado.ChaveAcesso);
+            }
+            else if (semAcessoSefaz)
+            {
+                nota.MarcarPendenteRetransmissao(resultado.MensagemErro ?? "SEFAZ indisponível.");
+                _logger.LogWarning("NF-e {Numero} pendente de retransmissão — SEFAZ inacessível.", nota.Numero);
             }
             else
             {
@@ -243,9 +254,9 @@ public class EmitirNFeCommandHandler : IRequestHandler<EmitirNFeCommand, EmitirN
             // Audit
             var auditDetalhes = resultado.Sucesso
                 ? $"Autorizada. Protocolo: {resultado.Protocolo}"
-                : $"Rejeitada: {resultado.MensagemErro}";
+                : $"{(semAcessoSefaz ? "Pendente retransmissão" : "Rejeitada")}: {resultado.MensagemErro}";
             await _auditService.RegistrarAsync(empresa.Id,
-                resultado.Sucesso ? "NFe.Autorizada" : "NFe.Rejeitada",
+                resultado.Sucesso ? "NFe.Autorizada" : (semAcessoSefaz ? "NFe.PendenteRetransmissao" : "NFe.Rejeitada"),
                 request.UsuarioId, resultado.ChaveAcesso, auditDetalhes,
                 ct: cancellationToken);
 
