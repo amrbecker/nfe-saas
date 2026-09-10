@@ -402,6 +402,8 @@ public record UpdateEmpresaDto(
 public record UploadCertificadoDto(string Senha);
 public record CertificadoStatusDto(bool Valido, string? NomeTitular, string? Cnpj, DateTime? Validade, string? Mensagem);
 
+public record AjustarNumeracaoDto(int? UltimoNumeronFe, int? UltimoNumeronFCe);
+
 public record ConfiguracaoEmpresaDto(
     int PerfilCliente,
     int TipoProduto,

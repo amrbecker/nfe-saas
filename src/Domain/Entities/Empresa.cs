@@ -142,6 +142,35 @@ public class Empresa : BaseEntity
         return UltimoNumeronFCe;
     }
 
+    /// <summary>
+    /// Ajusta o último número emitido (o próximo emitido será este + 1). Usado para
+    /// continuar a numeração de um emissor anterior (ex.: cliente já está na nota 44).
+    /// Não permite retroceder abaixo do que já foi emitido nesta empresa, para não colidir
+    /// com notas já autorizadas.
+    /// </summary>
+    public void AjustarUltimoNumero(TipoNota tipo, int novoUltimoNumero)
+    {
+        if (novoUltimoNumero < 0)
+            throw new InvalidOperationException("O número não pode ser negativo.");
+
+        if (tipo == TipoNota.NFe)
+        {
+            if (novoUltimoNumero < UltimoNumeronFe)
+                throw new InvalidOperationException(
+                    $"Não é possível retroceder a numeração de NF-e: já há notas emitidas até o número {UltimoNumeronFe}.");
+            UltimoNumeronFe = novoUltimoNumero;
+        }
+        else
+        {
+            if (novoUltimoNumero < UltimoNumeronFCe)
+                throw new InvalidOperationException(
+                    $"Não é possível retroceder a numeração de NFC-e: já há notas emitidas até o número {UltimoNumeronFCe}.");
+            UltimoNumeronFCe = novoUltimoNumero;
+        }
+
+        SetUpdated();
+    }
+
     public bool CertificadoValido() =>
         CertificadoBytes != null && CertificadoValidade.HasValue && CertificadoValidade.Value > DateTime.UtcNow;
 }

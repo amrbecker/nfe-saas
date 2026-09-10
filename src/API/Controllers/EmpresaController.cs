@@ -68,6 +68,15 @@ public class EmpresaController : BaseApiController
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpPut("numeracao")]
+    public async Task<IActionResult> AjustarNumeracao([FromBody] AjustarNumeracaoDto dto)
+    {
+        var result = await Mediator.Send(new AjustarNumeracaoEmpresaCommand(EmpresaId, dto));
+        if (!result.Sucesso) return BadRequest(new { message = result.Erro });
+        return NoContent();
+    }
+
     [HttpGet("/api/diagnostics/xsd")]
     [AllowAnonymous]
     public IActionResult GetXsdStatus([FromServices] IXsdValidationService xsd) =>

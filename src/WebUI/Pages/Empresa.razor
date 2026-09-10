@@ -5,6 +5,7 @@
 @using System.Text.RegularExpressions
 @inject IEmpresaService EmpresaService
 @inject ISnackbar Snackbar
+@inject IDialogService Dialog
 
 <PageTitle>Empresa - NFeFlow</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">Dados da Empresa</MudText>
@@ -180,16 +181,38 @@ else
                                     </MudItem>
                                 </MudGrid>
                             </MudExpansionPanel>
-                            <MudExpansionPanel Text="Numeração e Certificado (somente leitura)">
+                            <MudExpansionPanel Text="Numeração e Certificado">
                                 <MudGrid>
-                                    <MudItem xs="12" md="3">
-                                        <MudTextField Value="@_empresa.UltimoNumeronFe.ToString()"
-                                                      Label="Último Número NF-e" Variant="Variant.Outlined" ReadOnly="true" />
+                                    <MudItem xs="12" md="6">
+                                        <MudAlert Severity="Severity.Warning" Dense="true">
+                                            O próximo número emitido será este valor + 1. Use apenas para continuar a
+                                            numeração de um emissor anterior — não é possível retroceder abaixo do
+                                            último número já emitido nesta empresa.
+                                        </MudAlert>
                                     </MudItem>
                                     <MudItem xs="12" md="3">
-                                        <MudTextField Value="@_empresa.UltimoNumeronFCe.ToString()"
-                                                      Label="Último Número NFC-e" Variant="Variant.Outlined" ReadOnly="true" />
+                                        <MudNumericField @bind-Value="_numeracao.UltimoNumeronFe" Min="0"
+                                                          Label="Último Número NF-e" Variant="Variant.Outlined"
+                                                          ReadOnly="@(!_canEdit)"
+                                                          HelperText="@($"Próxima NF-e: {_numeracao.UltimoNumeronFe + 1}")" />
                                     </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_numeracao.UltimoNumeronFCe" Min="0"
+                                                          Label="Último Número NFC-e" Variant="Variant.Outlined"
+                                                          ReadOnly="@(!_canEdit)"
+                                                          HelperText="@($"Próxima NFC-e: {_numeracao.UltimoNumeronFCe + 1}")" />
+                                    </MudItem>
+                                    @if (_canEdit)
+                                    {
+                                        <MudItem xs="12">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                                                       Disabled="@_salvandoNumeracao"
+                                                       OnClick="SalvarNumeracao">
+                                                @if (_salvandoNumeracao) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                                                Salvar Numeração
+                                            </MudButton>
+                                        </MudItem>
+                                    }
                                     <MudItem xs="12" md="6">
                                         <MudTextField Value="@(_empresa.CertificadoValido ? "✓ Certificado Válido" : "✗ Sem certificado configurado")"
                                                       Label="Certificado A1" Variant="Variant.Outlined" ReadOnly="true"
@@ -226,8 +249,10 @@ else
     private bool _formValido = true;
     private bool _canEdit;
     private bool _mostrarCsc;
+    private bool _salvandoNumeracao;
     private MudForm? _form;
     private FormData _data = new();
+    private NumeracaoData _numeracao = new();
     private static readonly List<string> _ufs = IeValidator.UfsValidas().OrderBy(u => u).ToList();
     private static readonly Regex _emailRegex = new(@"^[^\s@]+@[^\s@]+\.[^\s@]+$", RegexOptions.Compiled);
 
@@ -277,6 +302,11 @@ else
             AmbienteSefaz = e.AmbienteSefaz,
             CscId = e.CscId ?? "",
             CscToken = ""   // nunca devolvemos o token; usuário só preenche pra alterar
+        };
+        _numeracao = new NumeracaoData
+        {
+            UltimoNumeronFe = e.UltimoNumeronFe,
+            UltimoNumeronFCe = e.UltimoNumeronFCe
         };
     }
 
@@ -331,6 +361,40 @@ else
         }
     }
 
+    async Task SalvarNumeracao()
+    {
+        if (_empresa == null) return;
+
+        if (_numeracao.UltimoNumeronFe < _empresa.UltimoNumeronFe ||
+            _numeracao.UltimoNumeronFCe < _empresa.UltimoNumeronFCe)
+        {
+            Snackbar.Add("Não é possível retroceder a numeração abaixo do último número já emitido.", Severity.Error);
+            return;
+        }
+
+        var ok = await Dialog.ShowMessageBox("Confirmar ajuste de numeração",
+            $"A próxima NF-e emitida será a número {_numeracao.UltimoNumeronFe + 1} e a próxima NFC-e será a " +
+            $"{_numeracao.UltimoNumeronFCe + 1}. Esta ação não pode ser desfeita. Confirmar?",
+            yesText: "Confirmar", cancelText: "Cancelar");
+        if (ok != true) return;
+
+        _salvandoNumeracao = true;
+        var dto = new AjustarNumeracaoDto(_numeracao.UltimoNumeronFe, _numeracao.UltimoNumeronFCe);
+        var (sucesso, erro) = await EmpresaService.AjustarNumeracaoAsync(dto);
+        _salvandoNumeracao = false;
+
+        if (sucesso)
+        {
+            Snackbar.Add("Numeração ajustada.", Severity.Success);
+            _empresa = await EmpresaService.GetEmpresaAsync();
+            if (_empresa != null) PreencherForm(_empresa);
+        }
+        else
+        {
+            Snackbar.Add(erro ?? "Erro ao ajustar numeração.", Severity.Error);
+        }
+    }
+
     string? ValidarIe(string? ie)
     {
         if (string.IsNullOrWhiteSpace(ie)) return "Inscrição estadual é obrigatória (ou 'ISENTO')";
@@ -381,5 +445,11 @@ else
         public int AmbienteSefaz { get; set; } = 2;
         public string CscId { get; set; } = "";
         public string CscToken { get; set; } = "";
+    }
+
+    class NumeracaoData
+    {
+        public int UltimoNumeronFe { get; set; }
+        public int UltimoNumeronFCe { get; set; }
     }
 }

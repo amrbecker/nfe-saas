@@ -407,6 +407,7 @@ public interface IEmpresaService
     Task<EmpresaDetalheDto?> GetEmpresaAsync();
     Task<CertificadoStatusDto?> GetCertificadoStatusAsync();
     Task<(bool Sucesso, string? Erro)> AtualizarEmpresaAsync(UpdateEmpresaDto dto);
+    Task<(bool Sucesso, string? Erro)> AjustarNumeracaoAsync(AjustarNumeracaoDto dto);
 }
 
 public class EmpresaService : IEmpresaService
@@ -424,6 +425,13 @@ public class EmpresaService : IEmpresaService
     public async Task<(bool Sucesso, string? Erro)> AtualizarEmpresaAsync(UpdateEmpresaDto dto)
     {
         var resp = await _api.PutRawAsync("api/empresa", dto);
+        if (resp.IsSuccessStatusCode) return (true, null);
+        return (false, await ApiHelper.ExtrairMensagemErro(resp));
+    }
+
+    public async Task<(bool Sucesso, string? Erro)> AjustarNumeracaoAsync(AjustarNumeracaoDto dto)
+    {
+        var resp = await _api.PutRawAsync("api/empresa/numeracao", dto);
         if (resp.IsSuccessStatusCode) return (true, null);
         return (false, await ApiHelper.ExtrairMensagemErro(resp));
     }

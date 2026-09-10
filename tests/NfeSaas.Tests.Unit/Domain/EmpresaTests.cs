@@ -89,6 +89,50 @@ public class EmpresaTests
     }
 
     [Fact]
+    public void AjustarUltimoNumero_DevePermitirContinuarNumeracaoExterna()
+    {
+        var empresa = CriarEmpresa();
+
+        empresa.AjustarUltimoNumero(TipoNota.NFe, 44);
+
+        empresa.UltimoNumeronFe.Should().Be(44);
+        empresa.ProximoNumeroNFe().Should().Be(45);
+    }
+
+    [Fact]
+    public void AjustarUltimoNumero_NaoDevePermitirRetrocederAbaixoDoJaEmitido()
+    {
+        var empresa = CriarEmpresa();
+        empresa.ProximoNumeroNFe(); // UltimoNumeronFe = 1
+        empresa.ProximoNumeroNFe(); // UltimoNumeronFe = 2
+
+        var act = () => empresa.AjustarUltimoNumero(TipoNota.NFe, 1);
+
+        act.Should().Throw<InvalidOperationException>();
+        empresa.UltimoNumeronFe.Should().Be(2);
+    }
+
+    [Fact]
+    public void AjustarUltimoNumero_NaoDevePermitirNumeroNegativo()
+    {
+        var empresa = CriarEmpresa();
+
+        var act = () => empresa.AjustarUltimoNumero(TipoNota.NFCe, -1);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void AjustarUltimoNumero_NaoDeveAfetarOutroTipoDeNota()
+    {
+        var empresa = CriarEmpresa();
+
+        empresa.AjustarUltimoNumero(TipoNota.NFe, 44);
+
+        empresa.UltimoNumeronFCe.Should().Be(0);
+    }
+
+    [Fact]
     public void Criar_DevePertencerAoEscritorio()
     {
         var escritorioId = Guid.NewGuid();
