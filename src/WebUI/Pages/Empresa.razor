@@ -146,12 +146,17 @@ else
                             <MudSelectItem Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" md="6">
+                    <MudItem xs="12" md="4">
                         <MudSelect @bind-Value="_data.AmbienteSefaz" Label="Ambiente SEFAZ"
                                    Variant="Variant.Outlined" Disabled="@(!_canEdit)">
                             <MudSelectItem Value="1">Produção</MudSelectItem>
                             <MudSelectItem Value="2">Homologação (Testes)</MudSelectItem>
                         </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField Value="@(_empresa.CertificadoValido ? "✓ Válido" : "✗ Não configurado")"
+                                      Label="Certificado A1" Variant="Variant.Outlined" ReadOnly="true"
+                                      Style="@(_empresa.CertificadoValido ? "color:green" : "color:red")" />
                     </MudItem>
 
                     <MudItem xs="12">
@@ -181,37 +186,39 @@ else
                                     </MudItem>
                                 </MudGrid>
                             </MudExpansionPanel>
-                            <MudExpansionPanel Text="Numeração e Certificado">
-                                <MudGrid>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_numeracao.UltimoNumeronFe" Min="0"
-                                                          Label="Último Número NF-e" Variant="Variant.Outlined"
-                                                          ReadOnly="@(!_canEdit)" Immediate="true"
-                                                          HelperText="@($"Próxima NF-e: {_numeracao.UltimoNumeronFe + 1}")" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_numeracao.UltimoNumeronFCe" Min="0"
-                                                          Label="Último Número NFC-e" Variant="Variant.Outlined"
-                                                          ReadOnly="@(!_canEdit)" Immediate="true"
-                                                          HelperText="@($"Próxima NFC-e: {_numeracao.UltimoNumeronFCe + 1}")" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="6">
-                                        @if (_canEdit)
-                                        {
+                            <MudExpansionPanel>
+                                <TitleContent>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" />
+                                        <MudText>Numeração de Notas (avançado)</MudText>
+                                    </MudStack>
+                                </TitleContent>
+                                <ChildContent>
+                                    <MudGrid>
+                                        <MudItem xs="12">
                                             <MudAlert Severity="Severity.Warning" Dense="true">
                                                 Altere apenas para continuar a numeração de um emissor anterior — não é
-                                                possível retroceder abaixo do último número já emitido. A alteração é
-                                                salva junto com "Salvar Alterações" e pedirá confirmação por ser
-                                                irreversível.
+                                                possível retroceder abaixo do último número já emitido.
+                                                @if (_canEdit)
+                                                {
+                                                    <text> A alteração é salva junto com "Salvar Alterações" e pedirá confirmação por ser irreversível.</text>
+                                                }
                                             </MudAlert>
-                                        }
-                                    </MudItem>
-                                    <MudItem xs="12" md="6">
-                                        <MudTextField Value="@(_empresa.CertificadoValido ? "✓ Certificado Válido" : "✗ Sem certificado configurado")"
-                                                      Label="Certificado A1" Variant="Variant.Outlined" ReadOnly="true"
-                                                      Style="@(_empresa.CertificadoValido ? "color:green" : "color:red")" />
-                                    </MudItem>
-                                </MudGrid>
+                                        </MudItem>
+                                        <MudItem xs="12" md="3">
+                                            <MudNumericField @bind-Value="_numeracao.UltimoNumeronFe" Min="0"
+                                                              Label="Último Número NF-e" Variant="Variant.Outlined"
+                                                              ReadOnly="@(!_canEdit)" Immediate="true"
+                                                              HelperText="@($"Próxima NF-e: {_numeracao.UltimoNumeronFe + 1}")" />
+                                        </MudItem>
+                                        <MudItem xs="12" md="3">
+                                            <MudNumericField @bind-Value="_numeracao.UltimoNumeronFCe" Min="0"
+                                                              Label="Último Número NFC-e" Variant="Variant.Outlined"
+                                                              ReadOnly="@(!_canEdit)" Immediate="true"
+                                                              HelperText="@($"Próxima NFC-e: {_numeracao.UltimoNumeronFCe + 1}")" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </ChildContent>
                             </MudExpansionPanel>
                         </MudExpansionPanels>
                     </MudItem>
