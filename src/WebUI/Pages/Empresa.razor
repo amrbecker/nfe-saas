@@ -187,7 +187,9 @@ else
                                         <MudAlert Severity="Severity.Warning" Dense="true">
                                             O próximo número emitido será este valor + 1. Use apenas para continuar a
                                             numeração de um emissor anterior — não é possível retroceder abaixo do
-                                            último número já emitido nesta empresa.
+                                            último número já emitido nesta empresa. Este campo tem botão de salvar
+                                            próprio ("Salvar Numeração"); o botão "Salvar Alterações" no rodapé não
+                                            afeta a numeração.
                                         </MudAlert>
                                     </MudItem>
                                     <MudItem xs="12" md="3">
@@ -269,7 +271,11 @@ else
         try
         {
             _empresa = await EmpresaService.GetEmpresaAsync();
-            if (_empresa != null) PreencherForm(_empresa);
+            if (_empresa != null)
+            {
+                PreencherDadosGerais(_empresa);
+                PreencherNumeracao(_empresa);
+            }
         }
         catch
         {
@@ -281,7 +287,7 @@ else
         }
     }
 
-    void PreencherForm(EmpresaDetalheDto e)
+    void PreencherDadosGerais(EmpresaDetalheDto e)
     {
         _data = new FormData
         {
@@ -303,6 +309,10 @@ else
             CscId = e.CscId ?? "",
             CscToken = ""   // nunca devolvemos o token; usuário só preenche pra alterar
         };
+    }
+
+    void PreencherNumeracao(EmpresaDetalheDto e)
+    {
         _numeracao = new NumeracaoData
         {
             UltimoNumeronFe = e.UltimoNumeronFe,
@@ -353,7 +363,7 @@ else
         {
             Snackbar.Add("Dados da empresa atualizados.", Severity.Success);
             _empresa = await EmpresaService.GetEmpresaAsync();
-            if (_empresa != null) PreencherForm(_empresa);
+            if (_empresa != null) PreencherDadosGerais(_empresa);
         }
         else
         {
@@ -387,7 +397,7 @@ else
         {
             Snackbar.Add("Numeração ajustada.", Severity.Success);
             _empresa = await EmpresaService.GetEmpresaAsync();
-            if (_empresa != null) PreencherForm(_empresa);
+            if (_empresa != null) PreencherNumeracao(_empresa);
         }
         else
         {
