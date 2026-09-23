@@ -29,7 +29,7 @@
 | D10 | **O modelo não recebe dado pessoal** — pergunta do PO: "por que o modelo precisa do CPF?" Resposta: não precisa. Recebe apenas **atributos e resultados de validação** (§2.6) | PO | ✅ Princípio de arquitetura |
 | D11 | **Curadoria** da base de conhecimento feita por um **escritório parceiro** | PO | ✅ Regras de acesso e acordo em §4 |
 | D12 | Termos de uso revisados pelo **escritório parceiro** | PO | ✅ Com ressalva em §4 |
-| D13 | Desenho do mascote produzido com **ferramentas de IA via MCP**, com acabamento humano | PO | ✅ Pipeline em `MASCOTE_UX.md` §7 |
+| D13 | Desenho do mascote com **ferramentas de IA**, com acabamento humano, **preferencialmente gratuitas** | PO | ✅ Caminho gratuito em `MASCOTE_UX.md` §7.1b (plano grátis do Recraft descartado: sem uso comercial) |
 
 ---
 

@@ -186,5 +186,5 @@ Trial: experiência Profissional completa (o assistente ajuda a converter o tria
 3. ~~Curadoria~~ → **escritório parceiro** (acordo formal pendente — `PESQUISA_REFINAMENTO.md` §4).
 4. Momento de migrar Render/Neon para plano pago (recomendado antes da Fase 2).
 5. ~~Revisão dos termos~~ → **escritório parceiro**, com as cláusulas de LGPD e responsabilidade vistas por um advogado (`PESQUISA_REFINAMENTO.md` §4).
-6. ~~Produção do mascote~~ → IA via MCP + acabamento humano (`MASCOTE_UX.md` §7). Pendente: escolher Recraft × svgapp após o protótipo.
+6. ~~Produção do mascote~~ → IA via MCP + acabamento humano (`MASCOTE_UX.md` §7). Pendente: escolher caminho gratuito (ComfyUI local ou HF + VTracer + Inkscape) após o protótipo; Recraft grátis não serve (sem uso comercial).
 7. Lista final de referências N3 admitidas (`MONITORAMENTO_FONTES.md` §2).

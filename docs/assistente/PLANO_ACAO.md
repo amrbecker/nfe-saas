@@ -32,7 +32,7 @@ Fase 5  Evolução contínua                                                    
 | 0.7b | **Acordo com o escritório parceiro** (confidencialidade, assinatura técnica com CRC, SLA da fila, contrapartida) + papel `Curador` isolado | fora do código + Auth | Assinado; curador não vê dados de clientes |
 | 0.8 | **Foundry** (decidido): criar o recurso DeepSeek V4, escolher a região (Brazil South, senão EUA/UE), medir preço e latência | Azure | Endpoint e região registrados em `PESQUISA_REFINAMENTO.md` |
 | 0.9 | **Ori — protótipo** SVG + CSS (9 estados) publicado como Artifact para avaliação | `docs/assistente/mascote/` | PO aprova postura, posição e animações |
-| 0.9b | **Ori — arte final** via Recraft MCP (ou svgapp) + acabamento em camadas; checagem de licença comercial; pedido de registro de marca no INPI | `MASCOTE_UX.md` §7 | SVG em camadas < 30 KB, licença verificada |
+| 0.9b | **Ori — arte final** pelo caminho gratuito (ComfyUI local ou Hugging Face com modelo Apache-2.0 → VTracer → Inkscape), ou pago se necessário; registro do modelo e da licença; pedido de marca no INPI | `MASCOTE_UX.md` §7 | SVG em camadas < 30 KB, licença verificada |
 | 0.10 | Benchmark de 5 concorrentes | `docs/assistente/benchmark.md` | Tabela comparativa |
 
 **Gate 0 → 1:** linha de base medida · 20 artigos · eval pronto · termo aprovado · acordo com o parceiro assinado · Foundry configurado · arte final da Ori entregue.
@@ -143,4 +143,4 @@ Fase 5  Evolução contínua                                                    
 2. Dev: `feat/telemetria-produto` (0.1) e `feat/alerta-certificado` (0.3).
 3. Extrair do banco de produção o top 30 de `MotivoRejeicao` e o % de destinatários e itens digitados à mão (0.2),
    que dimensiona o ganho de A1/A2.
-4. Protótipo da Ori (SVG + CSS) para avaliação; em seguida, conta no Recraft (ou svgapp) para a arte final.
+4. Protótipo da Ori (SVG + CSS) para avaliação; se precisar de traço ilustrado, caminho gratuito (ComfyUI/Hugging Face + VTracer + Inkscape).
