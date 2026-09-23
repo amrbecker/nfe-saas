@@ -1,15 +1,20 @@
-# Assistente Sideral — Análise de Viabilidade e Estratégia
+# Assistente NFeFlow — Análise de Viabilidade e Estratégia
 
 > Documento do Product Owner. Data: 2026-09-23. Status: **proposta aprovada para Fase 0**.
 > Documentos irmãos: [`CONTEXTO_AGENTE.md`](CONTEXTO_AGENTE.md) (persona, regras e ferramentas do agente),
 > [`BASE_CONHECIMENTO.md`](BASE_CONHECIMENTO.md) (fontes oficiais e governança),
 > [`PLANO_ACAO.md`](PLANO_ACAO.md) (fases, épicos e critérios de aceite).
+>
+> **Atualizado em 2026-09-23 pela fase de pesquisa** ([`PESQUISA_REFINAMENTO.md`](PESQUISA_REFINAMENTO.md)):
+> produto renomeado para **NFeFlow**, assistente ganha a forma de uma **coruja** ([`MASCOTE_UX.md`](MASCOTE_UX.md)),
+> modelo passa a ser **DeepSeek** (§6), captura de contexto ([`CAPTURA_CONTEXTO.md`](CAPTURA_CONTEXTO.md)),
+> automações ([`AUTOMACOES.md`](AUTOMACOES.md)) e monitoramento de fontes ([`MONITORAMENTO_FONTES.md`](MONITORAMENTO_FONTES.md)).
 
 ---
 
 ## 1. A ideia em uma frase
 
-Um assistente que vive dentro do NfeSaas, **enxerga o contexto do usuário** (empresa selecionada, nota
+Um assistente que vive dentro do NFeFlow, **enxerga o contexto do usuário** (empresa selecionada, nota
 aberta, rejeição recebida, certificado, plano) e atua em quatro papéis:
 
 | Papel | O que faz | Para quem gera valor |
@@ -25,11 +30,11 @@ aberta, rejeição recebida, certificado, plano) e atua em quatro papéis:
 
 | Dimensão | Nota | Justificativa |
 |----------|------|---------------|
-| Técnica | 🟢 Alta | Stack já tem os pontos de apoio: MediatR (novo Command/Query), `MotivoRejeicao` na `NotaFiscal`, `AuditLog`, Sentry na API **e** na WebUI, `PersonalizacaoService` para gatear a UI, workers em background (`NcmUpdateWorker`), Postgres (pgvector disponível no Neon quando precisar de RAG). SDK oficial Anthropic para C# existe e suporta tool use e streaming. |
+| Técnica | 🟢 Alta | Stack já tem os pontos de apoio: MediatR (novo Command/Query), `MotivoRejeicao` na `NotaFiscal`, `AuditLog`, Sentry na API **e** na WebUI, `PersonalizacaoService` para gatear a UI, workers em background (`NcmUpdateWorker`), Postgres (pgvector disponível no Neon quando precisar de RAG). DeepSeek expõe API compatível com OpenAI (tool calls, JSON, streaming) — integrável via `Microsoft.Extensions.AI`. |
 | Valor de negócio | 🟢 Alta | Rejeição SEFAZ é a dor nº 1 de quem emite nota; o público (escritórios contábeis) atende muitas empresas e tem pouco tempo. Um SaaS em piloto, sem equipe de suporte, ganha escala de atendimento sem contratar. |
-| Custo variável | 🟢 Controlável | Estimativa de US$ 0,05–0,50 por conversa (seção 6). Com cota por plano e cache de prompt, fica < 5% do ticket esperado. |
-| Regulatório / jurídico | 🟡 Médio | Resposta fiscal errada pode gerar autuação do cliente do contador. LGPD: conversas contêm CPF/CNPJ de destinatários. Mitigável com regras rígidas (seção 5). |
-| Operacional | 🟡 Médio | O maior custo **não é a IA, é manter a base de conhecimento atualizada** (NTs mudam, Reforma Tributária em transição 2026–2033). Exige rotina de curadoria com dono definido. |
+| Custo variável | 🟢 Muito baixo | Com DeepSeek: ~US$ 0,006–0,02 por conversa (§6). Custo deixa de ser o limitante; a cota existe contra abuso. |
+| Regulatório / jurídico | 🟢 com condições (antes 🟡) | Guarda-corpos definidos: níveis de fonte N1–N4 com linguagem própria, verificador determinístico de números e datas, selo de confiança e formato fixo de resposta (`CONTEXTO_AGENTE.md` §3). **Condição nova:** a hospedagem do DeepSeek precisa atender à LGPD (§6 e `PESQUISA_REFINAMENTO.md` §2.2). |
+| Operacional | 🟢 com condições (antes 🟡) | O monitor automático detecta e resume as novidades das fontes oficiais (DOU via INLABS, Portal NF-e, SVRS, CONFAZ, SEFAZ). O curador só revisa e aprova (`MONITORAMENTO_FONTES.md`). Ainda exige um dono nomeado. |
 | Diferenciação | 🟢 Alta, se bem feito | Chat genérico virou commodity. O diferencial defensável é **contexto da nota + base fiscal curada e citada + CS proativo** — algo que um ChatGPT externo não tem. |
 
 **Condições para seguir (gates):**
@@ -53,7 +58,7 @@ aberta, rejeição recebida, certificado, plano) e atua em quatro papéis:
 | "Coleta de informações privilegiadas" | LGPD (finalidade, transparência). Dados de clientes dos escritórios não são nossos. | **Inteligência de produto agregada e consentida**: dores, pedidos de funcionalidade, fricções de UX, anonimizadas e agregadas por escritório. Nada de usar conteúdo de notas para outro fim. Termo de uso atualizado + aviso no widget. |
 | "Tornar o sistema perfeito para cada usuário" | Objetivo não mensurável; tentação de o agente reconfigurar coisas sozinho. | Metas mensuráveis (seção 7) + personalização **sugerida** (ex.: "você nunca usa NFC-e — quer ocultar?"), aplicada via `ConfiguracaoEmpresa`/`PersonalizacaoService` só com confirmação. |
 | "Perceber bugs e enviar para correção" | Chamados ruidosos ou com dados sensíveis vazando para ferramentas externas. | Chamado estruturado (rota, versão, `EmpresaId`, id do evento Sentry, passos) **com dados pessoais mascarados**, triado por humano antes de virar issue. |
-| "Vive ativamente no sistema" | Assistente intrusivo irrita (efeito "Clippy"). | Proatividade por **gatilhos de alto valor** (rejeição, certificado, trial, onboarding parado) e no máximo 1 intervenção proativa por sessão. Resto é sob demanda. |
+| "Vive ativamente no sistema" | Assistente intrusivo irrita (efeito "Clippy"). | Coruja no rodapé do menu (espaço vazio), animada em espera, que **só fala quando chamada**; dicas proativas apenas como **balões de pensamento silenciosos** com limite de frequência (`MASCOTE_UX.md` §5). |
 
 ---
 
@@ -89,11 +94,11 @@ rejeição) para confirmar o diferencial antes do marketing.
 | R1 | Alucinação em regra fiscal | Média | Alto | Resposta ancorada na base curada; citação obrigatória; "não sei" explícito; avaliação automatizada (eval) com 100+ perguntas antes de cada mudança de prompt/modelo; aviso "confirme com a legislação vigente" em temas de tributação |
 | R2 | Vazamento entre tenants | Baixa | Crítico | Ferramentas executam no servidor com `EmpresaId`/`EscritorioId` **do JWT**, nunca de parâmetro do modelo; testes de integração de isolamento para cada ferramenta |
 | R3 | Prompt injection via dados (descrição de produto, nome de destinatário, texto de rejeição) | Média | Médio | Ferramentas só-leitura; ações de escrita exigem confirmação na UI; dados de ferramentas marcados como dados, não instruções |
-| R4 | LGPD | Média | Alto | Base legal (execução de contrato + legítimo interesse documentado), termo de uso e aviso no widget, retenção de conversas 180 dias, mascaramento de CPF em chamados/insights, transferência internacional coberta por cláusulas contratuais do provedor; confirmar política de retenção de dados do provedor de IA |
+| R4 | LGPD (ver também R9 em `PESQUISA_REFINAMENTO.md`: transferência para a China se usar a API direta da DeepSeek) | Média | Alto | Base legal (execução de contrato + legítimo interesse documentado), termo de uso e aviso no widget, retenção de conversas 180 dias, mascaramento de CPF em chamados/insights, transferência internacional coberta por cláusulas contratuais do provedor; confirmar política de retenção de dados do provedor de IA |
 | R5 | Custo descontrolado | Baixa | Médio | Cota mensal por plano, limite de tokens por conversa, cache de prompt, kill switch `Assistente__Habilitado` |
 | R6 | Base de conhecimento desatualizada | Alta | Alto | Cada artigo tem `verificado_em` e `revisar_ate`; job semanal lista artigos vencidos; checagem mensal do Portal NF-e por NTs novas; dono nomeado |
 | R7 | Latência / cold start | Alta (free tier) | Médio | Streaming de resposta; mensagem "acordando o servidor"; migrar API para plano pago antes de abrir para todos |
-| R8 | Dependência de um fornecedor de IA | Média | Médio | Interface `IAssistenteIA` em `Application/`, implementação em `Infrastructure/` — trocar de provedor não toca handlers nem UI |
+| R8 | Dependência de um fornecedor de IA | Média | Médio | Interface `IAssistenteIA` em `Application/` + `Microsoft.Extensions.AI` (`IChatClient`) em `Infrastructure/` — trocar de provedor ou endpoint (Foundry ↔ API DeepSeek ↔ outro) é configuração |
 
 ---
 
@@ -102,9 +107,9 @@ rejeição) para confirmar o diferencial antes do marketing.
 ```
 WebUI (Blazor)                       API (ASP.NET)                          Infra
 ┌───────────────────┐   SSE/stream  ┌──────────────────────────────┐      ┌────────────────────────┐
-│ AssistenteWidget  │──────────────▶│ AssistenteController          │      │ ClaudeAssistenteService │
-│  (MudDrawer)      │               │  └─ EnviarMensagemCommand     │─────▶│  (SDK Anthropic C#)     │
-│ Botão "Explicar   │               │      Handler (MediatR)        │      │  tool use + cache       │
+│ Coruja + painel   │──────────────▶│ AssistenteController          │      │ DeepSeekChatClient      │
+│  (MudDrawer)      │               │  └─ EnviarMensagemCommand     │─────▶│ (M.E.AI, OpenAI-compat.)│
+│ Botão "Explicar   │               │      Handler (MediatR)        │      │ tool calls + cache auto │
 │  rejeição"        │               │  ├─ monta contexto da tela    │      └────────────────────────┘
 │ Alertas de CS     │               │  ├─ executa ferramentas       │      ┌────────────────────────┐
 └───────────────────┘               │  │   (escopo = JWT)           │─────▶│ Postgres: Conversa,     │
@@ -118,28 +123,24 @@ Quando passar de ~150k tokens → migrar para busca (pgvector no Neon).
 
 **Decisões:**
 
-- **Sem RAG no início.** A base curada da Fase 1 (~30–80k tokens) cabe no prompt e fica em cache —
-  mais simples, mais preciso e mais barato que manter embeddings. RAG entra quando a base crescer.
+- **Sem RAG vetorial no início; roteamento determinístico de artigos.** Prefixo fixo curto (persona + regras) +
+  1 a 3 artigos escolhidos por código de rejeição, tela ou campo (`kb/_mapa.json`). Mais barato e preciso que mandar a
+  base inteira. Busca vetorial (pgvector) entra quando o roteamento não der conta.
 - **Contexto de tela injetado pelo cliente** (rota atual, `NotaId` aberta) mas **dados buscados pelo
   servidor** via ferramentas escopadas pelo JWT.
 - **CS proativo é determinístico primeiro** (regras SQL no worker); o LLM só redige a mensagem e
-  sumariza insights semanais (Message Batches, 50% mais barato, não precisa de tempo real).
+  sumariza insights semanais (em lote, fora do pico da DeepSeek — metade do preço).
 
-**Estimativa de custo** (preços de tabela, set/2026; câmbio assumido R$ 5,50/US$):
+**Modelo: DeepSeek** (decisão do PO, 2026-09-23). Detalhes, fontes e técnicas de economia de tokens em
+`PESQUISA_REFINAMENTO.md` §2.
 
-Premissas por conversa: prompt fixo (persona + base) ~40k tokens em cache, 5 turnos, ~2k tokens novos e
-~1k de saída (incluindo raciocínio) por turno.
+| Rota | Modelo | Endpoint | Custo aproximado |
+|------|--------|----------|------------------|
+| Conversa e explicação de rejeição (contém dado de cliente) | `deepseek-flash`; V4-Pro nas perguntas fiscais se o eval exigir | **Microsoft Foundry** (residência de dados, contrato de tratamento Microsoft) | ~US$ 0,006–0,02 por conversa (preço da API direta; conferir o preço no Foundry) |
+| Monitoramento de fontes públicas, rascunhos da base, sumarização de sinais já anonimizados | `deepseek-flash` | API oficial DeepSeek, em lote fora do pico | Centavos por mês |
 
-| Modelo | Entrada US$/MTok | Saída US$/MTok | Custo/conversa (aprox.) | 40 conversas/escritório/mês |
-|--------|------------------|----------------|-------------------------|-----------------------------|
-| Claude Opus 5 (padrão recomendado para qualidade fiscal) | 5,00 | 25,00 | ~US$ 0,40 | ~US$ 16 (≈ R$ 88) |
-| Claude Sonnet 5 | 2,00 | 10,00 | ~US$ 0,16 | ~US$ 6,40 (≈ R$ 35) |
-| Claude Haiku 4.5 | 1,00 | 5,00 | ~US$ 0,08 | ~US$ 3,20 (≈ R$ 18) |
-
-"Explicar rejeição" (chamada única, sem conversa): ~US$ 0,02–0,06. A escolha do modelo é decisão do PO
-após o eval da Fase 1: rodar as 100 perguntas nos três e escolher o mais barato que atingir a meta de
-precisão. Cache de leitura custa ~10% da entrada — o prompt fixo **precisa** ser byte-idêntico entre
-requisições (nada de data/hora ou nome do usuário no início do prompt).
+O horário comercial brasileiro cai na faixa **fora do pico** da DeepSeek, com preço pela metade. O cache é
+automático por prefixo: o prefixo precisa ser byte-idêntico (nada de data ou nome do usuário no início).
 
 ---
 
@@ -158,7 +159,9 @@ num número que o cliente sente).
 | Precisão no eval fiscal (100 perguntas) | — | ≥ 95%, 0 respostas perigosas |
 | Chamados de bug com contexto completo | — | ≥ 90% |
 | Certificados que venceram sem aviso | medir | 0 |
-| Custo IA / receita do escritório | — | ≤ 5% |
+| Custo IA / receita do escritório | — | ≤ 1% |
+| Usuários que silenciaram as dicas da coruja | — | ≤ 15% |
+| Sugestões de automação aceitas (salvar cadastro, emitir igual, lembrete) | — | ≥ 40% |
 
 ---
 
@@ -166,9 +169,11 @@ num número que o cliente sente).
 
 | Plano | Assistente |
 |-------|-----------|
-| Básico | Explicar rejeição + FAQ de uso — 30 conversas/mês |
-| Profissional | + consultor técnico-fiscal com ferramentas — 150 conversas/mês |
-| Enterprise | + CS proativo, relatório mensal de saúde e rejeições por empresa — ilimitado com uso justo |
+| Básico | Coruja com hipóteses e artigos (sem limite, custo zero) + explicar rejeição + automações onda 1 — 150 mensagens ao modelo/usuário/mês |
+| Profissional | + consultor técnico-fiscal com ferramentas, padrões de preenchimento, lembretes de nota recorrente — 600 mensagens/usuário/mês |
+| Enterprise | + CS proativo, relatório mensal de saúde e rejeições por empresa — 2.000 mensagens/usuário/mês |
+
+Limite diário padrão: 40 mensagens por usuário (`PESQUISA_REFINAMENTO.md` §2.5).
 
 Trial: experiência Profissional completa (o assistente ajuda a converter o trial).
 
@@ -176,8 +181,10 @@ Trial: experiência Profissional completa (o assistente ajuda a converter o tria
 
 ## 9. Decisões pendentes do PO
 
-1. Modelo de IA definitivo (após eval da Fase 1).
-2. Nome/persona do assistente (sugestão: "Sideral", alinhado ao domínio `sideral.app.br`).
+1. ~~Modelo de IA~~ → **DeepSeek** (decidido). Pendente: **endpoint** (Foundry × API direta — recomendação em `PESQUISA_REFINAMENTO.md` §2.3) e `flash` × V4-Pro após o eval.
+2. **Nome da coruja** (opções em `MASCOTE_UX.md` §2: Ori, Flora, Dona Coruja).
 3. Quem é o dono da curadoria da base de conhecimento (sugestão: contador parceiro, 4h/mês remuneradas).
 4. Momento de migrar Render/Neon para plano pago (recomendado antes da Fase 2).
-5. Revisão jurídica do termo de uso (LGPD + limitação de responsabilidade da orientação fiscal).
+5. Revisão jurídica do termo de uso (LGPD, operador de IA e país de processamento, limitação de responsabilidade da orientação fiscal).
+6. Ilustrador para o mascote (SVG próprio) ou produção interna.
+7. Lista final de referências N3 admitidas (`MONITORAMENTO_FONTES.md` §2).

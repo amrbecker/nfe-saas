@@ -7,8 +7,9 @@
 
 ## 1. Princípios
 
-1. **Somente fontes oficiais ou primárias** para regra fiscal. Blogs, fóruns e vídeos servem para
-   descobrir dúvidas frequentes — nunca como fonte citada.
+1. **Regra fiscal se apoia em fonte oficial (N1/N2).** Referências técnicas reconhecidas (N3) entram só para
+   contextualizar, com linguagem de interpretação. Fóruns, vídeos e blogs sem autoria técnica servem apenas para
+   descobrir dúvidas frequentes — nunca são citados.
 2. **Todo artigo tem proveniência:** URL oficial, documento e versão (ex.: MOC versão X, NT AAAA.NNN
    vN.NN), data de verificação e data-limite de revisão.
 3. **Vigência explícita.** Regras com data de início/fim (Reforma Tributária, NTs com cronograma de
@@ -17,6 +18,19 @@
    oficial. Documentos oficiais completos ficam arquivados em PDF fora do prompt, para consulta do curador.
 5. **Lacuna registrada, não inventada.** Pergunta sem cobertura vira item em `SinalProduto` do tipo
    `LacunaConhecimento` e entra na fila de curadoria.
+6. **Detecção automática, publicação humana.** O monitor de fontes ([`MONITORAMENTO_FONTES.md`](MONITORAMENTO_FONTES.md))
+   detecta e resume novidades e propõe rascunhos; só o curador publica.
+
+### 1.1 Níveis de fonte
+
+| Nível | Definição | Exemplos | Pode fundamentar obrigação, alíquota ou prazo? |
+|-------|-----------|----------|-----------------------------------------------|
+| **N1** Normativo oficial | Ato normativo ou especificação técnica oficial | Leis, LCs, convênios e ajustes CONFAZ, MOC, NTs, schemas XSD, RICMS | ✅ Sim |
+| **N2** Orientação oficial | Material explicativo de órgão público, não normativo | FAQ de SEFAZ/RFB, soluções de consulta, manuais de UF | ✅ Sim, restrito à UF ou órgão emissor |
+| **N3** Referência técnica reconhecida | Publicação editorial com autoria técnica e fontes citadas, admitida pelo PO | Periódicos contábeis, cadernos de tributos, publicações de CFC/CRC | ❌ Não sozinha — só contextualiza |
+| **N4** Não admitida | Sem autoria técnica identificável ou sem fonte | Fóruns, vídeos, posts em redes sociais | ❌ Nunca citada |
+
+A linguagem que a coruja usa em cada nível está em `CONTEXTO_AGENTE.md` §3.
 
 ---
 
@@ -73,7 +87,9 @@
 docs/assistente/kb/
   _INDICE.md                    # índice e status de cada artigo (gerado/validado por script)
   _TEMPLATE.md                  # modelo de artigo
-  sistema/                      # como usar o NfeSaas
+  _mapa.json                    # gerado: código de rejeição/campo/tela → artigos (roteamento sem LLM)
+  _fontes_n3.md                 # referências N3 admitidas pelo PO
+  sistema/                      # como usar o NFeFlow
   rejeicoes/                    # um arquivo por faixa/família de cStat (ex.: 2xx-emitente.md)
   preenchimento/                # regras de campos (CST, CSOSN, CFOP, NCM/CEST, IBS/CBS...)
   eventos/                      # cancelamento, CC-e, inutilização, manifestação
@@ -92,7 +108,8 @@ em PR, diff legível, carregável no prompt sem conversão, migrável para pgvec
 
 | Atividade | Responsável | Aprova | Frequência |
 |-----------|-------------|--------|------------|
-| Monitorar Portal NF-e (NTs, MOC, schemas) | Curador fiscal | PO | Quinzenal |
+| Detectar novidades nas fontes (NTs, DOU, CONFAZ, SEFAZ, SVRS) | `MonitorFontesWorker` (automático) | — | Diária/semanal por fonte |
+| Revisar a fila de curadoria (publicações detectadas) | Curador fiscal | PO | 2× por semana |
 | Escrever/atualizar artigo | Curador fiscal ou dev (artigos `sistema/`) | PO (via PR) | Contínuo |
 | Revisão de artigos com `revisar_ate` vencido | Curador fiscal | — | Semanal (lista automática) |
 | Triar lacunas de conhecimento | PO | — | Semanal |
@@ -108,7 +125,7 @@ em PR, diff legível, carregável no prompt sem conversão, migrável para pgvec
 Ordem por impacto medido em rejeições reais (ajustar com os dados de `NotaFiscal.MotivoRejeicao` em produção):
 
 1. **Rejeições mais frequentes** — extrair o top 30 de `MotivoRejeicao` do banco de produção e escrever um
-   artigo por família (causa, como corrigir no NfeSaas, fonte no MOC).
+   artigo por família (causa, como corrigir no NFeFlow, fonte no MOC).
 2. **Uso do sistema** — 1 artigo por página da WebUI (emitir NF-e, cancelar, CC-e, inutilizar, certificado,
    configuração inicial, cadastrar escritório como empresa, trial/plano).
 3. **Certificado A1** — upload, senha, validade, erro de cadeia.

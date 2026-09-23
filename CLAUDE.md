@@ -3,6 +3,7 @@
 ## Visão Geral
 
 SaaS multi-tenant para emissão de NF-e e NFC-e, usado por escritórios de contabilidade.
+Nome comercial: **NFeFlow** (namespaces e projetos continuam `NfeSaas.*`).
 Hierarquia: **Escritório → Empresa → NotaFiscal**. Usuários pertencem ao Escritório, não à Empresa.
 
 Cada Escritório recebe **trial automático de 30 dias** ao se cadastrar; depois disso o login é bloqueado até ativação de plano pago (ver [Trial e Plano](#trial-e-plano-do-escritório)).
@@ -214,13 +215,17 @@ Deploy: Render (API, Docker) + Cloudflare Pages (WebUI estática) + Neon (Postgr
 `render.yaml`. Free tier em todos — Render dorme após inatividade (cold start no próximo
 request), Neon entra em autosuspend; aceitável para o piloto, trocar quando houver mais clientes.
 
-## Assistente de Suporte/CS (em planejamento)
+## Assistente de Suporte/CS — a Coruja (em planejamento)
 
-Iniciativa de agente de IA embarcado (suporte, explicação de rejeições, coleta de bugs, CS proativo).
-Estratégia, persona/ferramentas, fontes da base de conhecimento e plano faseado em
-[`docs/assistente/`](docs/assistente/). Regras que valem desde já para qualquer código do assistente:
-o agente **nunca executa ação fiscal** (só lê/explica/sugere); ferramentas pegam `EmpresaId` do JWT, nunca
-de parâmetro do modelo; toda mudança em `docs/assistente/kb/` ou no prompt exige eval verde.
+Mascote-coruja embarcado (suporte, explicação de rejeições, automações, coleta de bugs, CS proativo). Estratégia,
+pesquisa, mascote, captura de contexto, automações, monitoramento de fontes e plano faseado em
+[`docs/assistente/`](docs/assistente/) — comece por `PESQUISA_REFINAMENTO.md`. Regras que valem para qualquer código
+do assistente:
+- **Prepara, nunca conclui**: pode preencher formulário/rascunho; emitir, cancelar, salvar e enviar são sempre clique do usuário
+- Ferramentas pegam `EmpresaId` do JWT, nunca de parâmetro do modelo
+- Modelo DeepSeek atrás de `IAssistenteIA` (`Microsoft.Extensions.AI`); dado de cliente só pelo endpoint aprovado pelo PO (recomendado: Microsoft Foundry — decisão pendente); API direta da DeepSeek apenas para fontes públicas
+- Contexto da sessão fica só na memória do navegador e é enviado apenas quando o usuário chama a coruja
+- Mudança em `docs/assistente/kb/` ou no prompt exige eval verde
 
 ## Padrões a Seguir
 
