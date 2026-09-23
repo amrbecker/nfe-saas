@@ -214,6 +214,14 @@ Deploy: Render (API, Docker) + Cloudflare Pages (WebUI estática) + Neon (Postgr
 `render.yaml`. Free tier em todos — Render dorme após inatividade (cold start no próximo
 request), Neon entra em autosuspend; aceitável para o piloto, trocar quando houver mais clientes.
 
+## Assistente de Suporte/CS (em planejamento)
+
+Iniciativa de agente de IA embarcado (suporte, explicação de rejeições, coleta de bugs, CS proativo).
+Estratégia, persona/ferramentas, fontes da base de conhecimento e plano faseado em
+[`docs/assistente/`](docs/assistente/). Regras que valem desde já para qualquer código do assistente:
+o agente **nunca executa ação fiscal** (só lê/explica/sugere); ferramentas pegam `EmpresaId` do JWT, nunca
+de parâmetro do modelo; toda mudança em `docs/assistente/kb/` ou no prompt exige eval verde.
+
 ## Padrões a Seguir
 
 - Novos casos de uso → novo Command/Query em `Application/`, handler correspondente, interface no repositório se necessário
