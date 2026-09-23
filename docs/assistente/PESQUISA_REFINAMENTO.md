@@ -19,13 +19,17 @@
 |---|---------|--------|--------|
 | D1 | Produto se chama **NFeFlow** (código segue com namespaces `NfeSaas.*` — renomear código não traz valor) | PO | ✅ Aplicada nos docs |
 | D2 | Assistente tem **mascote animado**, na linha afetiva do Clippy do Office, mas sem os erros dele | PO | ✅ Detalhada em `MASCOTE_UX.md` |
-| D3 | Mascote = **coruja** (sabedoria, vigilância, "trabalha até tarde no fechamento do mês"). Evitar o **leão**, que remete à Receita/IR e tem conotação de cobrança | PO + análise | ✅ Nome pendente (opções em `MASCOTE_UX.md` §2) |
+| D3 | Mascote = **coruja** (sabedoria, vigilância, "trabalha até tarde no fechamento do mês"). Evitar o **leão**, que remete à Receita/IR e tem conotação de cobrança | PO + análise | ✅ Nome: **Ori** (de "orientar") |
 | D4 | Ao ser chamada, a coruja **primeiro levanta hipóteses da dúvida** a partir do contexto da sessão | PO | ✅ Viável — ver `CAPTURA_CONTEXTO.md` |
 | D5 | **Nunca executa.** No máximo preenche e prepara; o botão de conclusão é sempre do usuário | PO | ✅ Regra nº 1 do agente |
 | D6 | Propõe automações pós-ação (salvar destinatário/produto, resgatar dados, padrões, lembretes de nota periódica) | PO | ✅ Catálogo em `AUTOMACOES.md` |
-| D7 | Modelo **DeepSeek** (bom e barato), **cota por usuário** e prompts otimizados | PO | ⚠️ Aprovado com condição de hospedagem — ver §2 |
+| D7 | Modelo **DeepSeek** (bom e barato), **cota por usuário** e prompts otimizados | PO | ✅ Hospedado no **Microsoft Foundry** (decidido); API direta só para fontes públicas — ver §2 |
 | D8 | Respostas com guarda-corpos, linguagem neutra, citação de fonte oficial e termos adequados para fonte não oficial; devem **transmitir segurança** | PO | ✅ Níveis de fonte N1–N4 |
 | D9 | Rotina automática de verificação de fontes oficiais + monitoramento de referências respeitadas | PO | ✅ Com publicação sempre revisada por humano |
+| D10 | **O modelo não recebe dado pessoal** — pergunta do PO: "por que o modelo precisa do CPF?" Resposta: não precisa. Recebe apenas **atributos e resultados de validação** (§2.6) | PO | ✅ Princípio de arquitetura |
+| D11 | **Curadoria** da base de conhecimento feita por um **escritório parceiro** | PO | ✅ Regras de acesso e acordo em §4 |
+| D12 | Termos de uso revisados pelo **escritório parceiro** | PO | ✅ Com ressalva em §4 |
+| D13 | Desenho do mascote produzido com **ferramentas de IA via MCP**, com acabamento humano | PO | ✅ Pipeline em `MASCOTE_UX.md` §7 |
 
 ---
 
@@ -68,13 +72,15 @@ pessoa física (CPF, endereço) e dados comerciais dos clientes dos escritórios
 China, sem contrato com cláusulas e com possibilidade de uso para treino, é **risco jurídico e comercial**.
 Um escritório contábil que ler "seus dados vão para a China" no termo de uso pode cancelar.
 
-### 2.3 Recomendação do PO
+> **Atualização (D10):** com a minimização da §2.6, o modelo **não recebe dado pessoal**, o que reduz muito esse risco. O Foundry continua como endpoint por defesa em profundidade e por causa do dado comercial.
 
-**Manter o DeepSeek como modelo** e escolher o endpoint pelo risco:
+### 2.3 Endpoint — decidido: Microsoft Foundry (2026-09-23)
+
+**DeepSeek como modelo, hospedado no Foundry.** Opções avaliadas:
 
 | Opção | Onde o dado fica | Custo | Recomendação |
 |-------|------------------|-------|--------------|
-| **A. DeepSeek V4 via Microsoft Foundry** | Região Azure escolhida (verificar disponibilidade em Brazil South; senão, EUA ou UE) | Maior que a API direta (confirmar preço no Foundry) — mesmo assim uma fração do Claude | ✅ **Padrão para produção** |
+| **A. DeepSeek V4 via Microsoft Foundry** | Região Azure escolhida (verificar disponibilidade em Brazil South; senão, EUA ou UE) | Maior que a API direta (confirmar preço no Foundry) — mesmo assim uma fração do Claude | ✅ **Escolhido** para tudo que envolve dado de cliente |
 | B. API oficial DeepSeek com **payload sanitizado** | China | O mais baixo | ⚠️ Aceitável **só** para fluxos sem dado pessoal nem comercial: monitoramento de fontes públicas (DOU, NTs), geração de rascunhos da base de conhecimento e sumarização de sinais já anonimizados |
 | C. API oficial DeepSeek para tudo | China | O mais baixo | ❌ Não recomendado |
 
@@ -117,6 +123,47 @@ Contador visível para o usuário ("12 de 40 perguntas hoje").
 
 ---
 
+### 2.6 Minimização: o modelo não recebe dado pessoal (D10)
+
+**Pergunta do PO:** *por que o modelo precisa receber dados do usuário? Saber o CPF não ajuda.*
+
+**Resposta: correto, não precisa.** Para explicar uma rejeição ou orientar um preenchimento, o modelo precisa saber
+**como** o dado é e **se ele passa nas validações**, não **qual** é o dado. As rejeições ligadas à identidade (dígito
+verificador de CPF/CNPJ, IE incompatível com a UF, destinatário não contribuinte, CNPJ inexistente) são verificadas
+**antes, no servidor**, por validadores determinísticos. O modelo recebe só o resultado.
+
+| Dado real | O que o modelo recebe | Por que basta |
+|-----------|-----------------------|---------------|
+| CPF `123.456.789-09` | `dest.tipo: PF`, `dest.doc_valido: true` | A regra muda conforme PF ou PJ, não conforme o número |
+| CNPJ do destinatário | `dest.tipo: PJ`, `dest.doc_valido: true`, `dest.situacao_receita: ATIVA` (quando consultado) | Idem |
+| Razão social ou nome | `[DESTINATARIO]` (marcador) | Não influencia nenhuma regra fiscal |
+| Endereço completo | `dest.uf: MG`, `dest.cmun_compativel_uf: true` | A operação interna × interestadual depende só da UF |
+| IE | `dest.ie: presente`, `dest.ie_formato_valido_uf: false`, `dest.ind_ie: 1` | É isso que explica a rejeição de IE |
+| E-mail e telefone | nada | Irrelevantes |
+| CNPJ, nome e IE do **emitente** | `emit.uf`, `emit.regime`, `emit.ie_valida` | Idem |
+| Descrição do produto | enviada (é dado comercial, necessária para orientar NCM/CFOP) | Filtro remove padrões de CPF, e-mail e telefone que apareçam no texto |
+| Valores (itens, totais) | enviados **só** quando a rejeição é de totais ou cálculo | Dado comercial, útil apenas nesses casos |
+| Pergunta livre do usuário | passa pelo mesmo filtro (CPF, CNPJ, e-mail, telefone, chave de acesso → marcadores) | O usuário pode colar um CPF sem perceber; a Ori avisa "removi dados pessoais da sua pergunta" |
+
+**Reidratação local:** a resposta do modelo usa marcadores (`[DESTINATARIO]`, `[PRODUTO_2]`). O servidor guarda o
+mapa marcador → valor real **apenas durante a requisição** e troca os marcadores antes de mostrar. O usuário lê o nome
+real; o modelo nunca viu.
+
+**Implementação:** `SanitizadorIA` em `Application/Services/Assistente/`, com validadores reaproveitados (dígito
+verificador de CPF/CNPJ, formato de IE por UF, código IBGE × UF) e testes unitários com corpus de CPFs, CNPJs,
+e-mails e chaves de acesso. Todo texto que sai para o modelo — contexto, resultado de ferramenta, pergunta e
+histórico — passa por ele. **Nenhuma ferramenta retorna documento ou nome cru.**
+
+**Consequências:**
+1. O risco de transferência internacional de dado pessoal (R9) cai muito. O Foundry continua sendo o endpoint
+   (decisão D7) como **defesa em profundidade** para dado comercial (produtos, valores) e para falhas do filtro.
+2. As conversas gravadas (`Conversa`/`MensagemConversa`) guardam a **versão sanitizada** enviada ao modelo. A versão
+   reidratada existe só na tela do usuário.
+3. Os chamados de bug e o relatório de insights já nascem sem dado pessoal.
+4. O eval ganha casos de vazamento: perguntas com CPF, nome e e-mail embutidos devem sair sanitizadas (100%).
+
+---
+
 ## 3. Refinamentos sobre a `ESTRATEGIA.md`
 
 ### 3.1 Regulatório / jurídico → de 🟡 para 🟢 (condicionado)
@@ -151,7 +198,7 @@ Monitoramento automático das fontes (`MONITORAMENTO_FONTES.md`):
 
 | # | Risco | Mitigação |
 |---|-------|-----------|
-| R9 | Transferência internacional de dados para a China (LGPD art. 33) | Endpoint Foundry para conversas; API direta só para dado público (§2.3) |
+| R9 | Transferência internacional de dados para a China (LGPD art. 33) | Minimização: nenhum dado pessoal vai ao modelo (§2.6) + endpoint Foundry + API direta só para dado público (§2.3) |
 | R10 | Mascote vira "Clippy irritante" | Regras anti-intrusão em `MASCOTE_UX.md` §5; métrica de "silenciar" como alarme |
 | R11 | Automação preenche errado e o usuário emite sem revisar | Campos preenchidos pela coruja ficam destacados até o usuário editar ou confirmar; resumo do que foi preenchido; botão "desfazer preenchimento" |
 | R12 | Captura de contexto vira vigilância percebida | Rastro só na memória do navegador, enviado **apenas quando o usuário chama a coruja**, com "o que a coruja está vendo" visível e editável (`CAPTURA_CONTEXTO.md` §5) |
@@ -159,7 +206,38 @@ Monitoramento automático das fontes (`MONITORAMENTO_FONTES.md`):
 
 ---
 
-## 4. Fontes consultadas nesta pesquisa
+## 4. Escritório parceiro: curadoria e termos (D11, D12)
+
+**Papel:** curar a base de conhecimento (revisar a fila do monitor de fontes, escrever e revisar artigos, revisar o
+eval) e revisar os termos de uso.
+
+**Regras de acesso:**
+
+| O parceiro acessa | O parceiro **não** acessa |
+|-------------------|---------------------------|
+| Fila de curadoria (publicações detectadas, rascunhos, artigos vencidos) | Dados de nenhum outro escritório cliente |
+| Lacunas de conhecimento **anonimizadas e agregadas** ("12 perguntas sobre cClassTrib em operações com SP esta semana") | Texto integral das conversas, nomes de escritórios ou empresas |
+| Métricas agregadas do eval | Chamados de bug com contexto técnico |
+
+Implementação: papel novo `Curador` (claim próprio, **fora** da hierarquia Escritório → Empresa), com acesso apenas
+às telas de curadoria. As lacunas passam pelo `SanitizadorIA` e são agrupadas antes de aparecer.
+
+**Acordo formal recomendado** (antes da Fase 0.4):
+- Confidencialidade (o parceiro vê o roadmap e as lacunas do produto).
+- Responsabilidade técnica: artigos assinados pelo contador responsável (nome e CRC em `curador:` no front matter),
+  o que também reforça a confiança dos usuários ("revisado por contador").
+- Independência: se o parceiro também for cliente do NFeFlow, a conta de cliente e o papel de curador ficam separados.
+- Remuneração ou contrapartida (ex.: plano Enterprise gratuito) e SLA da fila de curadoria (2× por semana).
+
+**Termos de uso:** o escritório parceiro conhece bem a relação com os contribuintes e o sigilo profissional, o que
+ajuda na revisão. **Ressalva:** as cláusulas de LGPD (operador e controlador, transferência internacional pelo
+Foundry, retenção, direitos do titular) e a limitação de responsabilidade pela orientação fiscal são matéria
+jurídica. Recomendo que o parceiro envolva o advogado que o assessora nessas cláusulas específicas, ou que elas
+passem por uma revisão jurídica pontual.
+
+---
+
+## 5. Fontes consultadas nesta pesquisa
 
 - DeepSeek — preços: https://api-docs.deepseek.com/quick_start/pricing
 - DeepSeek — política de privacidade: https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html

@@ -181,10 +181,10 @@ Trial: experiência Profissional completa (o assistente ajuda a converter o tria
 
 ## 9. Decisões pendentes do PO
 
-1. ~~Modelo de IA~~ → **DeepSeek** (decidido). Pendente: **endpoint** (Foundry × API direta — recomendação em `PESQUISA_REFINAMENTO.md` §2.3) e `flash` × V4-Pro após o eval.
-2. **Nome da coruja** (opções em `MASCOTE_UX.md` §2: Ori, Flora, Dona Coruja).
-3. Quem é o dono da curadoria da base de conhecimento (sugestão: contador parceiro, 4h/mês remuneradas).
+1. ~~Modelo de IA~~ → **DeepSeek no Microsoft Foundry** (decidido); o modelo **não recebe dado pessoal** (`PESQUISA_REFINAMENTO.md` §2.6). Pendente: `flash` × V4-Pro após o eval.
+2. ~~Nome da coruja~~ → **Ori**.
+3. ~~Curadoria~~ → **escritório parceiro** (acordo formal pendente — `PESQUISA_REFINAMENTO.md` §4).
 4. Momento de migrar Render/Neon para plano pago (recomendado antes da Fase 2).
-5. Revisão jurídica do termo de uso (LGPD, operador de IA e país de processamento, limitação de responsabilidade da orientação fiscal).
-6. Ilustrador para o mascote (SVG próprio) ou produção interna.
+5. ~~Revisão dos termos~~ → **escritório parceiro**, com as cláusulas de LGPD e responsabilidade vistas por um advogado (`PESQUISA_REFINAMENTO.md` §4).
+6. ~~Produção do mascote~~ → IA via MCP + acabamento humano (`MASCOTE_UX.md` §7). Pendente: escolher Recraft × svgapp após o protótipo.
 7. Lista final de referências N3 admitidas (`MONITORAMENTO_FONTES.md` §2).

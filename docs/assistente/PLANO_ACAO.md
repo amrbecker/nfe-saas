@@ -1,7 +1,7 @@
 # Assistente NFeFlow (a Coruja) — Plano de Ação
 
 > **v2 — 2026-09-23**, após a fase de pesquisa ([`PESQUISA_REFINAMENTO.md`](PESQUISA_REFINAMENTO.md)).
-> Premissa de capacidade: 1 dev full-stack + PO + curador fiscal parcial (4h/semana) + ilustrador pontual (mascote).
+> Premissa de capacidade: 1 dev full-stack + PO + **escritório parceiro** (curadoria e termos, ~4h/semana) + ferramentas de IA para o mascote (MCP) com acabamento pontual.
 > Cada fase termina num **gate go/no-go**. Datas a partir de 2026-09-28.
 >
 > **Mudança principal da v2:** a coruja, a captura de contexto e as automações de maior valor **não dependem de IA**.
@@ -28,12 +28,14 @@ Fase 5  Evolução contínua                                                    
 | 0.4 | **Base P1** (20+ artigos) no template novo (`nivel_fonte`, `campos_relacionados`, `resumo_curto`) | `docs/assistente/kb/` | Status `revisado` |
 | 0.5 | Script de validação da base + geração do `kb/_mapa.json` | `scripts/kb-validar.*`, CI | Falha se artigo publicado estiver sem fonte ou sem nível |
 | 0.6 | **Eval fiscal v1**: 100 perguntas + 10 armadilhas + 10 casos de linguagem (N2/N3/N4) | `tests/NfeSaas.Tests.Assistente/eval/` | Revisado pelo curador |
-| 0.7 | **LGPD/jurídico**: termo de uso e política (assistente, operador de IA, **país de processamento**, retenção de 180 dias, captura de contexto só ao chamar a coruja) | fora do código | Aprovado; aceite no próximo login |
-| 0.8 | **Endpoint de IA**: criar o recurso DeepSeek no Microsoft Foundry, verificar região (Brazil South, senão EUA/UE), preço e contrato de tratamento de dados | Azure | Decisão registrada em `PESQUISA_REFINAMENTO.md` |
-| 0.9 | **Mascote**: briefing ao ilustrador (`MASCOTE_UX.md`), escolha do nome | Design | SVG em camadas dos 9 estados |
+| 0.7 | **Termos de uso** revisados pelo escritório parceiro (assistente, operador de IA, Foundry e país de processamento, minimização, retenção de 180 dias, captura de contexto só ao chamar a Ori); cláusulas de LGPD e responsabilidade vistas por advogado | fora do código | Aprovado; aceite no próximo login |
+| 0.7b | **Acordo com o escritório parceiro** (confidencialidade, assinatura técnica com CRC, SLA da fila, contrapartida) + papel `Curador` isolado | fora do código + Auth | Assinado; curador não vê dados de clientes |
+| 0.8 | **Foundry** (decidido): criar o recurso DeepSeek V4, escolher a região (Brazil South, senão EUA/UE), medir preço e latência | Azure | Endpoint e região registrados em `PESQUISA_REFINAMENTO.md` |
+| 0.9 | **Ori — protótipo** SVG + CSS (9 estados) publicado como Artifact para avaliação | `docs/assistente/mascote/` | PO aprova postura, posição e animações |
+| 0.9b | **Ori — arte final** via Recraft MCP (ou svgapp) + acabamento em camadas; checagem de licença comercial; pedido de registro de marca no INPI | `MASCOTE_UX.md` §7 | SVG em camadas < 30 KB, licença verificada |
 | 0.10 | Benchmark de 5 concorrentes | `docs/assistente/benchmark.md` | Tabela comparativa |
 
-**Gate 0 → 1:** linha de base medida · 20 artigos · eval pronto · termo aprovado · endpoint decidido · SVG entregue.
+**Gate 0 → 1:** linha de base medida · 20 artigos · eval pronto · termo aprovado · acordo com o parceiro assinado · Foundry configurado · arte final da Ori entregue.
 
 ---
 
@@ -65,6 +67,7 @@ Fase 5  Evolução contínua                                                    
 |---|--------|------|--------------------|
 | 2.1 | `IAssistenteIA` + implementação `Microsoft.Extensions.AI` com cliente compatível com OpenAI; rotas `Conversa` (Foundry) e `FontesPublicas` (API DeepSeek); config `Assistente__*` | Application, Infrastructure, `render.yaml` | Sem chave ou flag → recurso oculto, sem erro; troca de endpoint só por config |
 | 2.2 | Montagem do prompt: bloco fixo v0.2 + artigos roteados + contexto + janela de histórico | Application | Prefixo byte-idêntico (teste automatizado); acerto de cache medido |
+| 2.2b | **`SanitizadorIA`**: atributos e resultados de validação no lugar de CPF/CNPJ/IE/nome/endereço; marcadores reidratados só na tela; filtro na pergunta livre | Application | 100% dos casos de vazamento do eval sanitizados; teste que falha se qualquer ferramenta devolver documento cru |
 | 2.3 | `ExplicarRejeicaoQuery` e "Explicar melhor" a partir de uma hipótese | Application, WebUI | Nota de outra empresa → 404 |
 | 2.4 | **Verificador** de números, datas e códigos + cálculo de selo N1/N2/N3 no servidor | Application | Casos do eval com número inventado são barrados |
 | 2.5 | **Cotas**: `UsoAssistente` (dia/mês por usuário, teto por escritório), coruja "dormindo profundo" ao esgotar, contador visível | Domain, Application, WebUI | Checagem antes de chamar o modelo; incremento atômico |
@@ -136,8 +139,8 @@ Fase 5  Evolução contínua                                                    
 
 ## Próximos passos imediatos
 
-1. PO decide: **nome da coruja**, **curador**, **endpoint** (recomendado: Foundry) e envia o termo ao jurídico.
+1. PO: formalizar o acordo com o escritório parceiro e enviar a minuta dos termos para a revisão dele (com apoio jurídico nas cláusulas de LGPD).
 2. Dev: `feat/telemetria-produto` (0.1) e `feat/alerta-certificado` (0.3).
 3. Extrair do banco de produção o top 30 de `MotivoRejeicao` e o % de destinatários e itens digitados à mão (0.2),
    que dimensiona o ganho de A1/A2.
-4. Briefing do mascote ao ilustrador com base em `MASCOTE_UX.md`.
+4. Protótipo da Ori (SVG + CSS) para avaliação; em seguida, conta no Recraft (ou svgapp) para a arte final.

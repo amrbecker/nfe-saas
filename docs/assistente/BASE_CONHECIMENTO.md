@@ -109,9 +109,9 @@ em PR, diff legível, carregável no prompt sem conversão, migrável para pgvec
 | Atividade | Responsável | Aprova | Frequência |
 |-----------|-------------|--------|------------|
 | Detectar novidades nas fontes (NTs, DOU, CONFAZ, SEFAZ, SVRS) | `MonitorFontesWorker` (automático) | — | Diária/semanal por fonte |
-| Revisar a fila de curadoria (publicações detectadas) | Curador fiscal | PO | 2× por semana |
-| Escrever/atualizar artigo | Curador fiscal ou dev (artigos `sistema/`) | PO (via PR) | Contínuo |
-| Revisão de artigos com `revisar_ate` vencido | Curador fiscal | — | Semanal (lista automática) |
+| Revisar a fila de curadoria (publicações detectadas) | Escritório parceiro (curador) | PO | 2× por semana |
+| Escrever/atualizar artigo | Escritório parceiro ou dev (artigos `sistema/`) | PO (via PR) | Contínuo |
+| Revisão de artigos com `revisar_ate` vencido | Escritório parceiro | — | Semanal (lista automática) |
 | Triar lacunas de conhecimento | PO | — | Semanal |
 | Rodar eval após mudança de base/prompt/modelo | Dev | PO | A cada PR que toca `kb/` ou prompt |
 

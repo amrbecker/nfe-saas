@@ -1,4 +1,4 @@
-# Mascote — A Coruja do NFeFlow
+# Mascote — Ori, a Coruja do NFeFlow
 
 > Especificação de UX do mascote. Objetivo: memória afetiva do Clippy **sem** os erros que fizeram o Clippy ser
 > odiado.
@@ -31,11 +31,11 @@ a sensação de ter "alguém ali".
   Funciona no tema claro e no escuro (contorno visível nos dois).
 - **Personalidade:** colega experiente, calma, levemente espirituosa só nos estados de espera. Nas respostas
   fiscais, sóbria (`CONTEXTO_AGENTE.md`).
-- **Nome** — decisão do PO. Opções:
+- **Nome: Ori** (decidido em 2026-09-23), de "orientar". Tratamento no feminino: "Pergunte à Ori". Opções que foram avaliadas:
 
 | Nome | Leitura |
 |------|---------|
-| **Ori** | De "orientar"; curto, neutro, fácil de chamar ("Pergunte à Ori") |
+| **Ori** ✅ | De "orientar"; curto, neutro, fácil de chamar ("Pergunte à Ori") |
 | **Flora** | Coruja-buraqueira, brasileira, simpática |
 | **Dona Coruja** | Afetivo, "a experiente do escritório" |
 | **Nota** | Trocadilho com o produto; pode confundir na interface ("a Nota disse sobre a nota") |
@@ -124,3 +124,52 @@ Usuário clica na coruja
 
 A linha "Estou vendo que…" é a **transparência** da captura: o usuário vê o que a coruja sabe e pode remover itens
 antes de perguntar.
+
+---
+
+## 7. Produção do desenho com IA (MCPs pesquisados em 2026-09-23)
+
+### 7.1 Ferramentas encontradas
+
+| Ferramenta | Tipo | O que faz de útil para a Ori | Limitações e custo | Fonte |
+|------------|------|------------------------------|--------------------|-------|
+| **Recraft MCP** (oficial, remoto: `https://mcp.recraft.ai/mcp`) | Geração de imagem **vetorial** | Modelo V4 Vector gera **SVG nativo**; controle de paleta (dá para fixar `#C08A2E`); **estilo personalizado a partir de imagens de referência**, o que ajuda a manter a mesma coruja em todas as poses; vetorização de raster; remoção de fundo | Pago (créditos da assinatura no servidor remoto ou unidades de API no local). O pacote local antigo foi arquivado em jul/2026 | [Recraft MCP (LobeHub)](https://lobehub.com/mcp/recraft-ai-mcp-recraft-server), [Feluda](https://feluda.ai/mcp-servers/recraft) |
+| **svgapp MCP** (remoto: `https://web.svgapp.ai/mcp`) | Gerador de **mascotes** SVG | Feito para esse caso de uso: um personagem, **poses por estado** (onboarding, erro, vazio, sucesso), fundo transparente, legível em 64 px, **animação** (`create_mascot_animation`). Mantém a consistência do personagem entre sessões via `svgapp.conf.json` | Serviço menor e mais novo: **verificar termos de licença comercial** e preços antes de adotar | [svgapp — mascote no Claude Code](https://svgapp.ai/blog/claude-code-mascot-svg/) |
+| **Lottie Creator MCP** (oficial LottieFiles) | **Animação** | Cria e edita animações Lottie (formas, keyframes, easing, exportação) por linguagem natural — serve para as animações ricas da Fase 5 | Exige conta no LottieFiles Creator; Lottie no Blazor precisa do `lottie-web` (JS) | [Lottie Creator MCP](https://docs.lottiefiles.com/en/creator/13_ai-tools/lottie-creator-mcp), [LottieFiles MCP](https://lottiefiles.com/mcp) |
+| **Figma MCP** (oficial, escrita no canvas desde 2026) | Organização e acabamento | Levar o SVG para o Figma com uma camada por parte (olhos, asas, xícara) e um frame por estado — handoff limpo para o CSS | Escrita no canvas exige assento **Full ou Dev em plano pago** | [Figma — agentes no canvas](https://www.figma.com/blog/the-figma-canvas-is-now-open-to-agents/), [write to canvas](https://developers.figma.com/docs/figma-mcp-server/write-to-canvas) |
+| **Canva MCP** (oficial, `mcp.canva.com/mcp`) | Peças de marketing | Aplicar a Ori já pronta em materiais (posts, apresentação comercial, e-mail de onboarding) com o brand kit | Não serve para criar o personagem em si | [Canva MCP](https://www.canva.dev/docs/apps/mcp/) |
+| Replicate / fal / ImagineArt / geradores de imagem genéricos | Raster | Exploração rápida de conceito (moodboard) | Saída em **raster**: precisa vetorizar depois | [ImagineArt](https://www.imagine.art/blogs/best-mcp-servers-claude-code-image-prompting), [replicate-flux-mcp](https://github.com/awkoy/replicate-flux-mcp) |
+| **Sem MCP:** SVG + CSS escritos à mão pelo Claude Code, com prévia publicada como Artifact | Protótipo | Custo zero, cores do tema, animações CSS dos 9 estados; ótimo para validar postura, tamanho e posição **antes** de pagar ferramenta | Traço mais geométrico e simples que o de um ilustrador | — |
+
+### 7.2 Pipeline recomendado
+
+```
+1. Protótipo (sem custo)        Claude Code gera SVG + CSS da Ori em 9 estados → Artifact para o PO avaliar
+                                 posição, tamanho, animações e a regra anti-Clippy em uso real.
+2. Conceito final               Recraft MCP (V4 Vector, paleta fixa, estilo de referência) → 3 variações da Ori
+                                 em SVG. Alternativa: svgapp, se o licenciamento for adequado.
+3. Consistência das poses       Mesmo estilo/ID de personagem gerando os 9 estados de §4.
+4. Acabamento humano            Designer (ou o próprio time no Figma via MCP) limpa os vetores, separa camadas
+                                 nomeadas (olho-esq, asa-dir, xicara…) e reduz nós para ficar < 30 KB.
+5. Animação                     Fase 1: CSS sobre as camadas. Fase 5: Lottie Creator MCP, se o engajamento justificar.
+6. Marketing                    Canva MCP com o brand kit, depois que a Ori estiver aprovada.
+```
+
+Instalação no Claude Code (exemplo, depois de criar a conta e o token em cada serviço):
+
+```bash
+claude mcp add --transport http recraft https://mcp.recraft.ai/mcp
+claude mcp add --transport http svgapp https://web.svgapp.ai/mcp --header "Authorization: Bearer $SVGAPP_MCP_TOKEN"
+```
+
+### 7.3 Cuidados de propriedade intelectual
+
+- **Licença comercial:** confirmar nos termos de cada serviço que a imagem gerada pode ser usada comercialmente e
+  como marca.
+- **Proteção da marca:** imagens geradas só por IA têm proteção autoral incerta. O **acabamento humano** do passo 4
+  reforça a autoria e a originalidade. Considerar o **registro da Ori como marca figurativa no INPI** junto com o
+  NFeFlow.
+- **Originalidade:** não usar como referência de estilo corujas de outras marcas (ex.: mascotes de apps de idiomas).
+  Descrever a Ori pelos atributos da §2.
+- Guardar prompts, versões e arquivos-fonte em `docs/assistente/mascote/` para comprovar a criação.
+

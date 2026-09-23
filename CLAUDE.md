@@ -215,7 +215,7 @@ Deploy: Render (API, Docker) + Cloudflare Pages (WebUI estática) + Neon (Postgr
 `render.yaml`. Free tier em todos — Render dorme após inatividade (cold start no próximo
 request), Neon entra em autosuspend; aceitável para o piloto, trocar quando houver mais clientes.
 
-## Assistente de Suporte/CS — a Coruja (em planejamento)
+## Assistente de Suporte/CS — Ori, a Coruja (em planejamento)
 
 Mascote-coruja embarcado (suporte, explicação de rejeições, automações, coleta de bugs, CS proativo). Estratégia,
 pesquisa, mascote, captura de contexto, automações, monitoramento de fontes e plano faseado em
@@ -223,7 +223,8 @@ pesquisa, mascote, captura de contexto, automações, monitoramento de fontes e 
 do assistente:
 - **Prepara, nunca conclui**: pode preencher formulário/rascunho; emitir, cancelar, salvar e enviar são sempre clique do usuário
 - Ferramentas pegam `EmpresaId` do JWT, nunca de parâmetro do modelo
-- Modelo DeepSeek atrás de `IAssistenteIA` (`Microsoft.Extensions.AI`); dado de cliente só pelo endpoint aprovado pelo PO (recomendado: Microsoft Foundry — decisão pendente); API direta da DeepSeek apenas para fontes públicas
+- Modelo DeepSeek hospedado no **Microsoft Foundry**, atrás de `IAssistenteIA` (`Microsoft.Extensions.AI`); API direta da DeepSeek apenas para fontes públicas
+- **O modelo não recebe dado pessoal**: tudo que sai para ele passa pelo `SanitizadorIA` (CPF/CNPJ/IE/nome/endereço viram atributos, resultados de validação ou marcadores reidratados só na tela)
 - Contexto da sessão fica só na memória do navegador e é enviado apenas quando o usuário chama a coruja
 - Mudança em `docs/assistente/kb/` ou no prompt exige eval verde
 

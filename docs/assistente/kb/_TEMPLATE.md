@@ -14,7 +14,7 @@ vigencia_inicio: null                    # AAAA-MM-DD quando a regra tem início
 vigencia_fim: null                       # AAAA-MM-DD quando a regra deixa de valer
 verificado_em: AAAA-MM-DD
 revisar_ate: AAAA-MM-DD                  # padrão: verificado_em + 90 dias (30 para Reforma Tributária)
-curador: nome
+curador: "Nome — CRC UF-000000/O (escritório parceiro)"
 status: rascunho                         # rascunho | revisado | publicado | em_revisao — só publicado/em_revisao entram no prompt
                                          # em_revisao = monitor detectou mudança na fonte; coruja avisa "regra em atualização"
 resumo_curto: ""                         # ≤ 280 caracteres — exibido sem chamar o modelo (resposta de custo zero)

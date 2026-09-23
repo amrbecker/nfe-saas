@@ -17,7 +17,7 @@ para o modelo. Isso reduz tokens, reduz risco de privacidade e melhora a precis�
 | **Tela atual** (rota + nome amigável) | ✅ Essencial | Define o universo da dúvida | `NavigationManager.LocationChanged` | Sim |
 | **Operação em curso** (ex.: `EmitindoNFe`, etapa `Produtos`, item 2 de 3) | ✅ Essencial | É o melhor preditor da dúvida | Interface `IContextoTela` implementada pela página | Sim |
 | **Campo com foco** (id semântico + rótulo) | ✅ Essencial | "Estou no CFOP" → dúvida quase certa | JS `focusin` lendo `data-ajuda="cfop"` | Sim |
-| **Valor do campo com foco** | 🟡 Útil | Explicar se o valor está certo | Mesmo listener | Sim, **exceto campos sensíveis** (lista de bloqueio, §3) |
+| **Valor do campo com foco** | 🟡 Útil | Explicar se o valor está certo | Mesmo listener | Sim para campos fiscais (CFOP, CST, NCM…); para CPF/CNPJ/IE/nome/endereço vai **só o resultado da validação** (§3) |
 | **Erros de validação visíveis** | ✅ Essencial | Dúvida mais comum depois de rejeição | Página expõe `MudForm.Errors` via `IContextoTela` | Sim |
 | **Último erro da API** (status, `codigo`, mensagem) | ✅ Essencial | Detecta bug × erro de preenchimento | `DelegatingHandler` no `HttpClient` da WebUI (buffer dos últimos 5) | Sim |
 | **Nota em foco** (id, situação, `MotivoRejeicao`) | ✅ Essencial | Explicar rejeição | Rota + `IContextoTela`; **o servidor busca os dados** | Só o id; o servidor completa |
@@ -37,6 +37,7 @@ para o modelo. Isso reduz tokens, reduz risco de privacidade e melhora a precis�
   "tela": "emitir-nfe",
   "op": { "tipo": "EmitindoNFe", "etapa": "Produtos", "item": 2, "itens": 3, "modelo": 55 },
   "foco": { "campo": "cfop", "rotulo": "CFOP", "valor": "5102", "item": 2 },
+  "dest": { "tipo": "PJ", "doc_valido": true, "uf": "MG", "ind_ie": 1, "ie_formato_valido_uf": true },
   "erros": [ { "campo": "ncm", "item": 2, "msg": "NCM não encontrado na tabela" } ],
   "api": [ { "rota": "POST /api/notas", "status": 422, "codigo": "ValidacaoFalhou", "ha_s": 40 } ],
   "notaId": null,
@@ -62,8 +63,11 @@ e valida `notaId` contra o `EmpresaId` do token.
 senhas, senha do certificado, token CSC, arquivo `.pfx`, campos `type="password"`, e-mail e telefone de
 destinatário.
 
-**Mascarados antes do envio:** CPF → `***.456.789-**`; CNPJ de destinatário → mantido (é dado de empresa), mas
-**sem razão social** se for MEI ou produtor rural (pode conter nome de pessoa física).
+**Minimização (decisão D10 — `PESQUISA_REFINAMENTO.md` §2.6):** o modelo **não recebe dado pessoal**. Documentos,
+nomes, endereços, e-mails e telefones viram **atributos e resultados de validação** (`dest.tipo: PF`,
+`dest.doc_valido: true`, `dest.uf: MG`) ou marcadores (`[DESTINATARIO]`), reidratados só na tela do usuário. Se o
+campo com foco for CPF/CNPJ/IE, vai só o resultado da validação, nunca o valor. A pergunta livre passa pelo mesmo
+filtro.
 
 **Ciclo de vida:**
 1. O rastro vive **só na memória do navegador** (não vai para `localStorage`) e é descartado ao sair ou recarregar.
