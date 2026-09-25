@@ -1,1 +1,301 @@
-@* STUB — implementado pelo pacote P4b: conteúdo do painel: 'Estou vendo que…', hipóteses, respostas, conversa. *@
+@* Painel da Ori (MASCOTE_UX.md §6): "Estou vendo que…", hipóteses sem LLM, respostas da base e conversa (SSE). *@
+@using NfeSaas.Application.Assistente.Hipoteses
+@using NfeSaas.Domain.Enums
+@implements IDisposable
+@inject OriControle Ori
+@inject IOriApi Api
+@inject IContextoAssistente ContextoSessao
+
+<div class="ori-painel d-flex flex-column" style="height:100%">
+    <div class="d-flex align-center gap-2 pa-3" style="border-bottom:1px solid var(--mud-palette-lines-default)">
+        <Coruja Estado="Ori.Estado" Largura="44" />
+        <div style="flex:1;min-width:0">
+            <MudText Typo="Typo.h6" Style="font-family:Newsreader,Georgia,serif;line-height:1.1">Ori</MudText>
+            <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">@SubtituloCota()</MudText>
+        </div>
+        <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="Fechar a Ori" OnClick="Ori.FecharPainel" />
+    </div>
+
+    <div class="pa-3 d-flex flex-column gap-3" style="overflow-y:auto;flex:1">
+        @if (_chips.Count > 0)
+        {
+            <div>
+                <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">Estou vendo que você está em:</MudText>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    @foreach (var chip in _chips.Where(c => !_removidos.Contains(c.Chave)))
+                    {
+                        <MudChip Size="Size.Small" Variant="Variant.Outlined" OnClose="() => Remover(chip.Chave)"
+                                 CloseIcon="@Icons.Material.Filled.Close">@chip.Texto</MudChip>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (_turnos.Count == 0)
+        {
+            <div class="d-flex flex-column gap-2" role="group" aria-label="Sua dúvida é sobre…">
+                @foreach (var h in _hipoteses)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true" Class="justify-start"
+                               Style="text-transform:none;text-align:left" OnClick="() => Escolher(h)">@h.Texto</MudButton>
+                }
+            </div>
+        }
+
+        @foreach (var t in _turnos)
+        {
+            @if (!string.IsNullOrWhiteSpace(t.Pergunta))
+            {
+                <div class="align-self-end pa-2 px-3" style="background:var(--mud-palette-background-grey);border-radius:12px;max-width:90%">
+                    <MudText Typo="Typo.body2">@t.Pergunta</MudText>
+                </div>
+            }
+            @if (t.Resposta != null)
+            {
+                <OriPainelResposta Resposta="t.Resposta" Contexto="_contexto" MostrarExplicarMelhor="t.PodeExplicarMelhor && Ori.Status?.IaHabilitada == true"
+                                   OnExplicarMelhor="() => ExplicarMelhor(t)" />
+            }
+            else if (t.Erro != null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">
+                    @t.Erro <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => t.Repetir?.Invoke() ?? Task.CompletedTask">Tentar de novo</MudButton>
+                </MudAlert>
+            }
+            else
+            {
+                <div class="d-flex align-center gap-2" aria-live="polite">
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Primary" />
+                    <MudText Typo="Typo.caption">@(t.Status ?? "Pensando…")</MudText>
+                </div>
+            }
+        }
+
+        @if (_turnos.Count > 0 && !_ocupado)
+        {
+            <MudButton Variant="Variant.Text" Size="Size.Small" Class="align-self-start" OnClick="Recomecar">Ver outras sugestões</MudButton>
+        }
+    </div>
+
+    <div class="pa-3" style="border-top:1px solid var(--mud-palette-lines-default)">
+        @if (Ori.Status?.Cota.Permitido == false && Ori.Status.IaHabilitada)
+        {
+            <MudText Typo="Typo.caption" Class="d-block mb-2">Volto amanhã para perguntas livres — os artigos da base continuam aqui.</MudText>
+        }
+        <div class="d-flex gap-2 align-end">
+            <MudTextField @ref="_campo" @bind-Value="_pergunta" Placeholder="Pergunte à Ori…" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Lines="2" MaxLength="2000" Disabled="_ocupado" Immediate="true" OnKeyDown="AoTeclar" Style="flex:1"
+                          aria-label="Sua pergunta para a Ori" />
+            <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Primary" aria-label="Enviar pergunta"
+                           Disabled="_ocupado || string.IsNullOrWhiteSpace(_pergunta)" OnClick="EnviarLivre" />
+        </div>
+        <div class="d-flex align-center justify-space-between mt-1">
+            <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">Dados pessoais são removidos antes de consultar a IA.</MudText>
+            <MudSwitch T="bool" Checked="Ori.Status?.DicasSilenciadas == true" CheckedChanged="Silenciar" Size="Size.Small" Color="Color.Primary"
+                       Label="Silenciar dicas" />
+        </div>
+    </div>
+</div>
+
+@code {
+    private sealed class Turno
+    {
+        public string? Pergunta { get; set; }
+        public RespostaOriDto? Resposta { get; set; }
+        public string? Status { get; set; }
+        public string? Erro { get; set; }
+        public bool PodeExplicarMelhor { get; set; }
+        public Func<Task>? Repetir { get; set; }
+    }
+
+    private sealed record Chip(string Chave, string Texto);
+
+    private ContextoTelaDto _contexto = new("desconhecida");
+    private List<Chip> _chips = new();
+    private readonly HashSet<string> _removidos = new();
+    private List<HipoteseOri> _hipoteses = new();
+    private readonly List<Turno> _turnos = new();
+    private Guid? _conversaId;
+    private string _pergunta = "";
+    private bool _ocupado;
+    private MudTextField<string>? _campo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ori.OnChange += Atualizar;
+        _contexto = ContextoSessao.Capturar();
+        _chips = MontarChips(_contexto);
+        _hipoteses = MotorHipoteses.Gerar(_contexto, await Api.MapaAsync());
+
+        if (Ori.PedidoAtual is { Hipotese: "rejeicao", NotaId: { } nota })
+            await Executar(null, () => Api.ExplicarRejeicaoAsync(nota, ContextoParaEnviar()), podeExplicarMelhor: false, EstadoOri.Preocupada);
+        else if (Ori.PedidoAtual is { TextoInicial: { } texto })
+            _pergunta = texto;
+    }
+
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+
+    private string SubtituloCota()
+    {
+        var c = Ori.Status?.Cota;
+        if (Ori.Status?.IaHabilitada != true || c == null || c.LimiteDia == 0) return "Assistente do NFeFlow";
+        return $"{c.UsadasHoje} de {c.LimiteDia} perguntas hoje";
+    }
+
+    private static List<Chip> MontarChips(ContextoTelaDto c)
+    {
+        var l = new List<Chip> { new("tela", NomeTela(c.Tela)) };
+        if (c.Op is { } op) l.Add(new("op", string.Join(" · ", new[] { op.Etapa, op.Item is { } i ? $"item {i}{(op.Itens is { } n ? $" de {n}" : "")}" : null }.Where(s => s != null))));
+        if (c.Foco is { } f) l.Add(new("foco", $"campo {f.Rotulo ?? f.Campo}{(f.Valor is { Length: > 0 } v ? $" = {v}" : "")}"));
+        if (c.Dest is { } d && d.Tipo != null) l.Add(new("dest", $"destinatário {d.Tipo}{(d.Uf != null ? $" · {d.Uf}" : "")}"));
+        if (c.Erros is { Count: > 0 } e) l.Add(new("erros", $"{e.Count} erro{(e.Count > 1 ? "s" : "")} no formulário"));
+        if (c.Api is { Count: > 0 } a) l.Add(new("api", $"último erro do sistema: {a[^1].Status}"));
+        if (c.NotaId != null) l.Add(new("nota", "nota em foco"));
+        return l.Where(x => !string.IsNullOrWhiteSpace(x.Texto)).ToList();
+    }
+
+    private static string NomeTela(string tela) => tela switch
+    {
+        "emitir-nfe" => "Emitir NF-e",
+        "nota-detalhe" => "Detalhe da nota",
+        "notas" => "Notas emitidas",
+        "dashboard" => "Início",
+        "configuracao-inicial" => "Personalização",
+        "clientes" => "Destinatários",
+        _ => char.ToUpper(tela[0]) + tela[1..].Replace('-', ' ')
+    };
+
+    private void Remover(string chave) => _removidos.Add(chave);
+
+    /// <summary>Contexto sem os itens que o usuário removeu nos chips.</summary>
+    private ContextoTelaDto ContextoParaEnviar() => _contexto with
+    {
+        Tela = _removidos.Contains("tela") ? "desconhecida" : _contexto.Tela,
+        Op = _removidos.Contains("op") ? null : _contexto.Op,
+        Foco = _removidos.Contains("foco") ? null : _contexto.Foco,
+        Dest = _removidos.Contains("dest") ? null : _contexto.Dest,
+        Erros = _removidos.Contains("erros") ? null : _contexto.Erros,
+        Api = _removidos.Contains("api") ? null : _contexto.Api,
+        NotaId = _removidos.Contains("nota") ? null : _contexto.NotaId
+    };
+
+    private async Task Escolher(HipoteseOri h)
+    {
+        switch (h.Tipo)
+        {
+            case "livre":
+                if (_campo != null) await _campo.FocusAsync();
+                return;
+            case "rejeicao" when _contexto.NotaId is { } nota:
+                await Executar(h.Texto, () => Api.ExplicarRejeicaoAsync(nota, ContextoParaEnviar()), podeExplicarMelhor: false, EstadoOri.Preocupada);
+                return;
+            case "erro_sistema":
+                var ultimo = _contexto.Api?.LastOrDefault();
+                _turnos.Add(new Turno
+                {
+                    Pergunta = h.Texto,
+                    Resposta = new RespostaOriDto(null, "Posso registrar isso para a equipe do NFeFlow, com o contexto técnico da tela (sem dados pessoais).",
+                        NivelFonte.N4SemFonte, new(), false, true, 0,
+                        new() { new AcaoUiDto("confirmar_chamado", "Registrar o problema", new()
+                        {
+                            ["titulo"] = $"Erro {ultimo?.Status} em {NomeTela(_contexto.Tela)}",
+                            ["descricao"] = $"A operação {ultimo?.Rota} falhou{(ultimo?.Mensagem is { } m ? $": {m}" : ".")}",
+                            ["severidade"] = "Alta"
+                        }) }, null)
+                });
+                return;
+        }
+
+        if (h.Artigo is { } a)
+        {
+            _turnos.Add(new Turno
+            {
+                Pergunta = h.Texto,
+                PodeExplicarMelhor = true,
+                Resposta = new RespostaOriDto(null, $"**{a.Titulo}**\n\n{a.ResumoCurto}", a.NivelFonte,
+                    new() { new CitacaoDto(a.Id, a.Titulo, a.NivelFonte, a.VerificadoEm, a.Status) }, false, true, 0, new(), null)
+            });
+            return;
+        }
+        await Executar(h.Texto, () => Api.PerguntarAsync(h.Texto, ContextoParaEnviar()), podeExplicarMelhor: false);
+    }
+
+    private Task ExplicarMelhor(Turno t) =>
+        Executar(null, () => Api.PerguntarAsync($"Explique melhor: {t.Pergunta}", ContextoParaEnviar()), podeExplicarMelhor: false);
+
+    private async Task Executar(string? pergunta, Func<Task<(RespostaOriDto?, string?)>> chamada, bool podeExplicarMelhor,
+        EstadoOri estadoResposta = EstadoOri.Falando)
+    {
+        var turno = new Turno { Pergunta = pergunta, PodeExplicarMelhor = podeExplicarMelhor };
+        turno.Repetir = () => Rodar(turno, chamada, estadoResposta);
+        _turnos.Add(turno);
+        await Rodar(turno, chamada, estadoResposta);
+    }
+
+    private async Task Rodar(Turno turno, Func<Task<(RespostaOriDto?, string?)>> chamada, EstadoOri estadoResposta)
+    {
+        _ocupado = true;
+        turno.Erro = null;
+        Ori.DefinirEstado(EstadoOri.Pensando);
+        StateHasChanged();
+        var (resposta, erro) = await chamada();
+        turno.Resposta = resposta;
+        turno.Erro = resposta == null ? erro ?? "Não consegui responder agora." : null;
+        _ocupado = false;
+        await PosResposta(resposta, estadoResposta);
+    }
+
+    private async Task EnviarLivre()
+    {
+        var texto = _pergunta.Trim();
+        if (texto.Length == 0 || _ocupado) return;
+        _pergunta = "";
+        var turno = new Turno { Pergunta = texto };
+        turno.Repetir = () => Conversar(turno, texto);
+        _turnos.Add(turno);
+        await Conversar(turno, texto);
+    }
+
+    private async Task Conversar(Turno turno, string texto)
+    {
+        _ocupado = true;
+        turno.Erro = null;
+        Ori.DefinirEstado(EstadoOri.Pensando);
+        StateHasChanged();
+
+        _conversaId ??= (await Api.CriarConversaAsync(texto.Length > 60 ? texto[..60] : texto))?.Id;
+        if (_conversaId is not { } id)
+        {
+            turno.Erro = "Não consegui abrir a conversa agora.";
+            _ocupado = false;
+            Ori.DefinirEstado(EstadoOri.Atenta);
+            return;
+        }
+
+        await foreach (var ev in Api.EnviarMensagemAsync(id, new NovaMensagemDto(texto, ContextoParaEnviar())))
+        {
+            if (ev.Tipo is "status" or "ferramenta") { turno.Status = ev.Texto; StateHasChanged(); }
+            else if (ev.Tipo == "resposta") turno.Resposta = ev.Resposta;
+            else if (ev.Tipo == "erro") turno.Erro = ev.Texto;
+        }
+        _ocupado = false;
+        await PosResposta(turno.Resposta, EstadoOri.Falando);
+    }
+
+    private async Task PosResposta(RespostaOriDto? resposta, EstadoOri estado)
+    {
+        Ori.DefinirEstado(resposta == null ? EstadoOri.Atenta : estado);
+        if (resposta?.Cota != null) await Ori.AtualizarStatusAsync();
+        StateHasChanged();
+    }
+
+    private async Task AoTeclar(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey) await EnviarLivre();
+    }
+
+    private void Recomecar() => _turnos.Clear();
+
+    private Task Silenciar(bool silenciar) => Ori.SilenciarDicasAsync(silenciar);
+
+    public void Dispose() => Ori.OnChange -= Atualizar;
+}

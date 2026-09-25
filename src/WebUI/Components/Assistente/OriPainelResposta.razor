@@ -1,0 +1,108 @@
+@* Cartão de uma resposta da Ori: texto (markdown seguro), selo da fonte, citações, avisos, ações e 👍/👎. *@
+@using NfeSaas.Application.Assistente.Hipoteses
+@using NfeSaas.Domain.Enums
+@inject IOriApi Api
+@inject IDialogService Dialogos
+
+<div class="ori-resposta" aria-live="polite">
+    <div class="d-flex align-center flex-wrap gap-2 mb-2">
+        @if (SeloTexto(Resposta.Selo) is { } selo)
+        {
+            <MudChip Size="Size.Small" Color="SeloCor(Resposta.Selo)" Variant="Variant.Text" Icon="@Icons.Material.Filled.Verified">@selo</MudChip>
+        }
+        @if (Resposta.RespondidaSemModelo)
+        {
+            <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">Resposta da base de conhecimento</MudText>
+        }
+    </div>
+
+    @if (Resposta.DadosPessoaisRemovidos > 0)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+            Removi @Resposta.DadosPessoaisRemovidos dado@(Resposta.DadosPessoaisRemovidos > 1 ? "s" : "") pessoa@(Resposta.DadosPessoaisRemovidos > 1 ? "is" : "l") da sua pergunta antes de consultar a IA.
+        </MudAlert>
+    }
+    @if (Resposta.VerificacaoFalhou)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">Não encontrei base oficial suficiente para responder com segurança.</MudAlert>
+    }
+
+    <div class="ori-resposta-texto">@((MarkupString)MarkdownSeguro.ParaHtml(Resposta.Texto))</div>
+
+    @if (Resposta.Citacoes.Count > 0)
+    {
+        <MudText Typo="Typo.caption" Class="mt-2 d-block" Style="color:var(--mud-palette-text-secondary)">Base:</MudText>
+        <div class="d-flex flex-wrap gap-1">
+            @foreach (var c in Resposta.Citacoes)
+            {
+                <MudChip Size="Size.Small" Variant="Variant.Outlined" OnClick="() => AbrirArtigo(c.Id)">
+                    @c.Titulo@(c.Status == "em_revisao" ? " · regra em atualização" : c.Status == "rascunho" ? " · rascunho" : "")
+                </MudChip>
+            }
+        </div>
+    }
+
+    @foreach (var acao in Resposta.Acoes)
+    {
+        <OriPainelAcao Acao="acao" Contexto="Contexto" />
+    }
+
+    @if (MostrarExplicarMelhor)
+    {
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Class="mt-2" OnClick="ExplicarMelhor"
+                   StartIcon="@Icons.Material.Filled.AutoAwesome">Explicar melhor</MudButton>
+    }
+
+    @if (Resposta.InteracaoId is { } id)
+    {
+        <div class="d-flex align-center gap-1 mt-2">
+            <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">Ajudou?</MudText>
+            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.ThumbUp" aria-label="Ajudou" Disabled="_avaliada"
+                           Color="@(_avaliacao == 1 ? Color.Success : Color.Default)" OnClick="() => Avaliar(id, 1)" />
+            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Outlined.ThumbDown" aria-label="Não ajudou" Disabled="_avaliada"
+                           Color="@(_avaliacao == -1 ? Color.Error : Color.Default)" OnClick="() => Avaliar(id, -1)" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RespostaOriDto Resposta { get; set; } = null!;
+    [Parameter] public ContextoTelaDto? Contexto { get; set; }
+    [Parameter] public bool MostrarExplicarMelhor { get; set; }
+    [Parameter] public EventCallback OnExplicarMelhor { get; set; }
+
+    private bool _avaliada;
+    private int _avaliacao;
+
+    public static string? SeloTexto(NivelFonte n) => n switch
+    {
+        NivelFonte.N1NormaOficial => "Norma oficial",
+        NivelFonte.N2OrientacaoOficial => "Orientação oficial",
+        NivelFonte.N3ReferenciaTecnica => "Interpretação de mercado",
+        NivelFonte.GuiaDoSistema => "Guia do NFeFlow",
+        _ => null
+    };
+
+    private static Color SeloCor(NivelFonte n) => n switch
+    {
+        NivelFonte.N1NormaOficial => Color.Success,
+        NivelFonte.N2OrientacaoOficial => Color.Info,
+        NivelFonte.N3ReferenciaTecnica => Color.Warning,
+        _ => Color.Primary
+    };
+
+    private Task ExplicarMelhor() => OnExplicarMelhor.InvokeAsync();
+
+    private async Task Avaliar(Guid id, int valor)
+    {
+        _avaliada = true;
+        _avaliacao = valor;
+        await Api.AvaliarAsync(id, valor);
+    }
+
+    private void AbrirArtigo(string id)
+    {
+        var p = new DialogParameters { [nameof(OriPainelArtigo.Id)] = id };
+        Dialogos.Show<OriPainelArtigo>("Base de conhecimento", p, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true });
+    }
+}

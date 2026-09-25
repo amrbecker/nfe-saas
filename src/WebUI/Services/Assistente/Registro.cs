@@ -7,7 +7,8 @@ public static class RegistroAssistenteUi
     public static IServiceCollection AddAssistenteUi(this IServiceCollection services)
     {
         services.AddScoped<IContextoAssistente, ContextoAssistente>();
-        services.AddScoped<IOriControle, OriControle>();
+        services.AddScoped<OriControle>();
+        services.AddScoped<IOriControle>(sp => sp.GetRequiredService<OriControle>());
         services.AddScoped<IPreferenciasOriApi, PreferenciasOriApi>();
         services.AddScoped<IOriApi, OriApi>();
         services.AddScoped<IAutomacoesApi, AutomacoesApi>();
