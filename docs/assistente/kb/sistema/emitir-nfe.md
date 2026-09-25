@@ -4,7 +4,7 @@ titulo: "Como emitir uma NF-e no NFeFlow"
 categoria: sistema
 nivel_fonte: sistema
 codigos_rejeicao: []
-campos_relacionados: [tipo, serie, numero, natureza_operacao, cfop, ncm, cst, quantidade, valor_unitario, regime_tributario, ambiente, cpf_cnpj, razao_social, email, cep]
+campos_relacionados: [serie, numero, natureza_operacao, cfop, ncm, cst, quantidade, valor_unitario, regime_tributario, ambiente, cpf_cnpj, razao_social, email, cep]
 telas: [emitir-nfe]
 fontes:
   - documento: "NFeFlow — tela Emitir NF-e (src/WebUI/Pages/EmitirNFe.razor)"
