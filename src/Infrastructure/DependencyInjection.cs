@@ -82,6 +82,9 @@ public static class DependencyInjection
         // HttpClient for SEFAZ and ViaCEP
         services.AddHttpClient();
 
+        // Assistente Ori — repositórios e serviços (ver DependencyInjection.Assistente.cs)
+        services.AddAssistenteInfrastructure(config);
+
         return services;
     }
 }

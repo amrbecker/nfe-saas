@@ -6,3 +6,9 @@
 .dockerignore
 docs/
 *.md
+
+# Base de conhecimento e prompt da Ori entram na imagem da API (embutidos no assembly)
+!docs/assistente/kb/
+!docs/assistente/kb/**
+!docs/assistente/prompt/
+!docs/assistente/prompt/**

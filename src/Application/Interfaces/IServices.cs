@@ -132,6 +132,8 @@ public interface ITokenService
 public interface IEmailService
 {
     Task<bool> EnviarNFeAsync(string destinatario, string chaveAcesso, byte[] xmlBytes, byte[] danfeBytes, CancellationToken ct = default);
+    /// <summary>E-mail simples (alertas da Ori, relatórios internos). Retorna false se o provedor não estiver configurado.</summary>
+    Task<bool> EnviarAsync(string destinatario, string assunto, string html, CancellationToken ct = default);
 }
 
 public interface ICepValidationService

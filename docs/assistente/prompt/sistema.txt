@@ -1,0 +1,1 @@
+(placeholder — o pacote P3 escreve aqui o prompt de sistema v0.2 de CONTEXTO_AGENTE.md §4)

@@ -120,6 +120,12 @@ builder.Services.AddHealthChecks()
 builder.Services.Configure<NcmUpdateWorkerOptions>(builder.Configuration.GetSection("Ncm"));
 builder.Services.AddHostedService<NcmUpdateWorker>();
 
+// Workers do assistente Ori (docs/assistente/PLANO_ACAO.md)
+builder.Services.AddHostedService<NfeSaas.API.Workers.Assistente.SaudeContaWorker>();
+builder.Services.AddHostedService<NfeSaas.API.Workers.Assistente.MonitorFontesWorker>();
+builder.Services.AddHostedService<NfeSaas.API.Workers.Assistente.InsightsWorker>();
+builder.Services.AddHostedService<NfeSaas.API.Workers.Assistente.ExpurgoConversasWorker>();
+
 // Rate limiting — política restritiva para os endpoints de autenticação (login/refresh), que são
 // o alvo natural de força bruta. Particiona por IP do cliente. Limite alto no ambiente "Testing"
 // (WebApplicationFactory/BDD): todas as requisições do TestServer compartilham o mesmo IP

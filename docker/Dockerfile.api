@@ -12,6 +12,9 @@ RUN dotnet restore src/API/NfeSaas.API.csproj
 
 # Copy all source and build
 COPY src/ src/
+# Base de conhecimento e prompt da Ori (embutidos no assembly da Infrastructure)
+COPY docs/assistente/kb/ docs/assistente/kb/
+COPY docs/assistente/prompt/ docs/assistente/prompt/
 RUN dotnet publish src/API/NfeSaas.API.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
