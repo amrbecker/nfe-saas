@@ -4,6 +4,7 @@
 @inject IProdutoService ProdutoService
 @inject ISnackbar Snackbar
 @inject IDialogService Dialog
+@inject IAutomacoesApi Automacoes
 
 <MudText Typo="Typo.h5" Class="mb-4">Produtos</MudText>
 
@@ -60,6 +61,11 @@ else
     </MudTable>
 }
 
+@if (_avisoOri != null)
+{
+    <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.AutoAwesome" Class="mb-3"
+              Style="border-color:var(--mud-palette-tertiary)">@_avisoOri</MudAlert>
+}
 @if (_mostrarForm)
 {
     <MudCard Elevation="2" Class="mt-4 pa-4">
@@ -76,13 +82,13 @@ else
                                   Required RequiredError="Descrição é obrigatória"
                                   Validation="@((string s) => string.IsNullOrWhiteSpace(s) ? "Descrição é obrigatória" : null)" />
                 </MudItem>
-                <MudItem xs="12" md="6">
+                <MudItem data-ajuda="ncm" xs="12" md="6">
                     <NcmAutocomplete Value="@_data.Ncm"
                                      ValueChanged="@(v => _data.Ncm = v)"
                                      NcmSelecionado="OnNcmSelecionado"
                                      Required="true" />
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="cfop" xs="12" md="4">
                     <CfopSelector Value="@_data.CfopPadrao"
                                   ValueChanged="@(v => _data.CfopPadrao = v)"
                                   Operacao="@NfeSaas.Domain.Enums.TipoOperacao.Saida"
@@ -90,7 +96,7 @@ else
                                   Required="true"
                                   Label="CFOP padrão de saída" />
                 </MudItem>
-                <MudItem xs="12" md="2">
+                <MudItem data-ajuda="unidade" xs="12" md="2">
                     <MudTextField @bind-Value="_data.UnidadeComercial" Label="Unidade" Variant="Variant.Outlined"
                                   Required HelperText="UN, KG, L, etc." />
                 </MudItem>
@@ -98,7 +104,7 @@ else
                     <MudNumericField @bind-Value="_data.ValorUnitarioPadrao" Label="Valor unitário" Variant="Variant.Outlined"
                                      Format="F2" Min="0m" />
                 </MudItem>
-                <MudItem xs="12" md="2">
+                <MudItem data-ajuda="origem_mercadoria" xs="12" md="2">
                     <MudSelect @bind-Value="_data.OrigemMercadoria" Label="Origem" Variant="Variant.Outlined">
                         <MudSelectItem Value="0">0 - Nacional</MudSelectItem>
                         <MudSelectItem Value="1">1 - Estrangeira (importação)</MudSelectItem>
@@ -111,13 +117,13 @@ else
                         <MudSelectItem Value="8">8 - Nacional (&gt;70% importado)</MudSelectItem>
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem data-ajuda="cest" xs="12" md="3">
                     <MudTextField @bind-Value="_data.Cest" Label="CEST (opcional, 7 díg.)" Variant="Variant.Outlined"
                                   Immediate="true"
                                   HelperText="Obrigatório para produtos sujeitos a ST"
                                   Validation="@((string s) => string.IsNullOrWhiteSpace(s) || s.Where(char.IsDigit).Count() == 7 ? null : "CEST deve ter 7 dígitos")" />
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem data-ajuda="gtin" xs="12" md="3">
                     <MudTextField @bind-Value="_data.CodigoEan" Label="GTIN/EAN (opcional)" Variant="Variant.Outlined"
                                   Immediate="true"
                                   HelperText="Código de barras (8/12/13/14 dígitos)"
@@ -152,7 +158,56 @@ else
     private Guid? _editandoId;
     private FormData _data = new();
 
-    protected override async Task OnInitializedAsync() => await Carregar();
+    // A2/A4 (AUTOMACOES.md): /produtos?origemNota={id}&itens=1,3 abre os cadastros preenchidos, um por vez;
+    // /produtos?editar={produtoId}&origemNota={id} abre a edição com NCM/CEST/CFOP usados na nota. O usuário salva.
+    [SupplyParameterFromQuery] public Guid? OrigemNota { get; set; }
+    [SupplyParameterFromQuery] public string? Itens { get; set; }
+    [SupplyParameterFromQuery(Name = "editar")] public Guid? EditarProduto { get; set; }
+    private string? _avisoOri;
+    private readonly Queue<NfeSaas.Application.Assistente.Automacoes.ItemSugeridoDto> _filaOri = new();
+    private int _numeroNotaOri;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Carregar();
+        if (OrigemNota is not { } nota) return;
+        var s = await Automacoes.CadastroSugeridoAsync(nota);
+        if (s == null) return;
+        _numeroNotaOri = s.NumeroNota;
+
+        if (EditarProduto is { } produtoId)
+        {
+            await this.Editar(produtoId);
+            foreach (var d in s.Divergencias.Where(d => d.ProdutoId == produtoId))
+            {
+                if (d.Campo == "ncm") _data.Ncm = d.ValorNota;
+                if (d.Campo == "cest") _data.Cest = d.ValorNota;
+                if (d.Campo == "cfop") _data.CfopPadrao = d.ValorNota;
+            }
+            _avisoOri = $"A Ori trouxe os valores usados na nota {s.NumeroNota} (autorizada). Confira e clique em Salvar para atualizar o cadastro.";
+            return;
+        }
+
+        var escolhidos = (Itens ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => int.TryParse(x, out var n) ? n : -1).ToHashSet();
+        foreach (var p in s.ProdutosNovos.Where(p => escolhidos.Count == 0 || escolhidos.Contains(p.NumeroItem)))
+            _filaOri.Enqueue(p);
+        AbrirProximoDaFila();
+    }
+
+    void AbrirProximoDaFila()
+    {
+        if (!_filaOri.TryDequeue(out var p)) { _avisoOri = null; return; }
+        _editandoId = null;
+        _data = new FormData
+        {
+            Codigo = p.Codigo, Descricao = p.Descricao, Ncm = p.Ncm, Cest = p.Cest ?? "", CfopPadrao = p.Cfop,
+            UnidadeComercial = p.Unidade, ValorUnitarioPadrao = p.ValorUnitario, OrigemMercadoria = p.OrigemMercadoria
+        };
+        _mostrarForm = true;
+        _avisoOri = $"A Ori preencheu este cadastro com o item {p.NumeroItem} da nota {_numeroNotaOri}" +
+            (_filaOri.Count > 0 ? $" (faltam mais {_filaOri.Count})" : "") + ". Confira e clique em Salvar.";
+    }
 
     async Task Carregar()
     {
@@ -186,7 +241,7 @@ else
         _mostrarForm = true;
     }
 
-    void Cancelar() { _mostrarForm = false; _editandoId = null; }
+    void Cancelar() { _mostrarForm = false; _editandoId = null; _filaOri.Clear(); _avisoOri = null; }
 
     void OnNcmSelecionado(NcmDto ncm)
     {
@@ -222,6 +277,7 @@ else
             Snackbar.Add($"Produto '{produto.Descricao}' atualizado.", Severity.Success);
         }
         _mostrarForm = false;
+        AbrirProximoDaFila();
         await Carregar();
     }
 

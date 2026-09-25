@@ -5,6 +5,10 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IContextoAssistente ContextoOri
+@inject OriControle OriCtl
+@implements IContextoTela
+@implements IDisposable
 
 <PageTitle>Detalhe da Nota - NFeFlow</PageTitle>
 
@@ -66,6 +70,12 @@ else
                             @if (!string.IsNullOrEmpty(_nota.MotivoRejeicao))
                             {
                                 <MudAlert Severity="Severity.Warning" Dense="true">@_nota.MotivoRejeicao</MudAlert>
+                                @if (_nota.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Rejeitada && OriCtl.Habilitada)
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="mt-1"
+                                               StartIcon="@Icons.Material.Filled.AutoAwesome"
+                                               OnClick="@(() => OriCtl.AbrirPainel(new PedidoOri("rejeicao", Id)))">Explicar com a Ori</MudButton>
+                                }
                             }
                         </MudItem>
                     </MudGrid>
@@ -83,6 +93,10 @@ else
                                    OnClick="AbrirDialogEmail" Variant="Variant.Outlined">
                             @(_nota.EmailEnviadoEm.HasValue ? "Reenviar por E-mail" : "Enviar por E-mail")
                         </MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.ContentCopy" Color="Color.Tertiary" Variant="Variant.Outlined"
+                                   Href="@($"/emitir?origem={Id}")" Title="Abre o formulário preenchido a partir desta nota — você confere e emite">Emitir igual</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.EventRepeat" Color="Color.Tertiary" Variant="Variant.Text"
+                                   Href="@($"/lembretes?notaModelo={Id}")">Criar lembrete</MudButton>
                     }
                     @if (_nota.Situacao == NfeSaas.Domain.Enums.SituacaoNota.PendenteRetransmissao)
                     {
@@ -96,6 +110,13 @@ else
                 </MudCardActions>
             </MudCard>
         </MudItem>
+
+        @if (_nota.Situacao == NfeSaas.Domain.Enums.SituacaoNota.Autorizada && OriCtl.Habilitada)
+        {
+            <MudItem xs="12">
+                <AutomacaoCadastroSugerido NotaId="Id" />
+            </MudItem>
+        }
 
         <!-- Destinatário -->
         <MudItem xs="12" md="6">
@@ -323,8 +344,15 @@ else
         new BreadcrumbItem("Detalhe", href: null, disabled: true)
     };
 
+    public ContextoTelaParcial ObterContexto() => new("nota-detalhe",
+        new OperacaoDto("VisualizandoNota", _nota?.Situacao.ToString(), null, _nota?.Itens?.Count, _nota == null ? null : (int)_nota.Tipo),
+        null, Id);
+
+    public void Dispose() => ContextoOri.RemoverTela(this);
+
     protected override async Task OnInitializedAsync()
     {
+        ContextoOri.RegistrarTela(this);
         try
         {
             _nota = await NotaService.GetNotaAsync(Id);

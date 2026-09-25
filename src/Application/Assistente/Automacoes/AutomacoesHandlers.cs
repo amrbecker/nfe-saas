@@ -22,6 +22,39 @@ public record CadastroSugeridoDto(Guid NotaId, int NumeroNota, bool Destinatario
 
 public record ClienteExistenteDto(Guid Id, string Nome);
 
+/// <summary>A9 — primeiros passos da empresa selecionada (checklist de onboarding).</summary>
+public record PrimeirosPassosDto(bool CertificadoOk, bool ConfiguracaoOk, bool HomologacaoOk, bool ProducaoOk, AmbienteSefaz Ambiente)
+{
+    public bool Concluido => CertificadoOk && ConfiguracaoOk && ProducaoOk;
+}
+
+public record PrimeirosPassosQuery(Guid EmpresaId) : IRequest<PrimeirosPassosDto?>;
+
+public class PrimeirosPassosHandler : IRequestHandler<PrimeirosPassosQuery, PrimeirosPassosDto?>
+{
+    private readonly IEmpresaRepository _empresas;
+    private readonly IConfiguracaoEmpresaRepository _configuracoes;
+    private readonly IConsultasAssistenteRepository _consultas;
+
+    public PrimeirosPassosHandler(IEmpresaRepository empresas, IConfiguracaoEmpresaRepository configuracoes, IConsultasAssistenteRepository consultas)
+    {
+        _empresas = empresas;
+        _configuracoes = configuracoes;
+        _consultas = consultas;
+    }
+
+    public async Task<PrimeirosPassosDto?> Handle(PrimeirosPassosQuery r, CancellationToken ct)
+    {
+        var e = await _empresas.GetByIdAsync(r.EmpresaId, ct);
+        if (e == null) return null;
+        var config = await _configuracoes.GetByEmpresaAsync(r.EmpresaId, ct);
+        return new PrimeirosPassosDto(e.CertificadoValido(), config?.ConcluidoEm != null,
+            await _consultas.TeveNotaAutorizadaAsync(r.EmpresaId, AmbienteSefaz.Homologacao, ct),
+            await _consultas.TeveNotaAutorizadaAsync(r.EmpresaId, AmbienteSefaz.Producao, ct),
+            e.AmbienteSefaz);
+    }
+}
+
 /// <summary>A5 — dados para "Emitir igual": destinatário, itens, frete, pagamento; sem número, série, datas nem chave.</summary>
 public record PrepararNotaQuery(Guid EmpresaId, Guid NotaId) : IRequest<EmitirNotaFiscalDto?>;
 

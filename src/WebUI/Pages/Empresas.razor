@@ -70,7 +70,7 @@ else
         <MudText Typo="Typo.h6" Class="mb-3">Cadastrar Nova Empresa</MudText>
         <MudForm @ref="_mudForm" @bind-IsValid="_formValido">
             <MudGrid>
-                <MudItem xs="12" md="6">
+                <MudItem data-ajuda="razao_social" xs="12" md="6">
                     <MudTextField @bind-Value="_formData.RazaoSocial" Label="Razão Social" Variant="Variant.Outlined"
                                   Required RequiredError="Razão social é obrigatória"
                                   Immediate="true"
@@ -79,20 +79,20 @@ else
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_formData.NomeFantasia" Label="Nome Fantasia" Variant="Variant.Outlined" />
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="cpf_cnpj" xs="12" md="4">
                     <CnpjInput Value="@_formData.Cnpj"
                                ValueChanged="@(v => _formData.Cnpj = v)"
                                EmpresaEncontrada="OnEmpresaEncontradaNaReceita"
                                Required="true" />
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="ie" xs="12" md="4">
                     <MudTextField @bind-Value="_formData.InscricaoEstadual" Label="Inscrição Estadual" Variant="Variant.Outlined"
                                   Required RequiredError="Inscrição estadual é obrigatória (ou 'ISENTO')"
                                   Immediate="true"
                                   HelperText="Use 'ISENTO' se a empresa não for contribuinte de ICMS"
                                   Validation="@((string s) => ValidarIe(s))" />
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="email" xs="12" md="4">
                     <MudTextField @bind-Value="_formData.Email" Label="E-mail" Variant="Variant.Outlined"
                                   Immediate="true"
                                   Validation="@((string s) => ValidarEmail(s))" />
@@ -101,11 +101,11 @@ else
                      (ver OnCepEncontrado) — mesmo padrão já usado em EmitirNFe.razor/Clientes.razor. Pedir
                      esses campos antes do CEP induzia o usuário a digitar manualmente o que seria preenchido
                      sozinho. -->
-                <MudItem xs="12" md="3">
+                <MudItem data-ajuda="cep" xs="12" md="3">
                     <CepInput Value="@_formData.Cep" ValueChanged="@(v => _formData.Cep = v)"
                               EnderecoEncontrado="OnCepEncontrado" Required="true" />
                 </MudItem>
-                <MudItem xs="12" md="9">
+                <MudItem data-ajuda="logradouro" xs="12" md="9">
                     <MudTextField @bind-Value="_formData.Logradouro" Label="Logradouro" Variant="Variant.Outlined"
                                   Required RequiredError="Logradouro é obrigatório"
                                   Validation="@((string s) => ValidarObrigatorio(s, "Logradouro"))" />
@@ -125,7 +125,7 @@ else
                                   Required RequiredError="Cidade é obrigatória"
                                   Validation="@((string s) => ValidarObrigatorio(s, "Cidade"))" />
                 </MudItem>
-                <MudItem xs="12" md="2">
+                <MudItem data-ajuda="uf" xs="12" md="2">
                     <MudSelect T="string" Value="_formData.Uf" ValueChanged="UfChanged"
                                Label="UF" Variant="Variant.Outlined"
                                Required RequiredError="UF é obrigatória"
@@ -142,7 +142,7 @@ else
                                   Immediate="true"
                                   Validation="@((string s) => ValidarCodigoMunicipio(s))" />
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="telefone" xs="12" md="4">
                     <MudTextField @bind-Value="_formData.Telefone" Label="Telefone" Variant="Variant.Outlined"
                                   Immediate="true"
                                   HelperText="10 ou 11 dígitos (com DDD)"
@@ -152,14 +152,14 @@ else
                     <CnaeAutocomplete Value="@_formData.Cnae" ValueChanged="@(v => _formData.Cnae = v)"
                                       HelperText="Código de atividade econômica (opcional)" />
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="regime_tributario" xs="12" md="4">
                     <MudSelect @bind-Value="_formData.RegimeTributario" Label="Regime Tributário" Variant="Variant.Outlined">
                         <MudSelectItem Value="1">Simples Nacional</MudSelectItem>
                         <MudSelectItem Value="2">Simples Nacional - Excesso</MudSelectItem>
                         <MudSelectItem Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="ambiente" xs="12" md="4">
                     <MudSelect @bind-Value="_formData.AmbienteSefaz" Label="Ambiente SEFAZ" Variant="Variant.Outlined">
                         <MudSelectItem Value="1">Produção</MudSelectItem>
                         <MudSelectItem Value="2">Homologação (Testes)</MudSelectItem>

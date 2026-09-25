@@ -24,6 +24,10 @@ public class AssistenteAutomacoesController : BaseApiController
     public async Task<ActionResult<ClienteExistenteDto>> DestinatarioExistente([FromQuery] string doc, CancellationToken ct) =>
         await Mediator.Send(new DestinatarioExistenteQuery(EmpresaId, doc), ct) is { } dto ? Ok(dto) : NotFound();
 
+    [HttpGet("primeiros-passos")]
+    public async Task<ActionResult<PrimeirosPassosDto>> PrimeirosPassos(CancellationToken ct) =>
+        await Mediator.Send(new PrimeirosPassosQuery(EmpresaId), ct) is { } dto ? Ok(dto) : NotFound();
+
     [HttpGet("padroes")]
     public async Task<ActionResult<PadroesPreenchimentoDto>> Padroes([FromQuery] string? destinatario, [FromQuery] string? produto,
         CancellationToken ct) =>
