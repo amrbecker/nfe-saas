@@ -8,7 +8,9 @@ public enum NivelFonte
     N1NormaOficial = 1,
     N2OrientacaoOficial = 2,
     N3ReferenciaTecnica = 3,
-    N4SemFonte = 4
+    N4SemFonte = 4,
+    /// <summary>Guia de uso do próprio NFeFlow (artigos kb/sistema/*) — selo "Guia do NFeFlow", nunca "Norma oficial".</summary>
+    GuiaDoSistema = 5
 }
 
 public enum TipoInteracaoAssistente

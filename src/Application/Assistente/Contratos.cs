@@ -40,6 +40,10 @@ public class AssistenteOptions
     /// <summary>URL base da WebUI (links em e-mails). Default: WebUI:BaseUrl.</summary>
     public string? WebUiBaseUrl { get; set; }
     public IaOptions Ia { get; set; } = new();
+
+    /// <summary>Ori ligada para o escritório (chave global + lista de piloto, se houver).</summary>
+    public bool HabilitadoPara(Guid escritorioId) =>
+        Habilitado && (EscritoriosPiloto.Count == 0 || EscritoriosPiloto.Contains(escritorioId));
     public InlabsOptions Inlabs { get; set; } = new();
 }
 

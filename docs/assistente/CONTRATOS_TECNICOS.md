@@ -76,6 +76,18 @@ Todas `[Authorize]`, herdando `BaseApiController`; `EmpresaId`/`EscritorioId`/`U
 **Chaves de dica/sugestão (`SugestaoDispensada.Chave`):** `dica:{id}`, `A1:{notaId}`, `A2:{notaId}`,
 `A5:{clienteDoc-hash}`, `A6:{cliente}:{produto}:{cfop}:{cst}`, `A7:{notaModeloId}`.
 
+**Nível `sistema`:** artigos `kb/sistema/*` usam `nivel_fonte: sistema` (e `nivel: sistema` nas fontes) → `NivelFonte.GuiaDoSistema`,
+selo "Guia do NFeFlow". O selo de uma resposta é o do nível mais fraco entre os artigos FISCAIS citados; se só houver
+artigos `sistema`, o selo é `GuiaDoSistema`.
+
+**Preenchimento por URL (P5 implementa, P4b/P6 geram links):**
+- `/emitir?origem={notaId}` — prepara a partir de uma nota (A5/A7). Opcional `&ajustes=item2.cfop=6102;item1.ncm=69120000`
+  (itens 1-based; campos com os IDs canônicos).
+- `/clientes?origemNota={notaId}` — formulário de destinatário preenchido com o da nota (A1).
+- `/produtos?origemNota={notaId}&itens=1,3` — formulários de produto preenchidos com os itens da nota (A2).
+- `/produtos?editar={produtoId}&origemNota={notaId}` — atualização de cadastro sugerida (A4).
+- `/lembretes?notaModelo={notaId}` — criar lembrete de nota recorrente (A7).
+
 ## 4. Dataset do eval (`docs/assistente/eval/perguntas.jsonl`)
 
 Uma pergunta por linha:
