@@ -29,6 +29,11 @@ public static class AssistenteDependencyInjection
         services.AddSingleton<IAssistenteIA, AssistenteIA>();
         services.AddSingleton<ISanitizadorIA, SanitizadorIA>();
         services.AddScoped<ICotaAssistente, CotaAssistente>();
+        services.AddSingleton<NfeSaas.Application.Assistente.Ia.IPromptSistema, PromptSistemaEmbutido>();
+        services.AddSingleton<NfeSaas.Application.Assistente.Ia.MontadorPrompt>();
+        services.AddScoped<NfeSaas.Application.Assistente.Ia.MontadorContexto>();
+        services.AddScoped<NfeSaas.Application.Assistente.Ia.FerramentasOri>();
+        services.AddScoped<NfeSaas.Application.Assistente.Ia.ServicoRespostaOri>();
 
         return services;
     }
