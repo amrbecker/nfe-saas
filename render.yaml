@@ -43,3 +43,25 @@ services:
         sync: false # opcional — só necessário quando algum fluxo de email for implementado
       - key: Resend__FromEmail
         sync: false # opcional
+      # --- Ori (assistente) — ver docs/assistente/CONTRATOS_TECNICOS.md §5. Sem chave de IA, a Ori
+      # funciona só com a base de conhecimento e as automações determinísticas.
+      - key: Assistente__EscritoriosPiloto__0
+        sync: false # opcional — preenchido = só esses escritórios veem a Ori (piloto)
+      - key: Assistente__Ia__Conversa__Endpoint
+        sync: false # DeepSeek no Microsoft Foundry (endpoint compatível com OpenAI, ex. https://<recurso>.services.ai.azure.com/openai/v1/)
+      - key: Assistente__Ia__Conversa__ApiKey
+        sync: false
+      - key: Assistente__Ia__Conversa__Modelo
+        sync: false # nome do deployment no Foundry
+      - key: Assistente__Ia__FontesPublicas__Endpoint
+        sync: false # opcional — API direta da DeepSeek (https://api.deepseek.com), SÓ dado público
+      - key: Assistente__Ia__FontesPublicas__ApiKey
+        sync: false
+      - key: Assistente__EmailPo
+        sync: false # relatório semanal de insights
+      - key: Assistente__EmailCurador
+        sync: false # resumo semanal da fila de curadoria (escritório parceiro)
+      - key: Assistente__Inlabs__Email
+        sync: false # opcional — conta do INLABS (DOU em XML); vazio = fonte DOU inativa
+      - key: Assistente__Inlabs__Senha
+        sync: false
