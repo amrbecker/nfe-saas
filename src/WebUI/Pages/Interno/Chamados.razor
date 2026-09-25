@@ -1,0 +1,114 @@
+@page "/interno/chamados"
+@attribute [Authorize(Roles = "Plataforma")]
+@using NfeSaas.Application.Assistente.Chamados
+@using NfeSaas.Domain.Enums
+@inject ICuradoriaApi Api
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudText Typo="Typo.h5" Class="mb-2">Chamados da Ori</MudText>
+<MudText Typo="Typo.body2" Class="mb-4" Style="color:var(--mud-palette-text-secondary)">
+    Problemas relatados pelos usuários com o contexto técnico da tela (sem dados pessoais). Triar, criar a issue e registrar o link.
+</MudText>
+
+<MudSelect T="StatusChamado?" Value="_status" ValueChanged="Filtrar" Label="Situação" Variant="Variant.Outlined" Dense="true" Class="mb-3" Style="max-width:260px">
+    <MudSelectItem T="StatusChamado?" Value="null">Todos</MudSelectItem>
+    @foreach (var s in Enum.GetValues<StatusChamado>())
+    {
+        <MudSelectItem T="StatusChamado?" Value="s">@s</MudSelectItem>
+    }
+</MudSelect>
+
+@if (_chamados == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_chamados.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Nenhum chamado.</MudAlert>
+}
+else
+{
+    <MudExpansionPanels MultiExpansion="true">
+        @foreach (var c in _chamados)
+        {
+            <MudExpansionPanel>
+                <TitleContent>
+                    <div class="d-flex align-center gap-2">
+                        <MudChip Size="Size.Small" Color="@(c.Severidade >= SeveridadeChamado.Alta ? Color.Error : Color.Default)">@c.Severidade</MudChip>
+                        <MudText><b>@c.Titulo</b></MudText>
+                        <MudText Typo="Typo.caption" Class="ml-auto">@c.Status · @c.CriadoEm.ToLocalTime().ToString("dd/MM HH:mm")</MudText>
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    <MudText Typo="Typo.body2" Class="mb-2" Style="white-space:pre-wrap">@c.Descricao</MudText>
+                    @if (!string.IsNullOrWhiteSpace(c.Passos))
+                    {
+                        <MudText Typo="Typo.body2" Class="mb-2" Style="white-space:pre-wrap"><b>Passos:</b> @c.Passos</MudText>
+                    }
+                    <pre style="font-size:12px;overflow-x:auto;background:var(--mud-palette-background-grey);padding:8px;border-radius:6px">@c.ContextoTecnicoJson</pre>
+                    <MudGrid Class="mt-2">
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="StatusChamado" @bind-Value="_edicao[c.Id].Status" Label="Situação" Variant="Variant.Outlined" Dense="true">
+                                @foreach (var s in Enum.GetValues<StatusChamado>())
+                                {
+                                    <MudSelectItem Value="s">@s</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="_edicao[c.Id].IssueUrl" Label="Link da issue" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudItem>
+                        <MudItem xs="12" md="5">
+                            <MudTextField @bind-Value="_edicao[c.Id].Nota" Label="Nota da triagem" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudItem>
+                    </MudGrid>
+                    <div class="d-flex gap-2 mt-2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => Salvar(c)">Salvar triagem</MudButton>
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="() => CopiarIssue(c)">Copiar como issue</MudButton>
+                    </div>
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+@code {
+    private sealed class Edicao { public StatusChamado Status { get; set; } public string? IssueUrl { get; set; } public string? Nota { get; set; } }
+
+    private List<ChamadoInternoDto>? _chamados;
+    private StatusChamado? _status = StatusChamado.Aberto;
+    private readonly Dictionary<Guid, Edicao> _edicao = new();
+
+    protected override Task OnInitializedAsync() => Carregar();
+
+    private async Task Filtrar(StatusChamado? s) { _status = s; await Carregar(); }
+
+    private async Task Carregar()
+    {
+        _chamados = await Api.ChamadosAsync(_status);
+        _edicao.Clear();
+        foreach (var c in _chamados) _edicao[c.Id] = new Edicao { Status = c.Status, IssueUrl = c.IssueUrl, Nota = c.NotaTriagem };
+    }
+
+    private async Task Salvar(ChamadoInternoDto c)
+    {
+        var e = _edicao[c.Id];
+        var ok = await Api.AtualizarChamadoAsync(c.Id, new AtualizarChamadoDto(e.Status, e.IssueUrl, e.Nota));
+        Snackbar.Add(ok ? "Triagem salva." : "Não foi possível salvar.", ok ? Severity.Success : Severity.Error);
+        if (ok) await Carregar();
+    }
+
+    private async Task CopiarIssue(ChamadoInternoDto c)
+    {
+        var md = $"## {c.Titulo}\n\n**Severidade:** {c.Severidade}  \n**Aberto em:** {c.CriadoEm:yyyy-MM-dd HH:mm} UTC  \n**Chamado:** {c.Id}\n\n### Descrição\n{c.Descricao}\n\n" +
+                 (string.IsNullOrWhiteSpace(c.Passos) ? "" : $"### Passos\n{c.Passos}\n\n") +
+                 $"### Contexto técnico (sanitizado)\n```json\n{c.ContextoTecnicoJson}\n```\n";
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", md);
+            Snackbar.Add("Texto da issue copiado.", Severity.Success);
+        }
+        catch (JSException) { Snackbar.Add("Não foi possível copiar automaticamente.", Severity.Warning); }
+    }
+}

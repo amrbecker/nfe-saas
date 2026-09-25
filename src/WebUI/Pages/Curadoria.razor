@@ -1,0 +1,161 @@
+@page "/curadoria"
+@attribute [Authorize(Roles = "Curador,Plataforma")]
+@using NfeSaas.Application.Assistente.Curadoria
+@using NfeSaas.Domain.Enums
+@inject ICuradoriaApi Api
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h5" Class="mb-2">Curadoria da base de conhecimento</MudText>
+<MudText Typo="Typo.body2" Class="mb-4" Style="color:var(--mud-palette-text-secondary)">
+    A Ori vigia as fontes oficiais e aponta o que mudou; a publicação na base é sempre decisão do curador, feita por pull request em
+    <code>docs/assistente/kb/</code>. Esta tela não mostra dados de clientes do NFeFlow.
+</MudText>
+
+<MudTabs Elevation="1" Rounded="true" PanelClass="pa-4">
+    <MudTabPanel Text="Publicações detectadas" BadgeData="@(_publicacoes?.Count(p => p.Status == StatusPublicacao.Nova))" BadgeColor="Color.Tertiary">
+        @if (_publicacoes == null)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (_publicacoes.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">Nenhuma publicação nova. As fontes são lidas automaticamente.</MudAlert>
+        }
+        else
+        {
+            @foreach (var p in _publicacoes)
+            {
+                <MudPaper Outlined="true" Class="pa-3 mb-2">
+                    <div class="d-flex align-center flex-wrap gap-2">
+                        <MudChip Size="Size.Small" Variant="Variant.Outlined">@p.Fonte</MudChip>
+                        @if (p.ImpactoTecnico)
+                        {
+                            <MudChip Size="Size.Small" Color="Color.Warning">Impacto técnico</MudChip>
+                        }
+                        @if (p.Relevante == false)
+                        {
+                            <MudChip Size="Size.Small">IA: pouco relevante</MudChip>
+                        }
+                        <MudText Typo="Typo.caption" Class="ml-auto">@p.DetectadaEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @p.Status</MudText>
+                    </div>
+                    <MudText Class="mt-1"><b>@p.Titulo</b></MudText>
+                    @if (!string.IsNullOrWhiteSpace(p.Resumo))
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-1">@p.Resumo</MudText>
+                    }
+                    @if (p.ArtigosAfetados.Count > 0)
+                    {
+                        <MudText Typo="Typo.caption" Class="d-block mt-1">Artigos possivelmente afetados: @string.Join(", ", p.ArtigosAfetados)</MudText>
+                    }
+                    @if (p.VigenciaInicio is { } v)
+                    {
+                        <MudText Typo="Typo.caption" Class="d-block">Vigência a partir de @v.ToString("dd/MM/yyyy")</MudText>
+                    }
+                    <div class="d-flex gap-2 mt-2 flex-wrap">
+                        @if (Uri.TryCreate(p.Url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps)
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Href="@u.ToString()" Target="_blank">Abrir a fonte</MudButton>
+                        }
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => Mudar(p, StatusPublicacao.EmCuradoria)">Em curadoria</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success" OnClick="() => Mudar(p, StatusPublicacao.Incorporada)">Incorporada à base</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Mudar(p, StatusPublicacao.Descartada)">Descartar</MudButton>
+                    </div>
+                </MudPaper>
+            }
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Artigos a revisar">
+        @if (_artigos != null)
+        {
+            <MudTable Items="_artigos" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Artigo</MudTh><MudTh>Situação</MudTh><MudTh>Verificado em</MudTh><MudTh>Revisar até</MudTh><MudTh>Curador</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><b>@context.Titulo</b><br /><MudText Typo="Typo.caption">@context.Id</MudText></MudTd>
+                    <MudTd>@(context.Vencido ? "Revisão vencida" : context.Status)</MudTd>
+                    <MudTd>@context.VerificadoEm?.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>@context.RevisarAte?.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>@context.Curador</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Lacunas de conhecimento">
+        <MudText Typo="Typo.body2" Class="mb-2">Perguntas que a Ori não conseguiu responder com base oficial nos últimos 30 dias, agrupadas por tema e anonimizadas.</MudText>
+        @if (_lacunas != null)
+        {
+            @foreach (var l in _lacunas)
+            {
+                <MudPaper Outlined="true" Class="pa-3 mb-2">
+                    <MudText><b>@l.Tema</b> — @l.Quantidade pergunta@(l.Quantidade > 1 ? "s" : "")</MudText>
+                    <ul class="mt-1">
+                        @foreach (var e in l.Exemplos)
+                        {
+                            <li><MudText Typo="Typo.body2">@e</MudText></li>
+                        }
+                    </ul>
+                </MudPaper>
+            }
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Fontes">
+        @if (_fontes != null)
+        {
+            <MudTable Items="_fontes" Dense="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Fonte</MudTh><MudTh>Nível</MudTh><MudTh>Última leitura</MudTh><MudTh>Última mudança</MudTh><MudTh>Situação</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Nome</MudTd>
+                    <MudTd>@(context.Nivel == NivelFonte.N1NormaOficial ? "N1" : context.Nivel == NivelFonte.N2OrientacaoOficial ? "N2" : "N3")</MudTd>
+                    <MudTd>@context.UltimaLeituraEm?.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+                    <MudTd>@context.UltimaMudancaEm?.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>
+                        @if (context.Cega)
+                        {
+                            <MudChip Size="Size.Small" Color="Color.Error">Sem leitura (@context.FalhasSeguidas falhas)</MudChip>
+                        }
+                        else if (!context.Ativa)
+                        {
+                            <MudChip Size="Size.Small">Inativa</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip Size="Size.Small" Color="Color.Success">OK</MudChip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<PublicacaoCuradoriaDto>? _publicacoes;
+    private List<ArtigoCuradoriaDto>? _artigos;
+    private List<LacunaAgrupadaDto>? _lacunas;
+    private List<FonteCuradoriaDto>? _fontes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var p = Api.PublicacoesAsync(null);
+        var a = Api.ArtigosPendentesAsync();
+        var l = Api.LacunasAsync(30);
+        var f = Api.FontesAsync();
+        await Task.WhenAll(p, a, l, f);
+        (_publicacoes, _artigos, _lacunas, _fontes) = (p.Result, a.Result, l.Result, f.Result);
+    }
+
+    private async Task Mudar(PublicacaoCuradoriaDto p, StatusPublicacao status)
+    {
+        if (await Api.AtualizarPublicacaoAsync(p.Id, new AtualizarPublicacaoDto(status, null)))
+        {
+            Snackbar.Add("Atualizado.", Severity.Success);
+            _publicacoes = await Api.PublicacoesAsync(null);
+        }
+    }
+}

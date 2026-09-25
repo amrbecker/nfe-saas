@@ -17,13 +17,16 @@ public class OriControle : IOriControle, IAsyncDisposable
     private readonly IJSRuntime _js;
     private readonly IPreferenciasOriApi _prefs;
     private readonly IContextoAssistente _contexto;
+    private readonly Microsoft.AspNetCore.Components.NavigationManager _nav;
     private readonly RegrasDicaOri _regras = new();
     private DotNetObjectReference<OriControle>? _ref;
     private Timer? _timerTransitorio, _timerOcio, _timerBalao;
     private bool _iniciado;
 
-    public OriControle(IJSRuntime js, IPreferenciasOriApi prefs, IContextoAssistente contexto)
+    public OriControle(IJSRuntime js, IPreferenciasOriApi prefs, IContextoAssistente contexto,
+        Microsoft.AspNetCore.Components.NavigationManager nav)
     {
+        _nav = nav;
         _js = js;
         _prefs = prefs;
         _contexto = contexto;
@@ -123,6 +126,12 @@ public class OriControle : IOriControle, IAsyncDisposable
     {
         var dica = DicaAtual;
         FecharBalao();
+        if (dica?.AoMostrar is { Hipotese: "rota", TextoInicial: { } rota } && rota.StartsWith('/'))
+        {
+            Notificar();
+            _nav.NavigateTo(rota);
+            return;
+        }
         AbrirPainel(dica?.AoMostrar ?? new PedidoOri("livre", TextoInicial: dica?.Texto));
     }
 

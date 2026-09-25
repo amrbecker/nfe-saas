@@ -1,0 +1,46 @@
+@page "/interno/saude"
+@attribute [Authorize(Roles = "Plataforma")]
+@inject ICsApi Cs
+
+<MudText Typo="Typo.h5" Class="mb-2">Saúde das contas</MudText>
+<MudText Typo="Typo.body2" Class="mb-4" Style="color:var(--mud-palette-text-secondary)">
+    Score de 0 a 100 por escritório, do maior risco para o menor. Pesos: sem nota autorizada em 30 dias −30; rejeição acima de 20% −20;
+    certificado vencido ou vencendo em até 15 dias −20; configuração pendente −15; assinatura em risco −15.
+</MudText>
+
+@if (_itens == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="_itens" Hover="true" Dense="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>Score</MudTh>
+            <MudTh>Escritório</MudTh>
+            <MudTh>Plano</MudTh>
+            <MudTh>Empresas</MudTh>
+            <MudTh>Autorizadas / rejeitadas (30 d)</MudTh>
+            <MudTh>Custo IA no mês</MudTh>
+            <MudTh>Pontos de atenção</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Score">
+                <MudChip Size="Size.Small" Color="@(context.Score < 50 ? Color.Error : context.Score < 80 ? Color.Warning : Color.Success)">@context.Score</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Escritório">@context.Nome</MudTd>
+            <MudTd DataLabel="Plano">@context.Plano · @context.StatusAssinatura</MudTd>
+            <MudTd DataLabel="Empresas">@context.Empresas</MudTd>
+            <MudTd DataLabel="Notas" Style="font-variant-numeric:tabular-nums">@context.NotasAutorizadas30d / @context.NotasRejeitadas30d</MudTd>
+            <MudTd DataLabel="Custo IA" Style="font-variant-numeric:tabular-nums">US$ @context.CustoIaMesUsd.ToString("0.00")</MudTd>
+            <MudTd DataLabel="Atenção">
+                @string.Join("; ", context.Pontos.Concat(context.AlertasInternos))
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<NfeSaas.Application.Assistente.Cs.SaudeEscritorioDto>? _itens;
+    protected override async Task OnInitializedAsync() => _itens = await Cs.SaudeAsync();
+}
