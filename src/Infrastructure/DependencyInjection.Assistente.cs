@@ -34,6 +34,8 @@ public static class AssistenteDependencyInjection
         services.AddScoped<NfeSaas.Application.Assistente.Ia.MontadorContexto>();
         services.AddScoped<NfeSaas.Application.Assistente.Ia.FerramentasOri>();
         services.AddScoped<NfeSaas.Application.Assistente.Ia.ServicoRespostaOri>();
+        services.AddScoped<NfeSaas.Application.Assistente.Monitoramento.ClassificadorPublicacoes>();
+        services.AddScoped<NfeSaas.Application.Assistente.Insights.RelatoriosSemanais>();
 
         return services;
     }

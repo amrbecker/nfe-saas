@@ -181,14 +181,14 @@ public class LembreteEmissaoRepository : ILembreteEmissaoRepository
         _ctx.LembretesEmissao.FirstOrDefaultAsync(l => l.Id == id, ct);
 
     public Task<List<LembreteEmissao>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default) =>
-        _ctx.LembretesEmissao.AsNoTracking().Where(l => l.EmpresaId == empresaId)
+        _ctx.LembretesEmissao.AsNoTracking().Where(l => l.EmpresaId == empresaId && !l.IsDeleted)
             .OrderBy(l => l.ProximaEm).ToListAsync(ct);
 
     public Task<List<LembreteEmissao>> ListarDevidosAsync(DateTime agoraUtc, CancellationToken ct = default) =>
-        _ctx.LembretesEmissao.Where(l => l.Ativo && l.ProximaEm <= agoraUtc).Take(500).ToListAsync(ct);
+        _ctx.LembretesEmissao.Where(l => l.Ativo && !l.IsDeleted && l.ProximaEm <= agoraUtc).Take(500).ToListAsync(ct);
 
     public Task<bool> ExisteParaNotaModeloAsync(Guid empresaId, Guid notaModeloId, CancellationToken ct = default) =>
-        _ctx.LembretesEmissao.AnyAsync(l => l.EmpresaId == empresaId && l.NotaModeloId == notaModeloId, ct);
+        _ctx.LembretesEmissao.AnyAsync(l => l.EmpresaId == empresaId && l.NotaModeloId == notaModeloId && !l.IsDeleted && l.Ativo, ct);
 
     public async Task AddAsync(LembreteEmissao lembrete, CancellationToken ct = default) =>
         await _ctx.LembretesEmissao.AddAsync(lembrete, ct);
