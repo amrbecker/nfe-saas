@@ -68,7 +68,7 @@ Todas `[Authorize]`, herdando `BaseApiController`; `EmpresaId`/`EscritorioId`/`U
 `lembretes`, `login`.
 
 **Hipóteses (`PedidoOri.Hipotese`):** `rejeicao` (NotaId), `campo` (usa o foco), `erro_sistema`, `emissao_falhando`,
-`certificado`, `livre`.
+`certificado`, `livre`, `rota` (usada por dicas de alerta: "Mostrar" navega para `TextoInicial`).
 
 **Eventos para `IOriControle.Notificar`:** `nota_autorizada`, `nota_autorizada_primeira`, `nota_rejeitada`, `erro_api`,
 `marco_notas`.
