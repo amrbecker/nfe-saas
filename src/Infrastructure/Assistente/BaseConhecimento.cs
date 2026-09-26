@@ -19,7 +19,9 @@ public partial class BaseConhecimento : IBaseConhecimento
     {
         "a", "o", "as", "os", "de", "da", "do", "das", "dos", "e", "em", "no", "na", "nos", "nas", "um", "uma",
         "para", "por", "com", "que", "qual", "quais", "como", "se", "ao", "aos", "minha", "meu", "nota", "nfe",
-        "é", "e", "eu", "ou", "mais", "sobre", "isso", "esta", "este", "essa", "esse", "porque", "pq", "foi"
+        "é", "e", "eu", "ou", "mais", "sobre", "isso", "esta", "este", "essa", "esse", "porque", "pq", "foi",
+        "posso", "pode", "preciso", "quero", "fazer", "faco", "depois", "antes", "cliente", "clientes", "empresa", "notas",
+        "tenho", "tem", "ter", "sim", "nao", "ele", "ela", "meu", "minha", "dele", "dela", "agora", "hoje", "ainda"
     };
 
     private readonly Lazy<IReadOnlyList<ArtigoKb>> _artigos;
@@ -103,11 +105,13 @@ public partial class BaseConhecimento : IBaseConhecimento
         var resumo = Normalizar(a.ResumoCurto);
         var corpo = Normalizar(a.Corpo);
         var pontos = 0;
-        foreach (var t in termos)
+        foreach (var termo in termos)
         {
+            // Radical simples: "cancelar" e "cancelamento" batem pelo prefixo de 6 letras.
+            var t = termo.Length > 6 ? termo[..6] : termo;
             if (titulo.Contains(t)) pontos += 5;
             if (resumo.Contains(t)) pontos += 3;
-            if (a.CamposRelacionados.Any(c => c.Equals(t, StringComparison.OrdinalIgnoreCase))) pontos += 4;
+            if (a.CamposRelacionados.Any(c => c.Equals(termo, StringComparison.OrdinalIgnoreCase))) pontos += 4;
             if (corpo.Contains(t)) pontos += 1;
         }
         return pontos;
@@ -115,7 +119,7 @@ public partial class BaseConhecimento : IBaseConhecimento
 
     internal static IReadOnlyCollection<string> Tokenizar(string texto) =>
         Regex.Split(Normalizar(texto), @"[^a-z0-9_]+")
-            .Where(t => t.Length >= 3 && !StopWords.Contains(t))
+            .Where(t => t.Length >= 3 && !StopWords.Contains(t) && !(t.Contains('_') && t.Any(char.IsDigit)))
             .Distinct()
             .ToList();
 

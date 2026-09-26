@@ -65,6 +65,7 @@
         // Chamadas síncronas (IJSInProcessRuntime) usadas pelas regras anti-intrusão dos balões.
         msDesdeUltimaTecla: function () { return ultimaTecla === 0 ? 999999 : Date.now() - ultimaTecla; },
         modalAberto: function () { return !!document.querySelector('.mud-dialog-container, .mud-overlay-dialog'); },
-        focar: function (id) { const el = document.getElementById(id); if (el) el.focus(); }
+        focar: function (id) { const el = document.getElementById(id); if (el) el.focus(); },
+        rolarFim: function (id) { const el = document.getElementById(id); if (el) el.scrollTop = el.scrollHeight; }
     };
 })();

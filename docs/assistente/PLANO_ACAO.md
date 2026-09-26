@@ -137,6 +137,21 @@ Fase 5  Evolução contínua                                                    
 
 ---
 
+## Status da implementação — 2026-09-26 (branch `feat/assistente-ori`)
+
+Fases 0–4 implementadas no código (backend, WebUI, workers, testes unitários/integração). Pendências que dependem de
+terceiros ou de dados de produção:
+
+| Item | Situação |
+|------|----------|
+| Curadoria dos 27 artigos | Todos em `rascunho` — produção não os usa até o escritório parceiro publicar pela tela `/curadoria` |
+| Eval contra o modelo real | Executor pronto; não rodado (exige endpoint/chave do Foundry) |
+| INLABS (Diário Oficial) | Implementado pelo exemplo oficial; não validado ao vivo (exige credenciais) |
+| A7 — nota recorrente | Lembrete gera alerta com link `/emitir?origem=...` (formulário preparado) em vez de rascunho persistido |
+| A10 — sugestão de CEST | Não implementado: não há tabela CEST no sistema |
+| Evento `nota_autorizada_primeira` | Não emitido; primeiros passos usa `TeveNotaAutorizadaAsync` |
+| Termos de uso | Minuta com o escritório parceiro (PO) |
+
 ## Próximos passos imediatos
 
 1. PO: formalizar o acordo com o escritório parceiro e enviar a minuta dos termos para a revisão dele (com apoio jurídico nas cláusulas de LGPD).

@@ -16,7 +16,7 @@
         <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="Fechar a Ori" OnClick="Ori.FecharPainel" />
     </div>
 
-    <div class="pa-3 d-flex flex-column gap-3" style="overflow-y:auto;flex:1">
+    <div id="ori-painel-rolagem" class="pa-3 d-flex flex-column gap-3" style="overflow-y:auto;overflow-x:hidden;flex:1">
         @if (_chips.Count > 0)
         {
             <div>
@@ -134,6 +134,22 @@
 
     private void Atualizar() => InvokeAsync(StateHasChanged);
 
+    [Inject] private IJSRuntime JS { get; set; } = null!;
+    private int _turnosRenderizados;
+    private string? _ultimoStatus;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Rola até a última mensagem quando chega turno, status ou resposta nova.
+        var status = _turnos.LastOrDefault() is { } t ? $"{t.Status}|{t.Resposta != null}|{t.Erro}" : null;
+        if (_turnos.Count != _turnosRenderizados || status != _ultimoStatus)
+        {
+            _turnosRenderizados = _turnos.Count;
+            _ultimoStatus = status;
+            try { await JS.InvokeVoidAsync("ori.rolarFim", "ori-painel-rolagem"); } catch (JSException) { }
+        }
+    }
+
     private string SubtituloCota()
     {
         var c = Ori.Status?.Cota;
@@ -150,7 +166,8 @@
         if (c.Erros is { Count: > 0 } e) l.Add(new("erros", $"{e.Count} erro{(e.Count > 1 ? "s" : "")} no formulário"));
         if (c.Api is { Count: > 0 } a) l.Add(new("api", $"último erro do sistema: {a[^1].Status}"));
         if (c.NotaId != null) l.Add(new("nota", "nota em foco"));
-        return l.Where(x => !string.IsNullOrWhiteSpace(x.Texto)).ToList();
+        return l.Where(x => !string.IsNullOrWhiteSpace(x.Texto))
+            .Select(x => x.Texto.Length > 42 ? x with { Texto = x.Texto[..41] + "…" } : x).ToList();
     }
 
     private static string NomeTela(string tela) => tela switch

@@ -9,6 +9,7 @@
      ===================================================================== */
   .ori { display: block; width: 100%; height: auto; overflow: visible; color: inherit; }
   .ori * { transform-box: fill-box; }
+  .ori .caneta { transform-box: view-box; } /* rotação do atributo transform é em coordenadas do SVG */
   .ori .xicara, .ori .vapor, .ori .touca, .ori .fones, .ori .zzz, .ori .pontos, .ori .confete { display: none; }
   .ori .palpebra { transform-origin: 50% 0; transform: scaleY(0); }
   .ori .cilio { opacity: 0; }
@@ -129,3 +130,7 @@
 
   /* ---------- Campos preenchidos pela Ori (AUTOMACOES.md §2) ---------- */
   .ori-preenchido .mud-input-outlined-border, .ori-preenchido.mud-input-control { background: rgba(192,138,46,.12); border-radius: 8px; }
+
+  /* ---------- Painel lateral: superfície clara, não o navy do menu ---------- */
+  .ori-drawer.mud-drawer { background-color: var(--mud-palette-surface); color: var(--mud-palette-text-primary); }
+  .ori-drawer .mud-drawer-content { background-color: var(--mud-palette-surface); }

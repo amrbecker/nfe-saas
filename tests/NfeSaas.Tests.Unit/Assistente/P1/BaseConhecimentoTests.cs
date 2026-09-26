@@ -132,6 +132,15 @@ public class BaseConhecimentoTests
     }
 
     [Fact]
+    public void Roteamento_por_termo_usa_radical_e_ignora_palavras_genericas()
+    {
+        var cancelamento = Artigo("eventos/cancelamento-prazo", titulo: "Cancelamento de NF-e: prazo e condições", resumo: "Em regra 24 horas");
+        var cadastro = Artigo("sistema/cadastro-destinatarios", categoria: "sistema", nivel: NivelFonte.GuiaDoSistema, titulo: "Cadastrar clientes para reutilizar");
+        var r = Base(false, cadastro, cancelamento).Rotear(new CriterioRoteamentoKb(Termo: "Posso cancelar a nota do cliente [CPF_1] depois de 24 horas?"));
+        r[0].Id.Should().Be("eventos/cancelamento-prazo");
+    }
+
+    [Fact]
     public void Roteamento_nao_usa_rascunho_em_producao()
     {
         var ras = Artigo("rejeicoes/ncm", status: "rascunho", codigos: new[] { "778" });

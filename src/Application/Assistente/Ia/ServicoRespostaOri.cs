@@ -71,11 +71,7 @@ public class ServicoRespostaOri
         var nota = await _contexto.ObterNotaAsync(p.Escopo, p.NotaId ?? p.Contexto?.NotaId, ct);
 
         var codigo = _base.ExtrairCodigoRejeicao(nota?.MotivoRejeicao);
-        var artigos = _base.Rotear(new CriterioRoteamentoKb(
-            codigo == null ? null : new[] { codigo },
-            p.Contexto?.Foco?.Campo,
-            p.Contexto?.Tela,
-            pergunta.Texto), 3);
+        var artigos = RotearArtigos(p, codigo, pergunta.Texto);
 
         var cota = await _cota.ObterAsync(p.Escopo.UsuarioId, p.Escopo.EscritorioId, ct);
         if (!_ia.EstaHabilitado(RotaIa.Conversa) || !cota.Permitido)
@@ -174,6 +170,22 @@ public class ServicoRespostaOri
             pergunta.Quantidade,
             acoes.Select(a => Reidratar(a, mapa)).ToList(),
             cotaDepois);
+    }
+
+    /// <summary>
+    /// Explicar rejeição: código de rejeição manda. Pergunta livre: o texto da pergunta vem antes do campo em foco
+    /// (quem está no CFOP pode perguntar sobre cancelamento); campo e tela completam até 3 artigos.
+    /// </summary>
+    private IReadOnlyList<ArtigoKb> RotearArtigos(PedidoRespostaOri p, string? codigo, string perguntaSanitizada)
+    {
+        var codigos = codigo == null ? null : new[] { codigo };
+        if (p.Tipo == TipoInteracaoAssistente.ExplicarRejeicao)
+            return _base.Rotear(new CriterioRoteamentoKb(codigos, p.Contexto?.Foco?.Campo, p.Contexto?.Tela, perguntaSanitizada), 3);
+
+        var lista = _base.Rotear(new CriterioRoteamentoKb(codigos, Termo: perguntaSanitizada), 3).ToList();
+        foreach (var a in _base.Rotear(new CriterioRoteamentoKb(null, p.Contexto?.Foco?.Campo, p.Contexto?.Tela), 3))
+            if (lista.Count < 3 && !lista.Contains(a)) lista.Add(a);
+        return lista;
     }
 
     /// <summary>Resposta sem modelo (IA desligada, cota esgotada ou falha): resumo do artigo mais relevante.</summary>
