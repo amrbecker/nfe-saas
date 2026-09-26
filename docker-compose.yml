@@ -53,6 +53,17 @@ services:
       - Sentry__Dsn=${SENTRY_DSN:-}
       - Resend__ApiKey=${RESEND_API_KEY:-}
       - Resend__FromEmail=${RESEND_FROM_EMAIL:-}
+      # Ori (assistente) — vazio = Ori só com base de conhecimento, sem IA (ver .env.example).
+      - Assistente__IncluirRascunhosKb=${ORI_INCLUIR_RASCUNHOS_KB:-true}
+      - Assistente__Ia__Conversa__Endpoint=${ORI_IA_ENDPOINT:-}
+      - Assistente__Ia__Conversa__ApiKey=${ORI_IA_API_KEY:-}
+      - Assistente__Ia__Conversa__Modelo=${ORI_IA_MODELO:-deepseek-flash}
+      - Assistente__Ia__FontesPublicas__Endpoint=${ORI_IA_FONTES_ENDPOINT:-}
+      - Assistente__Ia__FontesPublicas__ApiKey=${ORI_IA_FONTES_API_KEY:-}
+      - Assistente__EmailPo=${ORI_EMAIL_PO:-}
+      - Assistente__EmailCurador=${ORI_EMAIL_CURADOR:-}
+      - Assistente__Inlabs__Email=${INLABS_EMAIL:-}
+      - Assistente__Inlabs__Senha=${INLABS_SENHA:-}
       - DataProtection__CertificateBase64=${DATA_PROTECTION_CERT_BASE64:-}
       - DataProtection__CertificatePassword=${DATA_PROTECTION_CERT_PASSWORD:-}
     depends_on:

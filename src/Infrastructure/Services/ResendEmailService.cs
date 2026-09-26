@@ -77,4 +77,37 @@ public class ResendEmailService : IEmailService
             return false;
         }
     }
+
+    public async Task<bool> EnviarAsync(string destinatario, string assunto, string html, CancellationToken ct = default)
+    {
+        var apiKey = _config["Resend:ApiKey"]?.Trim();
+        var fromEmail = _config["Resend:FromEmail"]?.Trim();
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(fromEmail))
+        {
+            _logger.LogWarning("Resend não configurado — e-mail \"{Assunto}\" não enviado.", assunto);
+            return false;
+        }
+
+        try
+        {
+            using var client = _httpFactory.CreateClient();
+            client.BaseAddress = new Uri("https://api.resend.com/");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            client.Timeout = TimeSpan.FromSeconds(15);
+
+            var response = await client.PostAsJsonAsync("emails",
+                new { from = fromEmail, to = new[] { destinatario }, subject = assunto, html }, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Falha ao enviar e-mail \"{Assunto}\" via Resend: {Status}", assunto, response.StatusCode);
+                return false;
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao enviar e-mail \"{Assunto}\" via Resend.", assunto);
+            return false;
+        }
+    }
 }

@@ -43,12 +43,12 @@ else
                         <MudDivider Class="mb-2" />
                     </MudItem>
 
-                    <MudItem xs="12" md="4">
+                    <MudItem data-ajuda="cpf_cnpj" xs="12" md="4">
                         <MudTextField Value="@FormatarCnpj(_empresa.Cnpj)" Label="CNPJ (imutável)"
                                       Variant="Variant.Outlined" ReadOnly="true"
                                       Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Lock" />
                     </MudItem>
-                    <MudItem xs="12" md="8">
+                    <MudItem data-ajuda="razao_social" xs="12" md="8">
                         <MudTextField @bind-Value="_data.RazaoSocial" Label="Razão Social"
                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
                                       Required RequiredError="Razão social é obrigatória"
@@ -58,7 +58,7 @@ else
                         <MudTextField @bind-Value="_data.NomeFantasia" Label="Nome Fantasia"
                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)" />
                     </MudItem>
-                    <MudItem xs="12" md="3">
+                    <MudItem data-ajuda="ie" xs="12" md="3">
                         <MudTextField @bind-Value="_data.InscricaoEstadual" Label="Inscrição Estadual"
                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
                                       Immediate="true" HelperText="Use 'ISENTO' se não for contribuinte"
@@ -75,14 +75,14 @@ else
                         <MudDivider Class="mb-2" />
                     </MudItem>
 
-                    <MudItem xs="12" md="6">
+                    <MudItem data-ajuda="email" xs="12" md="6">
                         <MudTextField @bind-Value="_data.Email" Label="E-mail"
                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
                                       Immediate="true"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
                                       Validation="@((string s) => ValidarEmail(s))" />
                     </MudItem>
-                    <MudItem xs="12" md="6">
+                    <MudItem data-ajuda="telefone" xs="12" md="6">
                         <MudTextField @bind-Value="_data.Telefone" Label="Telefone"
                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone" />
@@ -94,14 +94,14 @@ else
                         <MudDivider Class="mb-2" />
                     </MudItem>
 
-                    <MudItem xs="12" md="3">
+                    <MudItem data-ajuda="cep" xs="12" md="3">
                         <CepInput Value="@_data.Cep"
                                   ValueChanged="@(v => _data.Cep = v)"
                                   EnderecoEncontrado="OnCepEncontrado"
                                   Required="true"
                                   ReadOnly="@(!_canEdit)" />
                     </MudItem>
-                    <MudItem xs="12" md="9">
+                    <MudItem data-ajuda="logradouro" xs="12" md="9">
                         <MudTextField @bind-Value="_data.Logradouro" Label="Logradouro"
                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
                                       Required RequiredError="Logradouro é obrigatório" />
@@ -118,7 +118,7 @@ else
                         <MudTextField @bind-Value="_data.Cidade" Label="Cidade"
                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)" Required />
                     </MudItem>
-                    <MudItem xs="12" md="2">
+                    <MudItem data-ajuda="uf" xs="12" md="2">
                         <MudSelect T="string" Value="_data.Uf" ValueChanged="UfChanged"
                                    Label="UF" Variant="Variant.Outlined" Disabled="@(!_canEdit)"
                                    Required>
@@ -138,7 +138,7 @@ else
                         <MudDivider Class="mb-2" />
                     </MudItem>
 
-                    <MudItem xs="12" md="6">
+                    <MudItem data-ajuda="regime_tributario" xs="12" md="6">
                         <MudSelect @bind-Value="_data.RegimeTributario" Label="Regime Tributário"
                                    Variant="Variant.Outlined" Disabled="@(!_canEdit)">
                             <MudSelectItem Value="1">Simples Nacional</MudSelectItem>
@@ -146,7 +146,7 @@ else
                             <MudSelectItem Value="3">Regime Normal (Lucro Real/Presumido)</MudSelectItem>
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" md="4">
+                    <MudItem data-ajuda="ambiente" xs="12" md="4">
                         <MudSelect @bind-Value="_data.AmbienteSefaz" Label="Ambiente SEFAZ"
                                    Variant="Variant.Outlined" Disabled="@(!_canEdit)">
                             <MudSelectItem Value="1">Produção</MudSelectItem>
@@ -175,7 +175,7 @@ else
                                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
                                                       MaxLength="6" />
                                     </MudItem>
-                                    <MudItem xs="12" md="9">
+                                    <MudItem data-ajuda="csc" xs="12" md="9">
                                         <MudTextField @bind-Value="_data.CscToken" Label="Token CSC"
                                                       Variant="Variant.Outlined" ReadOnly="@(!_canEdit)"
                                                       InputType="@(_mostrarCsc ? InputType.Text : InputType.Password)"

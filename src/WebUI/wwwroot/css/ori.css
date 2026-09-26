@@ -1,0 +1,136 @@
+/*
+  Ori — a coruja do NFeFlow (docs/assistente/MASCOTE_UX.md). Portado do protótipo aprovado
+  (docs/assistente/mascote/ori-prototipo.html). SVG em camadas: cada grupo tem classe própria e o estado
+  vem do atributo data-estado. Cores da Ori são fixas (mesma coruja nos temas claro e escuro).
+*/
+  /* =====================================================================
+     ORI — SVG em camadas + CSS. Tudo abaixo é o que vai para o componente
+     Blazor (WebUI/Components/Assistente/Coruja.razor + coruja.css).
+     ===================================================================== */
+  .ori { display: block; width: 100%; height: auto; overflow: visible; color: inherit; }
+  .ori * { transform-box: fill-box; }
+  .ori .caneta { transform-box: view-box; } /* rotação do atributo transform é em coordenadas do SVG */
+  .ori .xicara, .ori .vapor, .ori .touca, .ori .fones, .ori .zzz, .ori .pontos, .ori .confete { display: none; }
+  .ori .palpebra { transform-origin: 50% 0; transform: scaleY(0); }
+  .ori .cilio { opacity: 0; }
+  .ori .cabeca { transform-origin: 50% 90%; }
+  .ori .corpo { transform-origin: 50% 100%; }
+  .ori .braco { transform-origin: 18% 8%; }
+  .ori .asa-esq { transform-origin: 80% 8%; }
+  .ori .pupila { transform-origin: 50% 50%; transition: transform .4s ease; }
+  .ori .sobr-esq { transform-origin: 0% 60%; transition: transform .3s ease; }
+  .ori .sobr-dir { transform-origin: 100% 60%; transition: transform .3s ease; }
+  .ori .bico-inf { transform-origin: 50% 0; }
+
+  /* Piscar (café e atenta) */
+  @keyframes piscar { 0%, 93%, 100% { transform: scaleY(0); } 95.5% { transform: scaleY(1); } }
+  /* Café */
+  .ori[data-estado="cafe"] .xicara, .ori[data-estado="cafe"] .vapor { display: inline; }
+  .ori[data-estado="cafe"] .palpebra { animation: piscar 5.5s infinite; }
+  .ori[data-estado="cafe"] .braco { animation: gole 12s ease-in-out infinite; }
+  .ori[data-estado="cafe"] .vapor path { animation: vapor 2.8s ease-in-out infinite; }
+  .ori[data-estado="cafe"] .vapor path:nth-child(2) { animation-delay: 1.1s; }
+  @keyframes gole { 0%, 62%, 100% { transform: none; } 70%, 84% { transform: translate(-9px, -21px) rotate(-26deg); } }
+  @keyframes vapor { 0% { opacity: 0; transform: translateY(4px); } 40% { opacity: .9; } 100% { opacity: 0; transform: translateY(-8px); } }
+  /* Cochilando */
+  .ori[data-estado="cochilando"] .palpebra, .ori[data-estado="dormindo"] .palpebra { transform: scaleY(1); }
+  .ori[data-estado="cochilando"] .cilio, .ori[data-estado="dormindo"] .cilio { opacity: 1; }
+  .ori[data-estado="cochilando"] .zzz, .ori[data-estado="dormindo"] .zzz { display: inline; }
+  .ori[data-estado="cochilando"] .corpo { animation: respirar 3.6s ease-in-out infinite; }
+  .ori[data-estado="cochilando"] .cabeca { animation: cochilo 3.6s ease-in-out infinite; }
+  .ori[data-estado="cochilando"] .zzz text { animation: zz 3.6s ease-in-out infinite; }
+  .ori[data-estado="cochilando"] .zzz text:nth-child(2) { animation-delay: .5s; }
+  .ori[data-estado="cochilando"] .zzz text:nth-child(3) { animation-delay: 1s; }
+  @keyframes respirar { 50% { transform: scale(1.025, 1.035); } }
+  @keyframes cochilo { 50% { transform: rotate(5deg) translateY(1.5px); } }
+  @keyframes zz { 0% { opacity: 0; transform: translate(-3px, 4px); } 30%, 70% { opacity: 1; } 100% { opacity: 0; transform: translate(3px, -5px); } }
+  /* Atenta */
+  .ori[data-estado="atenta"] .cabeca { animation: virar .6s cubic-bezier(.2,.7,.3,1) forwards; }
+  .ori[data-estado="atenta"] .pupila { transform: translateX(2.6px); }
+  .ori[data-estado="atenta"] .palpebra { animation: piscar 6s 1s infinite; }
+  .ori[data-estado="atenta"] .sobr-esq, .ori[data-estado="atenta"] .sobr-dir { transform: translateY(-1.5px); }
+  @keyframes virar { to { transform: rotate(7deg); } }
+  /* Pensando */
+  .ori[data-estado="pensando"] .pontos { display: inline; }
+  .ori[data-estado="pensando"] .pupila { transform: translate(-1.2px, -3.2px); }
+  .ori[data-estado="pensando"] .cabeca { transform: rotate(-5deg); }
+  .ori[data-estado="pensando"] .asa-esq { transform: rotate(38deg) translate(4px, -6px); }
+  .ori[data-estado="pensando"] .pontos circle { animation: ponto 1.4s ease-in-out infinite; }
+  .ori[data-estado="pensando"] .pontos circle:nth-child(2) { animation-delay: .2s; }
+  .ori[data-estado="pensando"] .pontos circle:nth-child(3) { animation-delay: .4s; }
+  @keyframes ponto { 0%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  /* Falando */
+  .ori[data-estado="falando"] .bico-inf { animation: falar .9s steps(1) infinite; }
+  .ori[data-estado="falando"] .braco { animation: gesto 1.8s ease-in-out infinite alternate; }
+  .ori[data-estado="falando"] .palpebra { animation: piscar 4s infinite; }
+  @keyframes falar { 0%, 40%, 80% { transform: none; } 20%, 60% { transform: translateY(2.2px); } }
+  @keyframes gesto { from { transform: none; } to { transform: rotate(-16deg); } }
+  /* Preocupada */
+  .ori[data-estado="preocupada"] .sobr-esq { transform: rotate(-16deg) translateY(-1px); }
+  .ori[data-estado="preocupada"] .sobr-dir { transform: rotate(16deg) translateY(-1px); }
+  .ori[data-estado="preocupada"] .pupila { transform: scale(.72); }
+  .ori[data-estado="preocupada"] .cabeca { animation: arrepio .45s ease-in-out 2; }
+  .ori[data-estado="preocupada"] .corpo { animation: arrepio-corpo .45s ease-in-out 2; }
+  @keyframes arrepio { 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+  @keyframes arrepio-corpo { 50% { transform: scale(1.04, .98); } }
+  /* Comemorando */
+  .ori[data-estado="comemorando"] .confete { display: inline; }
+  .ori[data-estado="comemorando"] .corpo { animation: pulo 2.4s cubic-bezier(.3,.8,.4,1) infinite; }
+  .ori[data-estado="comemorando"] .asa-esq { animation: asa-festa 2.4s ease-in-out infinite; }
+  .ori[data-estado="comemorando"] .braco { animation: asa-festa-d 2.4s ease-in-out infinite; }
+  .ori[data-estado="comemorando"] .sobr-esq, .ori[data-estado="comemorando"] .sobr-dir { transform: translateY(-2.5px); }
+  .ori[data-estado="comemorando"] .confete rect { animation: confete 2.4s ease-in infinite; }
+  .ori[data-estado="comemorando"] .confete rect:nth-child(even) { animation-delay: .25s; }
+  @keyframes pulo { 0%, 40%, 100% { transform: none; } 15% { transform: translateY(-11px) scale(.98, 1.03); } 28% { transform: translateY(0) scale(1.04, .96); } }
+  @keyframes asa-festa { 0%, 40%, 100% { transform: none; } 15% { transform: rotate(40deg); } }
+  @keyframes asa-festa-d { 0%, 40%, 100% { transform: none; } 15% { transform: rotate(-40deg); } }
+  @keyframes confete { 0% { opacity: 0; transform: translateY(-6px) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(26px) rotate(200deg); } }
+  /* Dormindo profundo (cota esgotada) */
+  .ori[data-estado="dormindo"] .touca { display: inline; }
+  /* Silenciada */
+  .ori[data-estado="silenciada"] .fones { display: inline; }
+  .ori[data-estado="silenciada"] .palpebra { transform: scaleY(.5); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ori *, .ori { animation: none !important; transition: none !important; }
+  }
+
+  /* Pausa as animações com a aba em segundo plano (classe aplicada pelo ori.js). */
+  body.ori-oculta .ori, body.ori-oculta .ori * { animation-play-state: paused !important; }
+
+  /* ---------- Poleiro no rodapé do menu ---------- */
+  .ori-poleiro { margin-top: auto; display: flex; justify-content: center; padding: 8px 0 12px; color: var(--mud-palette-drawer-text); }
+  .ori-poleiro-btn { position: relative; background: none; border: 0; padding: 0; width: 72px; cursor: pointer; border-radius: 12px; }
+  .ori-poleiro-btn:focus-visible { outline: 2px solid var(--mud-palette-tertiary); outline-offset: 2px; }
+  .mud-drawer--closed .ori-poleiro-btn, .mud-drawer-mini:not(.mud-drawer--open) .ori-poleiro-btn { width: 40px; }
+  .ori-ponto { position: absolute; top: 4px; right: 2px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--mud-palette-tertiary); box-shadow: 0 0 0 3px var(--mud-palette-drawer-background); }
+
+  /* ---------- Botão flutuante (celular) ---------- */
+  .ori-fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 1300;
+    width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--mud-palette-surface);
+    box-shadow: 0 4px 14px rgba(0,0,0,.3); display: none; place-items: center; cursor: pointer; }
+  .ori-fab .ori { width: 38px; }
+  @media (max-width: 600px) { .ori-fab { display: grid; } .ori-poleiro { display: none; } }
+
+  /* ---------- Balão de pensamento ---------- */
+  .ori-balao { position: fixed; left: 236px; bottom: 110px; z-index: 1350; max-width: 290px;
+    background: var(--mud-palette-surface); color: var(--mud-palette-text-primary);
+    border: 1px solid var(--mud-palette-lines-default); border-radius: 18px; padding: 12px 14px 8px;
+    box-shadow: 0 8px 24px rgba(19,42,82,.18); animation: ori-balao-in .35s cubic-bezier(.2,.7,.3,1); }
+  .ori-balao::before, .ori-balao::after { content: ""; position: absolute; background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-lines-default); border-radius: 50%; }
+  .ori-balao::before { width: 14px; height: 14px; left: -12px; bottom: -4px; }
+  .ori-balao::after { width: 8px; height: 8px; left: -24px; bottom: -14px; }
+  .ori-balao p { margin: 0 0 6px; font-size: 14px; }
+  .ori-balao .acoes { display: flex; justify-content: flex-end; gap: 6px; }
+  @media (max-width: 600px) { .ori-balao { left: auto; right: 16px; bottom: 90px; } .ori-balao::before, .ori-balao::after { display: none; } }
+  @keyframes ori-balao-in { from { opacity: 0; transform: scale(.85) translateY(6px); } }
+  @media (prefers-reduced-motion: reduce) { .ori-balao { animation: none; } }
+
+  /* ---------- Campos preenchidos pela Ori (AUTOMACOES.md §2) ---------- */
+  .ori-preenchido .mud-input-outlined-border, .ori-preenchido.mud-input-control { background: rgba(192,138,46,.12); border-radius: 8px; }
+
+  /* ---------- Painel lateral: superfície clara, não o navy do menu ---------- */
+  .ori-drawer.mud-drawer { background-color: var(--mud-palette-surface); color: var(--mud-palette-text-primary); }
+  .ori-drawer .mud-drawer-content { background-color: var(--mud-palette-surface); }

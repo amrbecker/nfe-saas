@@ -1,0 +1,33 @@
+@* A9 (AUTOMACOES.md): checklist de primeiros passos guiado pela Ori; some quando tudo está pronto. *@
+@using NfeSaas.Application.Assistente.Automacoes
+@inject IAutomacoesApi Automacoes
+@inject OriControle Ori
+
+@if (_passos is { Concluido: false } p && Ori.Habilitada)
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-color:var(--mud-palette-tertiary)">
+        <div class="d-flex align-center gap-3 mb-2">
+            <Coruja Estado="EstadoOri.Atenta" Largura="40" />
+            <div>
+                <MudText Typo="Typo.subtitle1"><b>Primeiros passos</b></MudText>
+                <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">@Feitos(p) de 4 concluídos — a Ori ajuda em cada um.</MudText>
+            </div>
+        </div>
+        <MudList Dense="true" DisablePadding="true">
+            <MudListItem Icon="@Icone(p.CertificadoOk)" IconColor="@Cor(p.CertificadoOk)" Href="/certificado">Enviar o certificado digital A1</MudListItem>
+            <MudListItem Icon="@Icone(p.ConfiguracaoOk)" IconColor="@Cor(p.ConfiguracaoOk)" Href="/configuracao-inicial">Concluir a personalização da empresa</MudListItem>
+            <MudListItem Icon="@Icone(p.HomologacaoOk)" IconColor="@Cor(p.HomologacaoOk)" Href="/emitir">Emitir a primeira nota em homologação (teste)</MudListItem>
+            <MudListItem Icon="@Icone(p.ProducaoOk)" IconColor="@Cor(p.ProducaoOk)" Href="/configuracao-inicial">Passar para produção e emitir a primeira nota válida</MudListItem>
+        </MudList>
+    </MudPaper>
+}
+
+@code {
+    private PrimeirosPassosDto? _passos;
+
+    protected override async Task OnInitializedAsync() => _passos = await Automacoes.PrimeirosPassosAsync();
+
+    private static int Feitos(PrimeirosPassosDto p) => new[] { p.CertificadoOk, p.ConfiguracaoOk, p.HomologacaoOk, p.ProducaoOk }.Count(x => x);
+    private static string Icone(bool ok) => ok ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.Circle;
+    private static Color Cor(bool ok) => ok ? Color.Success : Color.Default;
+}

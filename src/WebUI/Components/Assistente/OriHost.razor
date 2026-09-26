@@ -1,0 +1,48 @@
+@* Host da Ori: painel lateral direito, botão flutuante no celular e balão de pensamento (MASCOTE_UX.md §3–§5). *@
+@implements IAsyncDisposable
+@inject OriControle Ori
+
+@if (Ori.Habilitada)
+{
+    <MudDrawer Open="Ori.PainelAberto" OpenChanged="AoMudarPainel" Anchor="Anchor.End" Variant="DrawerVariant.Temporary"
+               Width="380px" Elevation="3" Overlay="false" ClipMode="DrawerClipMode.Always" Class="ori-drawer">
+        @if (Ori.PainelAberto)
+        {
+            <OriPainel />
+        }
+    </MudDrawer>
+
+    <button type="button" class="ori-fab" @onclick="Alternar" aria-label="Abrir a Ori, assistente">
+        <Coruja Estado="Ori.Estado" Largura="38" />
+    </button>
+
+    @if (Ori.DicaAtual is { } dica)
+    {
+        <div class="ori-balao" role="status" aria-live="polite">
+            <p>@dica.Texto</p>
+            <div class="acoes">
+                <MudButton Size="Size.Small" Color="Color.Primary" OnClick="Ori.AbrirDica">Mostrar</MudButton>
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Close" aria-label="Dispensar dica" OnClick="Ori.DispensarDicaAsync" />
+            </div>
+        </div>
+    }
+}
+
+@code {
+    protected override void OnInitialized() => Ori.OnChange += Atualizar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await Ori.IniciarAsync();
+    }
+
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+    private void Alternar() { if (Ori.PainelAberto) Ori.FecharPainel(); else Ori.AbrirPainel(); }
+    private void AoMudarPainel(bool aberto) { if (!aberto && Ori.PainelAberto) Ori.FecharPainel(); }
+
+    public ValueTask DisposeAsync()
+    {
+        Ori.OnChange -= Atualizar;
+        return ValueTask.CompletedTask;
+    }
+}

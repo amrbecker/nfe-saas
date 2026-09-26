@@ -104,6 +104,7 @@
                         <MudNavLink Href="/configuracao-inicial" Icon="@Icons.Material.Filled.Tune">Personalização</MudNavLink>
                     }
                     <MudNavLink Href="/certificado" Icon="@Icons.Material.Filled.Security">Certificado Digital</MudNavLink>
+                    <MudNavLink Href="/lembretes" Icon="@Icons.Material.Filled.EventRepeat">Lembretes</MudNavLink>
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <Authorized>
                             <MudDivider />
@@ -112,11 +113,28 @@
                             <MudNavLink Href="/usuarios" Icon="@Icons.Material.Filled.People">Usuários</MudNavLink>
                         </Authorized>
                     </AuthorizeView>
+                    <AuthorizeView Roles="Curador" Context="curadorCtx">
+                        <Authorized>
+                            <MudDivider />
+                            <MudNavLink Href="/curadoria" Icon="@Icons.Material.Filled.MenuBook">Curadoria da base</MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="Plataforma" Context="plataformaCtx">
+                        <Authorized>
+                            <MudDivider />
+                            <MudText Typo="Typo.overline" Class="px-4 pt-2 pb-1" Style="color:var(--mud-palette-text-secondary);font-size:10px">NFEFLOW</MudText>
+                            <MudNavLink Href="/interno/chamados" Icon="@Icons.Material.Filled.BugReport">Chamados</MudNavLink>
+                            <MudNavLink Href="/interno/saude" Icon="@Icons.Material.Filled.MonitorHeart">Saúde das contas</MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
                 </MudNavMenu>
+                <OriPoleiro />
             </MudDrawer>
+            <OriHost />
 
             <MudMainContent>
                 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-4">
+                    <AlertasCsBanner />
                     <div class="nfeflow-route-transition" @key="Nav.Uri">
                         @Body
                     </div>

@@ -1,0 +1,130 @@
+@* Ação preparada pela Ori (CONTEXTO_AGENTE.md §5.2–5.3). A Ori nunca conclui: aqui o usuário revisa e decide. *@
+@using NfeSaas.Domain.Enums
+@inject IOriApi Api
+@inject OriControle Ori
+@inject NavigationManager Nav
+
+<MudPaper Outlined="true" Class="pa-3 mt-2" Style="border-color:var(--mud-palette-tertiary)">
+    <MudText Typo="Typo.body2" Class="mb-2"><b>@Acao.Resumo</b></MudText>
+
+    @switch (Acao.Tipo)
+    {
+        case "preparar_nota":
+            <MudText Typo="Typo.caption" Class="d-block mb-2">O formulário abre preenchido e destacado. Confira e clique em Emitir — a Ori não emite.</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AbrirNota">Abrir formulário preenchido</MudButton>
+            break;
+
+        case "preparar_cadastro":
+            <MudText Typo="Typo.caption" Class="d-block mb-2">O cadastro abre preenchido. Confira e clique em Salvar.</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AbrirCadastro">Abrir cadastro preenchido</MudButton>
+            break;
+
+        case "propor_lembrete":
+            <MudText Typo="Typo.caption" Class="d-block mb-2">
+                @Periodicidade() — no dia, a Ori avisa e abre o formulário preparado para você conferir e emitir.
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="_concluida || _enviando" OnClick="CriarLembrete">
+                @(_concluida ? "Lembrete criado" : "Criar lembrete")
+            </MudButton>
+            break;
+
+        case "confirmar_chamado":
+            <MudTextField @bind-Value="_titulo" Label="Título" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_concluida" />
+            <MudTextField @bind-Value="_descricao" Label="O que aconteceu" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="3" Disabled="_concluida" Class="mt-2" />
+            <MudText Typo="Typo.caption" Class="d-block my-2">Junto vão a tela, os últimos erros e as ações recentes — sem dados pessoais.</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="_concluida || _enviando" OnClick="EnviarChamado">
+                @(_concluida ? "Chamado enviado" : "Enviar para a equipe")
+            </MudButton>
+            break;
+
+        case "confirmar_sinal":
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Disabled="_concluida || _enviando" OnClick="EnviarSinal">
+                @(_concluida ? "Enviado — obrigado!" : "Enviar para a equipe")
+            </MudButton>
+            break;
+
+        case "sugerir_personalizacao":
+        case "abrir_rota":
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="AbrirRota">Abrir</MudButton>
+            break;
+    }
+
+    @if (_erro != null)
+    {
+        <MudText Typo="Typo.caption" Color="Color.Error" Class="d-block mt-1">@_erro</MudText>
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public AcaoUiDto Acao { get; set; } = null!;
+    [Parameter] public ContextoTelaDto? Contexto { get; set; }
+
+    private bool _concluida, _enviando;
+    private string? _erro;
+    private string _titulo = "", _descricao = "";
+
+    protected override void OnInitialized()
+    {
+        _titulo = P("titulo") ?? "";
+        _descricao = P("descricao") ?? "";
+    }
+
+    private string? P(string chave) => Acao.Parametros.TryGetValue(chave, out var v) && !string.IsNullOrWhiteSpace(v) ? v : null;
+
+    private string Periodicidade() => P("periodicidade") switch
+    {
+        "Semanal" => "Toda semana",
+        "Quinzenal" => "A cada 15 dias",
+        _ => $"Todo mês, no dia {P("dia") ?? "—"}"
+    };
+
+    private void Navegar(string rota)
+    {
+        Ori.FecharPainel();
+        Nav.NavigateTo(rota);
+    }
+
+    private void AbrirNota() =>
+        Navegar($"/emitir?origem={P("origemNotaId")}" + (P("ajustes") is { } a ? $"&ajustes={Uri.EscapeDataString(a)}" : ""));
+
+    private void AbrirCadastro() =>
+        Navegar(P("tipo") == "Produto"
+            ? $"/produtos?origemNota={P("origemNotaId")}" + (P("itens") is { } i ? $"&itens={Uri.EscapeDataString(i)}" : "")
+            : $"/clientes?origemNota={P("origemNotaId")}");
+
+    private void AbrirRota()
+    {
+        var rota = P("rota") ?? "/";
+        if (rota.StartsWith('/')) Navegar(rota);
+    }
+
+    private async Task CriarLembrete()
+    {
+        if (!Guid.TryParse(P("origemNotaId"), out var nota)) return;
+        _enviando = true;
+        var periodicidade = Enum.TryParse<PeriodicidadeLembrete>(P("periodicidade"), out var per) ? per : PeriodicidadeLembrete.Mensal;
+        var dia = int.TryParse(P("dia"), out var d) ? d : 5;
+        _erro = await Api.CriarLembreteAsync(new CriarLembreteDto(nota, Acao.Resumo, periodicidade, dia));
+        _concluida = _erro == null;
+        _enviando = false;
+    }
+
+    private async Task EnviarChamado()
+    {
+        _enviando = true;
+        var severidade = Enum.TryParse<SeveridadeChamado>(P("severidade"), out var s) ? s : SeveridadeChamado.Media;
+        Guid? notaId = Guid.TryParse(P("notaId"), out var n) ? n : Contexto?.NotaId;
+        _concluida = await Api.CriarChamadoAsync(new CriarChamadoDto(_titulo, _descricao, P("passos"), severidade, notaId, Contexto));
+        _erro = _concluida ? null : "Não consegui enviar agora. Tente de novo.";
+        _enviando = false;
+    }
+
+    private async Task EnviarSinal()
+    {
+        _enviando = true;
+        var tipo = Enum.TryParse<TipoSinalProduto>(P("tipo"), out var t) ? t : TipoSinalProduto.Dor;
+        _concluida = await Api.CriarSinalAsync(new CriarSinalDto(tipo, P("resumo") ?? Acao.Resumo, Contexto?.Tela));
+        _erro = _concluida ? null : "Não consegui enviar agora. Tente de novo.";
+        _enviando = false;
+    }
+}

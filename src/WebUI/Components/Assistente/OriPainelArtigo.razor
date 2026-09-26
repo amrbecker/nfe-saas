@@ -1,0 +1,67 @@
+@* Artigo completo da base, aberto a partir de uma citação. *@
+@using NfeSaas.Application.Assistente.Hipoteses
+@inject IOriApi Api
+
+<MudDialog>
+    <DialogContent>
+        @if (_carregando)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_artigo == null)
+        {
+            <MudText>Não encontrei esse artigo.</MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.h6">@_artigo.Resumo.Titulo</MudText>
+            <div class="d-flex flex-wrap gap-2 my-2">
+                @if (OriPainelResposta.SeloTexto(_artigo.Resumo.NivelFonte) is { } selo)
+                {
+                    <MudChip Size="Size.Small" Variant="Variant.Text" Color="Color.Success">@selo</MudChip>
+                }
+                <MudChip Size="Size.Small" Variant="Variant.Outlined">
+                    @(_artigo.Resumo.Status switch { "publicado" => "Publicado", "em_revisao" => "Regra em atualização", "revisado" => "Revisado", _ => "Rascunho — aguardando curadoria" })
+                </MudChip>
+                @if (_artigo.Resumo.VerificadoEm is { } v)
+                {
+                    <MudText Typo="Typo.caption" Class="align-self-center">Verificado em @v.ToString("dd/MM/yyyy")@(string.IsNullOrWhiteSpace(_artigo.Curador) ? "" : $" por {_artigo.Curador}")</MudText>
+                }
+            </div>
+            <div class="ori-resposta-texto">@((MarkupString)MarkdownSeguro.ParaHtml(_artigo.CorpoMarkdown))</div>
+            @if (_artigo.Fontes.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3">Fontes</MudText>
+                <ul>
+                    @foreach (var f in _artigo.Fontes)
+                    {
+                        <li>
+                            @if (Uri.TryCreate(f.Url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps)
+                            {
+                                <a href="@u" target="_blank" rel="noopener noreferrer">@f.Documento</a>
+                            }
+                            else
+                            {
+                                @f.Documento
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance Dialogo { get; set; } = null!;
+    [Parameter] public string Id { get; set; } = "";
+
+    private ArtigoDetalheDto? _artigo;
+    private bool _carregando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _artigo = await Api.ArtigoAsync(Id);
+        _carregando = false;
+    }
+}

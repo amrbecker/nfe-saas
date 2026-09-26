@@ -1,0 +1,159 @@
+@page "/lembretes"
+@attribute [Authorize]
+@using NfeSaas.Domain.Enums
+@inject ICsApi Cs
+@inject ITelemetriaService Telemetria
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<MudText Typo="Typo.h5" Class="mb-2">Lembretes de notas recorrentes</MudText>
+<MudText Typo="Typo.body2" Class="mb-4" Style="color:var(--mud-palette-text-secondary)">
+    No dia combinado, a Ori avisa e abre o formulário já preenchido a partir da nota modelo. Você confere e clica em Emitir —
+    nada é emitido sozinho.
+</MudText>
+
+@if (_novo != null)
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">@(_editandoId == null ? "Novo lembrete" : "Editar lembrete")</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_novo.Descricao" Label="Descrição" Variant="Variant.Outlined" Placeholder="Ex.: Aluguel de equipamentos — Cliente X" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudSelect T="PeriodicidadeLembrete" @bind-Value="_novo.Periodicidade" Label="Periodicidade" Variant="Variant.Outlined">
+                    <MudSelectItem Value="PeriodicidadeLembrete.Mensal">Mensal</MudSelectItem>
+                    <MudSelectItem Value="PeriodicidadeLembrete.Quinzenal">Quinzenal</MudSelectItem>
+                    <MudSelectItem Value="PeriodicidadeLembrete.Semanal">Semanal</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                @if (_novo.Periodicidade == PeriodicidadeLembrete.Mensal)
+                {
+                    <MudNumericField T="int" @bind-Value="_novo.Dia" Label="Dia do mês (1–28)" Min="1" Max="28" Variant="Variant.Outlined" />
+                }
+                else
+                {
+                    <MudSelect T="int" @bind-Value="_novo.Dia" Label="Dia da semana" Variant="Variant.Outlined">
+                        @for (var d = 0; d < 7; d++)
+                        {
+                            var dia = d;
+                            <MudSelectItem Value="dia">@DiaSemana(dia)</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+            </MudItem>
+        </MudGrid>
+        <div class="d-flex gap-2 mt-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Salvar" Disabled="_salvando">Salvar lembrete</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton>
+        </div>
+    </MudPaper>
+}
+
+@if (_lembretes == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_lembretes.Count == 0 && _novo == null)
+{
+    <MudAlert Severity="Severity.Info">
+        Nenhum lembrete ainda. Crie um a partir de uma nota autorizada (no detalhe da nota ou quando a Ori sugerir).
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="_lembretes" Hover="true" Dense="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>Descrição</MudTh>
+            <MudTh>Periodicidade</MudTh>
+            <MudTh>Próximo aviso</MudTh>
+            <MudTh>Ativo</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Descrição">@context.Descricao</MudTd>
+            <MudTd DataLabel="Periodicidade">@TextoPeriodicidade(context)</MudTd>
+            <MudTd DataLabel="Próximo aviso">@(context.Ativo ? context.ProximaEm.ToString("dd/MM/yyyy") : "—")</MudTd>
+            <MudTd DataLabel="Ativo">
+                <MudSwitch T="bool" Checked="context.Ativo" CheckedChanged="v => AlternarAtivo(context, v)" Color="Color.Primary" />
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Title="Abrir formulário preparado" Size="Size.Small"
+                               OnClick="@(() => Nav.NavigateTo($"/emitir?origem={context.NotaModeloId}"))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Title="Editar" Size="Size.Small" OnClick="() => Editar(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="Excluir" Size="Size.Small" OnClick="() => Excluir(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [SupplyParameterFromQuery] public Guid? NotaModelo { get; set; }
+
+    private sealed class Form
+    {
+        public Guid NotaModeloId { get; set; }
+        public string Descricao { get; set; } = "";
+        public PeriodicidadeLembrete Periodicidade { get; set; } = PeriodicidadeLembrete.Mensal;
+        public int Dia { get; set; } = Math.Min(DateTime.Today.Day, 28);
+    }
+
+    private List<LembreteDto>? _lembretes;
+    private Form? _novo;
+    private Guid? _editandoId;
+    private bool _salvando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (NotaModelo is { } id) _novo = new Form { NotaModeloId = id, Descricao = "Nota recorrente" };
+        await Carregar();
+    }
+
+    private async Task Carregar() => _lembretes = await Cs.LembretesAsync();
+
+    private static string DiaSemana(int d) => new[] { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" }[d];
+
+    private static string TextoPeriodicidade(LembreteDto l) => l.Periodicidade switch
+    {
+        PeriodicidadeLembrete.Mensal => $"Todo dia {l.Dia}",
+        PeriodicidadeLembrete.Quinzenal => $"A cada 15 dias ({DiaSemana(l.Dia)})",
+        _ => $"Toda {DiaSemana(l.Dia).ToLowerInvariant()}"
+    };
+
+    private void Editar(LembreteDto l)
+    {
+        _editandoId = l.Id;
+        _novo = new Form { NotaModeloId = l.NotaModeloId, Descricao = l.Descricao, Periodicidade = l.Periodicidade, Dia = l.Dia };
+    }
+
+    private void Cancelar() { _novo = null; _editandoId = null; }
+
+    private async Task Salvar()
+    {
+        if (_novo == null) return;
+        if (_novo.Periodicidade != PeriodicidadeLembrete.Mensal && _novo.Dia > 6) _novo.Dia = 1;
+        _salvando = true;
+        var dto = new CriarLembreteDto(_novo.NotaModeloId, _novo.Descricao, _novo.Periodicidade, _novo.Dia);
+        var erro = _editandoId is { } id ? await Cs.AtualizarLembreteAsync(id, dto, null) : await Cs.CriarLembreteAsync(dto);
+        _salvando = false;
+        if (erro != null) { Snackbar.Add(erro, Severity.Error); return; }
+        if (_editandoId == null) Telemetria.Registrar("lembrete_criado");
+        Snackbar.Add("Lembrete salvo.", Severity.Success);
+        Cancelar();
+        await Carregar();
+    }
+
+    private async Task AlternarAtivo(LembreteDto l, bool ativo)
+    {
+        var erro = await Cs.AtualizarLembreteAsync(l.Id, new CriarLembreteDto(l.NotaModeloId, l.Descricao, l.Periodicidade, l.Dia), ativo);
+        if (erro != null) Snackbar.Add(erro, Severity.Error);
+        await Carregar();
+    }
+
+    private async Task Excluir(LembreteDto l)
+    {
+        if (await Cs.ExcluirLembreteAsync(l.Id)) Snackbar.Add("Lembrete excluído.", Severity.Info);
+        await Carregar();
+    }
+}

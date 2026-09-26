@@ -1,0 +1,76 @@
+@* A1/A2/A4 (AUTOMACOES.md): depois de autorizar, a Ori oferece guardar destinatário e produtos digitados à mão e
+   atualizar cadastros divergentes. Só abre o formulário preenchido — quem salva é o usuário. *@
+@using NfeSaas.Application.Assistente.Automacoes
+@inject IAutomacoesApi Automacoes
+@inject IPreferenciasOriApi Preferencias
+@inject OriControle Ori
+@inject ITelemetriaService Telemetria
+@inject NavigationManager Nav
+
+@if (_sugestao is { } s && Visivel)
+{
+    <MudPaper Outlined="true" Class="pa-3" Style="border-color:var(--mud-palette-tertiary)">
+        <div class="d-flex align-center gap-2 mb-2">
+            <Coruja Estado="EstadoOri.Falando" Largura="32" />
+            <MudText Typo="Typo.subtitle2">A Ori sugere, para as próximas notas:</MudText>
+            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Close" Class="ml-auto" aria-label="Dispensar sugestões" OnClick="Dispensar" />
+        </div>
+        @if (s.DestinatarioNovo && !Bloqueada($"A1:{s.NotaId}"))
+        {
+            <div class="d-flex align-center flex-wrap gap-2 mb-1">
+                <MudText Typo="Typo.body2">Guardar <b>@s.Destinatario?.RazaoSocial</b> nos destinatários?</MudText>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                           OnClick="@(() => Ir($"/clientes?origemNota={s.NotaId}", "A1"))">Abrir cadastro preenchido</MudButton>
+            </div>
+        }
+        @if (s.ProdutosNovos.Count > 0 && !Bloqueada($"A2:{s.NotaId}"))
+        {
+            <div class="d-flex align-center flex-wrap gap-2 mb-1">
+                <MudText Typo="Typo.body2">Guardar @s.ProdutosNovos.Count produto@(s.ProdutosNovos.Count > 1 ? "s" : "") digitado@(s.ProdutosNovos.Count > 1 ? "s" : "") à mão?</MudText>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                           OnClick="@(() => Ir($"/produtos?origemNota={s.NotaId}&itens={string.Join(",", s.ProdutosNovos.Select(p => p.NumeroItem))}", "A2"))">Abrir cadastro preenchido</MudButton>
+            </div>
+        }
+        @foreach (var g in s.Divergencias.GroupBy(d => d.ProdutoId))
+        {
+            <div class="d-flex align-center flex-wrap gap-2 mb-1">
+                <MudText Typo="Typo.body2">
+                    O produto <b>@g.First().Codigo</b> foi emitido com @string.Join(", ", g.Select(d => $"{d.Campo.ToUpperInvariant()} {d.ValorNota}"))
+                    — diferente do cadastro. Atualizar o cadastro?
+                </MudText>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                           OnClick="@(() => Ir($"/produtos?editar={g.Key}&origemNota={s.NotaId}", "A4"))">Revisar cadastro</MudButton>
+            </div>
+        }
+    </MudPaper>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid NotaId { get; set; }
+
+    private CadastroSugeridoDto? _sugestao;
+    private bool _dispensado;
+
+    private bool Visivel => !_dispensado && _sugestao != null
+        && ((_sugestao.DestinatarioNovo && !Bloqueada($"A1:{_sugestao.NotaId}"))
+            || (_sugestao.ProdutosNovos.Count > 0 && !Bloqueada($"A2:{_sugestao.NotaId}"))
+            || _sugestao.Divergencias.Count > 0);
+
+    private bool Bloqueada(string chave) => Ori.Status?.ChavesBloqueadas.Contains(chave) == true;
+
+    protected override async Task OnInitializedAsync() => _sugestao = await Automacoes.CadastroSugeridoAsync(NotaId);
+
+    private void Ir(string rota, string automacao)
+    {
+        Telemetria.Registrar("sugestao_aceita", dados: new { automacao });
+        Nav.NavigateTo(rota);
+    }
+
+    private async Task Dispensar()
+    {
+        _dispensado = true;
+        Telemetria.Registrar("sugestao_recusada", dados: new { automacao = "A1_A2" });
+        await Preferencias.IgnorarAsync($"A1:{NotaId}", definitivo: true);
+        await Preferencias.IgnorarAsync($"A2:{NotaId}", definitivo: true);
+    }
+}

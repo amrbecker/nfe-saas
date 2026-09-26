@@ -1,0 +1,72 @@
+@* Alertas de Customer Success (CONTEXTO_AGENTE.md §6): certificado e trial viram banner; os demais, dica da Ori.
+   Também inicia a telemetria de produto (componente presente em todas as telas autenticadas). *@
+@using NfeSaas.Domain.Enums
+@implements IDisposable
+@inject ICsApi Cs
+@inject IOriControle Ori
+@inject ITelemetriaService Telemetria
+@inject NavigationManager Nav
+
+@foreach (var a in _banner)
+{
+    <MudAlert Severity="@(a.Tipo == TipoAlertaCs.CertificadoVencendo ? Severity.Warning : Severity.Info)" Class="mb-3"
+              ShowCloseIcon="true" CloseIconClicked="() => Dispensar(a)" Dense="true">
+        <div class="d-flex align-center flex-wrap gap-2">
+            <span>@a.Mensagem</span>
+            @if (!string.IsNullOrWhiteSpace(a.LinkAcao))
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="() => Abrir(a)">
+                    @(a.Tipo == TipoAlertaCs.CertificadoVencendo ? "Atualizar certificado" : "Ver")
+                </MudButton>
+            }
+        </div>
+    </MudAlert>
+}
+
+@code {
+    private static readonly TipoAlertaCs[] TiposBanner = { TipoAlertaCs.CertificadoVencendo, TipoAlertaCs.TrialAcabando };
+    private List<AlertaCsDto> _banner = new();
+    private Timer? _timerDicas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Telemetria.Iniciar();
+        var alertas = await Cs.AlertasAsync();
+        _banner = alertas.Where(a => TiposBanner.Contains(a.Tipo)).Take(2).ToList();
+
+        // Os demais alertas viram dica silenciosa da Ori (bloqueio > economia de tempo > aprendizado), após alguns segundos.
+        var dicas = alertas.Where(a => !TiposBanner.Contains(a.Tipo) && !a.Visto).OrderByDescending(Prioridade).ToList();
+        if (dicas.Count > 0)
+            _timerDicas = new Timer(_ => InvokeAsync(() => MostrarDica(dicas)), null, TimeSpan.FromSeconds(20), Timeout.InfiniteTimeSpan);
+    }
+
+    private static int Prioridade(AlertaCsDto a) => a.Tipo switch
+    {
+        TipoAlertaCs.RejeicaoRepetida => 30,
+        TipoAlertaCs.LembreteEmissao or TipoAlertaCs.NotaRecorrente => 20,
+        _ => 10
+    };
+
+    private async Task MostrarDica(List<AlertaCsDto> dicas)
+    {
+        var a = dicas[0];
+        // "Mostrar" no balão leva direto à ação do alerta (ex.: formulário preparado do lembrete).
+        var pedido = string.IsNullOrWhiteSpace(a.LinkAcao) ? null : new PedidoOri("rota", TextoInicial: a.LinkAcao);
+        if (Ori.MostrarDica(new DicaOri($"dica:alerta:{a.Id}", a.Mensagem, Prioridade(a), pedido)))
+            await Cs.MarcarAlertaAsync(a.Id, dispensar: false);
+    }
+
+    private async Task Dispensar(AlertaCsDto a)
+    {
+        _banner.Remove(a);
+        await Cs.MarcarAlertaAsync(a.Id, dispensar: true);
+    }
+
+    private async Task Abrir(AlertaCsDto a)
+    {
+        await Cs.MarcarAlertaAsync(a.Id, dispensar: false);
+        if (a.LinkAcao!.StartsWith('/')) Nav.NavigateTo(a.LinkAcao);
+    }
+
+    public void Dispose() => _timerDicas?.Dispose();
+}

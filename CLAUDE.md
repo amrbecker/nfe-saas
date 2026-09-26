@@ -215,7 +215,7 @@ Deploy: Render (API, Docker) + Cloudflare Pages (WebUI estática) + Neon (Postgr
 `render.yaml`. Free tier em todos — Render dorme após inatividade (cold start no próximo
 request), Neon entra em autosuspend; aceitável para o piloto, trocar quando houver mais clientes.
 
-## Assistente de Suporte/CS — Ori, a Coruja (em planejamento)
+## Assistente de Suporte/CS — Ori, a Coruja
 
 Mascote-coruja embarcado (suporte, explicação de rejeições, automações, coleta de bugs, CS proativo). Estratégia,
 pesquisa, mascote, captura de contexto, automações, monitoramento de fontes e plano faseado em
@@ -227,6 +227,22 @@ do assistente:
 - **O modelo não recebe dado pessoal**: tudo que sai para ele passa pelo `SanitizadorIA` (CPF/CNPJ/IE/nome/endereço viram atributos, resultados de validação ou marcadores reidratados só na tela)
 - Contexto da sessão fica só na memória do navegador e é enviado apenas quando o usuário chama a coruja
 - Mudança em `docs/assistente/kb/` ou no prompt exige eval verde
+
+**Código:** Domain `Entities/Assistente`, Application `Assistente/` (Ia, Automacoes, Cs, Curadoria, Monitoramento,
+Insights, Hipoteses), Infrastructure `Assistente/` + `DependencyInjection.Assistente.cs`, API `Controllers/Assistente` +
+`Workers/Assistente` (expurgo de conversas, saúde das contas, monitor de fontes, insights), WebUI `Components/Assistente` +
+`Services/Assistente` + `wwwroot/{css,js}/ori.*`. Migration `AddAssistenteOri`.
+
+**Operação:**
+- Configuração em `Assistente` (appsettings / `Assistente__*` no Render). Sem `Assistente__Ia__Conversa__Endpoint`/`ApiKey` a Ori
+  funciona só com a base de conhecimento e as automações determinísticas (sem conversa livre). `EscritoriosPiloto` preenchido
+  restringe a Ori a esses escritórios.
+- Base: `docs/assistente/kb/**.md` embutida na Infrastructure (e copiada no `Dockerfile.api`). Produção só usa artigos
+  `publicado`/`em_revisao`; `IncluirRascunhosKb=true` (dev) libera rascunhos. Todos os artigos atuais são **rascunho** até a
+  curadoria do escritório parceiro. `BaseConhecimentoTests.Base_embutida_e_valida` barra artigo malformado.
+- Papéis extras: `Plataforma` (chamados, saúde das contas) e `Curador` (fila de curadoria). Conceder via SQL:
+  `UPDATE usuarios SET "Role" = 'Curador' WHERE "Email" = '...';`
+- Eval: `docs/assistente/eval/README.md` (checagens gratuitas sempre; contra o modelo com `ASSISTENTE_EVAL=1`).
 
 ## Padrões a Seguir
 

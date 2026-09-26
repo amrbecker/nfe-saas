@@ -4,6 +4,7 @@
 @inject IClienteService ClienteService
 @inject ISnackbar Snackbar
 @inject IDialogService Dialog
+@inject IAutomacoesApi Automacoes
 
 <MudText Typo="Typo.h5" Class="mb-4">Clientes</MudText>
 
@@ -64,6 +65,11 @@ else
     </MudTable>
 }
 
+@if (_avisoOri != null)
+{
+    <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.AutoAwesome" Class="mb-3"
+              Style="border-color:var(--mud-palette-tertiary)">@_avisoOri</MudAlert>
+}
 @if (_mostrarForm)
 {
     <MudCard Elevation="2" Class="mt-4 pa-4">
@@ -83,7 +89,7 @@ else
                         <MudSelectItem Value="3">Estrangeiro</MudSelectItem>
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="cpf_cnpj" xs="12" md="4">
                     @if (_data.TipoPessoa == 2)
                     {
                         <CnpjInput Value="@_data.CpfCnpj"
@@ -113,13 +119,13 @@ else
                     <MudText Typo="Typo.overline" Style="color:var(--mud-palette-primary);letter-spacing:1px">Contato</MudText>
                     <MudDivider Class="mb-2" />
                 </MudItem>
-                <MudItem xs="12" md="6">
+                <MudItem data-ajuda="email" xs="12" md="6">
                     <MudTextField @bind-Value="_data.Email" Label="E-mail (opcional)" Variant="Variant.Outlined"
                                   Immediate="true"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
                                   Validation="@((string s) => ValidarEmail(s))" />
                 </MudItem>
-                <MudItem xs="12" md="6">
+                <MudItem data-ajuda="telefone" xs="12" md="6">
                     <MudTextField @bind-Value="_data.Telefone" Label="Telefone (opcional)" Variant="Variant.Outlined"
                                   Immediate="true"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone"
@@ -131,13 +137,13 @@ else
                     <MudText Typo="Typo.overline" Style="color:var(--mud-palette-primary);letter-spacing:1px">Endereço</MudText>
                     <MudDivider Class="mb-2" />
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem data-ajuda="cep" xs="12" md="3">
                     <CepInput Value="@_data.Cep"
                               ValueChanged="@(v => _data.Cep = v)"
                               EnderecoEncontrado="OnCepEncontrado"
                               Required="true" />
                 </MudItem>
-                <MudItem xs="12" md="9">
+                <MudItem data-ajuda="logradouro" xs="12" md="9">
                     <MudTextField @bind-Value="_data.Logradouro" Label="Logradouro" Variant="Variant.Outlined"
                                   Required RequiredError="Obrigatório" />
                 </MudItem>
@@ -156,7 +162,7 @@ else
                     <MudTextField @bind-Value="_data.Cidade" Label="Cidade" Variant="Variant.Outlined"
                                   Required RequiredError="Obrigatório" />
                 </MudItem>
-                <MudItem xs="12" md="2">
+                <MudItem data-ajuda="uf" xs="12" md="2">
                     <MudSelect T="string" Value="_data.Uf" ValueChanged="UfChanged"
                                Label="UF" Variant="Variant.Outlined"
                                Required RequiredError="Obrigatório">
@@ -174,7 +180,7 @@ else
                     <MudText Typo="Typo.overline" Style="color:var(--mud-palette-primary);letter-spacing:1px">Fiscal</MudText>
                     <MudDivider Class="mb-2" />
                 </MudItem>
-                <MudItem xs="12" md="4">
+                <MudItem data-ajuda="ind_ie" xs="12" md="4">
                     <MudSelect T="int" Value="_data.IndicadorIe" ValueChanged="IndicadorIeChanged"
                                Label="Indicador IE" Variant="Variant.Outlined">
                         <MudSelectItem Value="1">1 - Contribuinte ICMS</MudSelectItem>
@@ -222,7 +228,27 @@ else
         _ => "CPF/CNPJ (opcional p/ estrangeiro)"
     };
 
-    protected override async Task OnInitializedAsync() => await Carregar();
+    // A1 (AUTOMACOES.md): /clientes?origemNota={id} abre o cadastro preenchido com o destinatário da nota.
+    [SupplyParameterFromQuery] public Guid? OrigemNota { get; set; }
+    private string? _avisoOri;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Carregar();
+        if (OrigemNota is not { } nota) return;
+        var s = await Automacoes.CadastroSugeridoAsync(nota);
+        if (s?.Destinatario is not { } d) { Snackbar.Add("Esse destinatário já está cadastrado.", Severity.Info); return; }
+        _editandoId = null;
+        _data = new FormData
+        {
+            TipoPessoa = (int)d.TipoPessoa, CpfCnpj = d.CpfCnpj ?? "", RazaoSocial = d.RazaoSocial ?? "",
+            Email = d.Email ?? "", Logradouro = d.Logradouro ?? "", Numero = d.Numero ?? "", Complemento = d.Complemento ?? "",
+            Bairro = d.Bairro ?? "", Cidade = d.Cidade ?? "", Uf = d.Uf ?? "", Cep = d.Cep ?? "", CodigoMunicipio = d.CodigoMunicipio ?? "",
+            InscricaoEstadual = d.InscricaoEstadual ?? "", IndicadorIe = string.IsNullOrWhiteSpace(d.InscricaoEstadual) ? 9 : 1
+        };
+        _mostrarForm = true;
+        _avisoOri = $"A Ori preencheu este cadastro com o destinatário da nota {s.NumeroNota}. Confira e clique em Salvar.";
+    }
 
     async Task Carregar()
     {
@@ -258,7 +284,7 @@ else
         _mostrarForm = true;
     }
 
-    void Cancelar() { _mostrarForm = false; _editandoId = null; }
+    void Cancelar() { _mostrarForm = false; _editandoId = null; _avisoOri = null; }
 
     async Task TipoPessoaChanged(int novo) { _data.TipoPessoa = novo; if (_form != null) await _form.Validate(); }
     async Task UfChanged(string nova) { _data.Uf = nova; if (_form != null) await _form.Validate(); }

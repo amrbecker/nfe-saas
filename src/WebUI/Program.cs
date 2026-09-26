@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using NfeSaas.WebUI;
 using NfeSaas.WebUI.Services;
+using NfeSaas.WebUI.Services.Assistente;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -19,7 +20,11 @@ builder.UseSentry(o =>
 });
 
 // API HttpClient
-builder.Services.AddScoped(sp => new HttpClient
+// ErrosApiHandler alimenta o contexto da Ori com os últimos erros HTTP da API (CAPTURA_CONTEXTO.md).
+builder.Services.AddScoped(sp => new HttpClient(new ErrosApiHandler(sp.GetRequiredService<IContextoAssistente>())
+{
+    InnerHandler = new HttpClientHandler()
+})
 {
     BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5001")
 });
@@ -49,5 +54,8 @@ builder.Services.AddScoped<INcmService, NcmService>();
 builder.Services.AddScoped<ICnaeService, CnaeService>();
 builder.Services.AddScoped<IPersonalizacaoService, PersonalizacaoService>();
 builder.Services.AddScoped<ApiClient>();
+
+// Assistente Ori
+builder.Services.AddAssistenteUi();
 
 await builder.Build().RunAsync();

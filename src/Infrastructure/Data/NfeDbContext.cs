@@ -40,6 +40,21 @@ public class NfeDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Cnae> Cnaes => Set<Cnae>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
+    // Assistente Ori (docs/assistente/)
+    public DbSet<EventoProduto> EventosProduto => Set<EventoProduto>();
+    public DbSet<PreferenciaAssistente> PreferenciasAssistente => Set<PreferenciaAssistente>();
+    public DbSet<SugestaoDispensada> SugestoesDispensadas => Set<SugestaoDispensada>();
+    public DbSet<UsoAssistente> UsosAssistente => Set<UsoAssistente>();
+    public DbSet<InteracaoAssistente> InteracoesAssistente => Set<InteracaoAssistente>();
+    public DbSet<Conversa> Conversas => Set<Conversa>();
+    public DbSet<MensagemConversa> MensagensConversa => Set<MensagemConversa>();
+    public DbSet<Chamado> Chamados => Set<Chamado>();
+    public DbSet<SinalProduto> SinaisProduto => Set<SinalProduto>();
+    public DbSet<AlertaCs> AlertasCs => Set<AlertaCs>();
+    public DbSet<LembreteEmissao> LembretesEmissao => Set<LembreteEmissao>();
+    public DbSet<FonteMonitorada> FontesMonitoradas => Set<FonteMonitorada>();
+    public DbSet<PublicacaoDetectada> PublicacoesDetectadas => Set<PublicacaoDetectada>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

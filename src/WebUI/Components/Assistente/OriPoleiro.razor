@@ -1,0 +1,25 @@
+@* A Ori empoleirada no rodapé do menu lateral (MASCOTE_UX.md §3): 72 px com o menu aberto, 40 px no modo mini. *@
+@implements IDisposable
+@inject OriControle Ori
+
+@if (Ori.Habilitada)
+{
+    <div class="ori-poleiro">
+        <button type="button" class="ori-poleiro-btn" @onclick="Alternar"
+                aria-label="@(Ori.PainelAberto ? "Fechar a Ori, assistente" : "Abrir a Ori, assistente")"
+                aria-expanded="@(Ori.PainelAberto ? "true" : "false")" title="Ori — Ctrl+Shift+Espaço">
+            <Coruja Estado="Ori.Estado" Largura="72" Classe="ori-poleiro-coruja" />
+            @if (Ori.PontoDica)
+            {
+                <span class="ori-ponto" aria-label="Há uma dica da Ori"></span>
+            }
+        </button>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Ori.OnChange += Atualizar;
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+    private void Alternar() { if (Ori.PainelAberto) Ori.FecharPainel(); else Ori.AbrirPainel(); }
+    public void Dispose() => Ori.OnChange -= Atualizar;
+}
