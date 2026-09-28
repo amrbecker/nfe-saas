@@ -181,7 +181,7 @@ Trial: experiência Profissional completa (o assistente ajuda a converter o tria
 
 ## 9. Decisões pendentes do PO
 
-1. ~~Modelo de IA~~ → **DeepSeek no Microsoft Foundry** (decidido); o modelo **não recebe dado pessoal** (`PESQUISA_REFINAMENTO.md` §2.6). Pendente: `flash` × V4-Pro após o eval.
+1. ~~Modelo de IA~~ → **DeepSeek pela API direta** (D14, 2026-09-28; antes Foundry); o modelo **não recebe dado pessoal** (`PESQUISA_REFINAMENTO.md` §2.6). Pendente: `flash` × V4-Pro após o eval.
 2. ~~Nome da coruja~~ → **Ori**.
 3. ~~Curadoria~~ → **escritório parceiro** (acordo formal pendente — `PESQUISA_REFINAMENTO.md` §4).
 4. Momento de migrar Render/Neon para plano pago (recomendado antes da Fase 2).

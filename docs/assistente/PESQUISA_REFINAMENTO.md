@@ -74,7 +74,14 @@ Um escritório contábil que ler "seus dados vão para a China" no termo de uso 
 
 > **Atualização (D10):** com a minimização da §2.6, o modelo **não recebe dado pessoal**, o que reduz muito esse risco. O Foundry continua como endpoint por defesa em profundidade e por causa do dado comercial.
 
-### 2.3 Endpoint — decidido: Microsoft Foundry (2026-09-23)
+### 2.3 Endpoint — decidido: API direta da DeepSeek (revisto em 2026-09-28)
+
+> **D14 (2026-09-28):** o PO trocou o Foundry pela **API direta da DeepSeek para tudo** (opção C abaixo). Motivos: piloto com um
+> escritório, custo menor (desconto de cache), sem conta Azure. O modelo continua sem receber dado pessoal (§2.6); o dado
+> comercial (produtos, valores, CFOP) passa a ser processado na China — os termos de uso precisam dizer isso. Voltar ao Foundry
+> é só configuração, se um cliente exigir.
+
+Análise original (2026-09-23):
 
 **DeepSeek como modelo, hospedado no Foundry.** Opções avaliadas:
 

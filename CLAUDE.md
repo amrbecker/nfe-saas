@@ -223,7 +223,7 @@ pesquisa, mascote, captura de contexto, automações, monitoramento de fontes e 
 do assistente:
 - **Prepara, nunca conclui**: pode preencher formulário/rascunho; emitir, cancelar, salvar e enviar são sempre clique do usuário
 - Ferramentas pegam `EmpresaId` do JWT, nunca de parâmetro do modelo
-- Modelo DeepSeek hospedado no **Microsoft Foundry**, atrás de `IAssistenteIA` (`Microsoft.Extensions.AI`); API direta da DeepSeek apenas para fontes públicas
+- Modelo DeepSeek pela **API direta da DeepSeek** (`deepseek-flash`), atrás de `IAssistenteIA` (`Microsoft.Extensions.AI`) — trocar de provedor (Foundry, OpenRouter) é só configuração
 - **O modelo não recebe dado pessoal**: tudo que sai para ele passa pelo `SanitizadorIA` (CPF/CNPJ/IE/nome/endereço viram atributos, resultados de validação ou marcadores reidratados só na tela)
 - Contexto da sessão fica só na memória do navegador e é enviado apenas quando o usuário chama a coruja
 - Mudança em `docs/assistente/kb/` ou no prompt exige eval verde
@@ -234,7 +234,7 @@ Insights, Hipoteses), Infrastructure `Assistente/` + `DependencyInjection.Assist
 `Services/Assistente` + `wwwroot/{css,js}/ori.*`. Migration `AddAssistenteOri`.
 
 **Operação:**
-- Configuração em `Assistente` (appsettings / `Assistente__*` no Render). Sem `Assistente__Ia__Conversa__Endpoint`/`ApiKey` a Ori
+- Configuração em `Assistente` (appsettings / `Assistente__*` no Render). Sem `Assistente__Ia__Conversa__ApiKey` a Ori
   funciona só com a base de conhecimento e as automações determinísticas (sem conversa livre). `EscritoriosPiloto` preenchido
   restringe a Ori a esses escritórios.
 - Base: `docs/assistente/kb/**.md` embutida na Infrastructure (e copiada no `Dockerfile.api`). Produção só usa artigos

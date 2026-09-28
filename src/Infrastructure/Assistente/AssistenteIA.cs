@@ -11,8 +11,8 @@ using OpenAI;
 namespace NfeSaas.Infrastructure.Assistente;
 
 /// <summary>
-/// Cliente de IA da Ori sobre endpoints compatíveis com OpenAI (DeepSeek no Microsoft Foundry para a rota Conversa;
-/// API da DeepSeek para FontesPublicas). Loop de ferramentas manual: o servidor executa cada ferramenta com o escopo
+/// Cliente de IA da Ori sobre a API da DeepSeek (compatível com OpenAI). FontesPublicas sem chave própria usa a
+/// configuração da Conversa. Loop de ferramentas manual: o servidor executa cada ferramenta com o escopo
 /// já capturado (EmpresaId do token), nunca com dados vindos dos argumentos do modelo.
 /// </summary>
 public class AssistenteIA : IAssistenteIA
@@ -29,13 +29,16 @@ public class AssistenteIA : IAssistenteIA
         _logger = logger;
     }
 
-    private EndpointIaOptions Config(RotaIa rota) =>
-        rota == RotaIa.Conversa ? _opcoes.CurrentValue.Ia.Conversa : _opcoes.CurrentValue.Ia.FontesPublicas;
+    private EndpointIaOptions Config(RotaIa rota)
+    {
+        var ia = _opcoes.CurrentValue.Ia;
+        return rota == RotaIa.Conversa || string.IsNullOrWhiteSpace(ia.FontesPublicas.ApiKey) ? ia.Conversa : ia.FontesPublicas;
+    }
 
     public bool EstaHabilitado(RotaIa rota)
     {
         var c = Config(rota);
-        return !string.IsNullOrWhiteSpace(c.Endpoint) && !string.IsNullOrWhiteSpace(c.ApiKey) && !string.IsNullOrWhiteSpace(c.Modelo);
+        return !string.IsNullOrWhiteSpace(c.ApiKey) && !string.IsNullOrWhiteSpace(c.Modelo);
     }
 
     public string Modelo(RotaIa rota) => EstaHabilitado(rota) ? Config(rota).Modelo : "desabilitado";
@@ -125,12 +128,12 @@ public class AssistenteIA : IAssistenteIA
     private IChatClient Cliente(RotaIa rota)
     {
         var c = Config(rota);
-        var chave = $"{rota}|{c.Endpoint}|{c.Modelo}|{c.ApiKey?.GetHashCode()}";
+        var chave = $"{rota}|{c.EndpointEfetivo}|{c.Modelo}|{c.ApiKey?.GetHashCode()}";
         return _clientes.GetOrAdd(chave, _ =>
         {
             var options = new OpenAIClientOptions
             {
-                Endpoint = new Uri(c.Endpoint!),
+                Endpoint = new Uri(c.EndpointEfetivo),
                 NetworkTimeout = Timeout,
                 // 3 tentativas com backoff em 429/5xx/falha de rede (padrão do System.ClientModel).
                 RetryPolicy = new ClientRetryPolicy(maxRetries: 2)

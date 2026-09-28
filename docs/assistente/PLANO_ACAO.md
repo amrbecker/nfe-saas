@@ -30,7 +30,7 @@ Fase 5  Evolução contínua                                                    
 | 0.6 | **Eval fiscal v1**: 100 perguntas + 10 armadilhas + 10 casos de linguagem (N2/N3/N4) | `tests/NfeSaas.Tests.Assistente/eval/` | Revisado pelo curador |
 | 0.7 | **Termos de uso** revisados pelo escritório parceiro (assistente, operador de IA, Foundry e país de processamento, minimização, retenção de 180 dias, captura de contexto só ao chamar a Ori); cláusulas de LGPD e responsabilidade vistas por advogado | fora do código | Aprovado; aceite no próximo login |
 | 0.7b | **Acordo com o escritório parceiro** (confidencialidade, assinatura técnica com CRC, SLA da fila, contrapartida) + papel `Curador` isolado | fora do código + Auth | Assinado; curador não vê dados de clientes |
-| 0.8 | **Foundry** (decidido): criar o recurso DeepSeek V4, escolher a região (Brazil South, senão EUA/UE), medir preço e latência | Azure | Endpoint e região registrados em `PESQUISA_REFINAMENTO.md` |
+| 0.8 | ~~Foundry~~ → **API direta da DeepSeek** (D14, 2026-09-28): criar a chave e preencher `Assistente__Ia__Conversa__ApiKey` no Render | DeepSeek | Eval rodado com a chave |
 | 0.9 | **Ori — protótipo** SVG + CSS (9 estados) publicado como Artifact para avaliação | `docs/assistente/mascote/` | PO aprova postura, posição e animações |
 | 0.9b | **Ori — arte final** pelo caminho gratuito (ComfyUI local ou Hugging Face com modelo Apache-2.0 → VTracer → Inkscape), ou pago se necessário; registro do modelo e da licença; pedido de marca no INPI | `MASCOTE_UX.md` §7 | SVG em camadas < 30 KB, licença verificada |
 | 0.10 | Benchmark de 5 concorrentes | `docs/assistente/benchmark.md` | Tabela comparativa |
@@ -133,7 +133,7 @@ Fase 5  Evolução contínua                                                    
 | Amostra de 20 conversas (qualidade, linguagem por nível, segurança) | Semanal | PO |
 | Eval completo | Todo PR em `kb/` ou no prompt + mensal | Dev |
 | Custo, cotas e taxa de "silenciar dicas" | Mensal | PO |
-| Revalidar preços e disponibilidade da DeepSeek e do Foundry | Trimestral | Dev |
+| Revalidar preços e disponibilidade da DeepSeek | Trimestral | Dev |
 
 ---
 
@@ -145,7 +145,7 @@ terceiros ou de dados de produção:
 | Item | Situação |
 |------|----------|
 | Curadoria dos 27 artigos | Todos em `rascunho` — produção não os usa até o escritório parceiro publicar pela tela `/curadoria` |
-| Eval contra o modelo real | Executor pronto; não rodado (exige endpoint/chave do Foundry) |
+| Eval contra o modelo real | Executor pronto; não rodado (exige a chave da API DeepSeek) |
 | INLABS (Diário Oficial) | Implementado pelo exemplo oficial; não validado ao vivo (exige credenciais) |
 | A7 — nota recorrente | Lembrete gera alerta com link `/emitir?origem=...` (formulário preparado) em vez de rascunho persistido |
 | A10 — sugestão de CEST | Não implementado: não há tabela CEST no sistema |

@@ -12,9 +12,7 @@ dotnet test tests/NfeSaas.Tests.Unit --filter FullyQualifiedName~Eval
 
 # Avaliação completa contra o modelo real (custa tokens):
 ASSISTENTE_EVAL=1 \
-Assistente__Ia__Conversa__Endpoint=https://<recurso>.services.ai.azure.com/openai/v1/ \
-Assistente__Ia__Conversa__ApiKey=... \
-Assistente__Ia__Conversa__Modelo=<deployment> \
+Assistente__Ia__Conversa__ApiKey=<chave da API DeepSeek> \
 dotnet test tests/NfeSaas.Tests.Unit --filter FullyQualifiedName~Eval
 ```
 

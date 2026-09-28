@@ -79,7 +79,7 @@ public class EvalTests
         if (Environment.GetEnvironmentVariable("ASSISTENTE_EVAL") != "1") return; // custa tokens: só sob demanda
 
         var opcoes = new AssistenteOptions { IncluirRascunhosKb = true };
-        opcoes.Ia.Conversa.Endpoint = Environment.GetEnvironmentVariable("Assistente__Ia__Conversa__Endpoint");
+        opcoes.Ia.Conversa.Endpoint = Environment.GetEnvironmentVariable("Assistente__Ia__Conversa__Endpoint"); // vazio = API DeepSeek
         opcoes.Ia.Conversa.ApiKey = Environment.GetEnvironmentVariable("Assistente__Ia__Conversa__ApiKey");
         opcoes.Ia.Conversa.Modelo = Environment.GetEnvironmentVariable("Assistente__Ia__Conversa__Modelo") ?? "deepseek-flash";
         var monitor = Mock.Of<IOptionsMonitor<AssistenteOptions>>(m => m.CurrentValue == opcoes);

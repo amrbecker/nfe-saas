@@ -47,16 +47,8 @@ services:
       # funciona só com a base de conhecimento e as automações determinísticas.
       - key: Assistente__EscritoriosPiloto__0
         sync: false # opcional — preenchido = só esses escritórios veem a Ori (piloto)
-      - key: Assistente__Ia__Conversa__Endpoint
-        sync: false # DeepSeek no Microsoft Foundry (endpoint compatível com OpenAI, ex. https://<recurso>.services.ai.azure.com/openai/v1/)
       - key: Assistente__Ia__Conversa__ApiKey
-        sync: false
-      - key: Assistente__Ia__Conversa__Modelo
-        sync: false # nome do deployment no Foundry
-      - key: Assistente__Ia__FontesPublicas__Endpoint
-        sync: false # opcional — API direta da DeepSeek (https://api.deepseek.com), SÓ dado público
-      - key: Assistente__Ia__FontesPublicas__ApiKey
-        sync: false
+        sync: false # chave da API DeepSeek (platform.deepseek.com); endpoint e modelo têm default (deepseek-flash)
       - key: Assistente__EmailPo
         sync: false # relatório semanal de insights
       - key: Assistente__EmailCurador

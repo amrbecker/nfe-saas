@@ -49,18 +49,21 @@ public class AssistenteOptions
 
 public class IaOptions
 {
-    /// <summary>Rota "Conversa" — tudo que envolve dado de cliente. Endpoint compatível com OpenAI (Microsoft Foundry).</summary>
+    /// <summary>Rota "Conversa" — tudo que envolve dado de cliente (já sanitizado). API da DeepSeek (compatível com OpenAI).</summary>
     public EndpointIaOptions Conversa { get; set; } = new();
-    /// <summary>Rota "FontesPublicas" — só dado público (DOU, NTs) ou já anonimizado. Pode ser a API direta da DeepSeek.</summary>
+    /// <summary>Rota "FontesPublicas" — só dado público (NTs, CONFAZ) ou já anonimizado. Sem chave própria, usa a da Conversa.</summary>
     public EndpointIaOptions FontesPublicas { get; set; } = new();
 }
 
 public class EndpointIaOptions
 {
+    public const string EndpointDeepSeek = "https://api.deepseek.com/v1";
     public string? Endpoint { get; set; }
+    /// <summary>Endpoint configurado ou, em branco, a API da DeepSeek.</summary>
+    public string EndpointEfetivo => string.IsNullOrWhiteSpace(Endpoint) ? EndpointDeepSeek : Endpoint;
     public string? ApiKey { get; set; }
     public string Modelo { get; set; } = "deepseek-flash";
-    /// <summary>Preço por 1M tokens (US$) — para custo estimado e painel. Ajustar ao preço real do endpoint.</summary>
+    /// <summary>Preço por 1M tokens (US$), deepseek-flash fora do pico (2026-09) — para custo estimado e painel. No pico a DeepSeek cobra o dobro.</summary>
     public decimal PrecoEntradaSemCache { get; set; } = 0.15m;
     public decimal PrecoEntradaComCache { get; set; } = 0.003m;
     public decimal PrecoSaida { get; set; } = 0.60m;
@@ -118,7 +121,7 @@ public interface IBaseConhecimento
 
 public enum RotaIa
 {
-    /// <summary>Endpoint aprovado para dado de cliente (Microsoft Foundry).</summary>
+    /// <summary>Dado de cliente, sempre sanitizado antes de sair (API da DeepSeek).</summary>
     Conversa = 1,
     /// <summary>Somente dado público ou já anonimizado (DOU, NTs, sinais agregados).</summary>
     FontesPublicas = 2
