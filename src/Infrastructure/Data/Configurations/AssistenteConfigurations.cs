@@ -90,6 +90,9 @@ public class MensagemConversaConfiguration : IEntityTypeConfiguration<MensagemCo
     {
         b.ToTable("mensagens_conversa");
         b.HasKey(m => m.Id);
+        // Id gerado no domínio: sem isto o EF trata a mensagem nova, adicionada pela coleção da Conversa, como existente
+        // (UPDATE que afeta 0 linhas → DbUpdateConcurrencyException).
+        b.Property(m => m.Id).ValueGeneratedNever();
         b.Property(m => m.ConteudoSanitizado).HasMaxLength(16000).IsRequired();
         b.Property(m => m.FerramentasJson).HasMaxLength(16000);
         b.HasIndex(m => new { m.ConversaId, m.CriadaEm });

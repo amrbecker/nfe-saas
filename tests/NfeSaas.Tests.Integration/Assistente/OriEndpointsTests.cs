@@ -3,9 +3,12 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NfeSaas.API.Workers.Assistente;
+using NfeSaas.Application.Assistente;
 using NfeSaas.Application.DTOs;
 using NfeSaas.Application.DTOs.Assistente;
 using NfeSaas.Domain.Entities;
@@ -28,7 +31,7 @@ public class OriEndpointsTests : IClassFixture<DatabaseFixture>
 
     private sealed record Conta(Escritorio Escritorio, Empresa Empresa, HttpClient Cliente, NotaFiscal NotaRejeitada, NotaFiscal NotaAutorizada);
 
-    private async Task<Conta> CriarContaAsync(string sufixo, DateTime? certificadoValidade = null)
+    private async Task<Conta> CriarContaAsync(string sufixo, DateTime? certificadoValidade = null, WebApplicationFactory<Program>? factory = null)
     {
         await using var db = _fixture.CreateDbContext();
         var cnpjEsc = $"7{sufixo}".PadRight(14, '0');
@@ -57,7 +60,7 @@ public class OriEndpointsTests : IClassFixture<DatabaseFixture>
         db.NotasFiscais.AddRange(rejeitada, autorizada);
         await db.SaveChangesAsync();
 
-        var cliente = _fixture.Factory.CreateClient();
+        var cliente = (factory ?? _fixture.Factory).CreateClient();
         var login = await (await cliente.PostAsJsonAsync("/api/auth/login", new LoginDto($"ori{sufixo}@teste.com", "Senha@123")))
             .Content.ReadFromJsonAsync<LoginResultDto>(Json);
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login!.AccessToken);
@@ -65,6 +68,39 @@ public class OriEndpointsTests : IClassFixture<DatabaseFixture>
         var token = JsonDocument.Parse(await sel.Content.ReadAsStringAsync()).RootElement.GetProperty("accessToken").GetString();
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return new Conta(escritorio, empresa, cliente, rejeitada, autorizada);
+    }
+
+    /// <summary>Modelo sempre responde com sucesso — exercita a gravação da conversa depois da resposta da IA.</summary>
+    private sealed class IaFalsa : IAssistenteIA
+    {
+        public bool EstaHabilitado(RotaIa rota) => true;
+        public string Modelo(RotaIa rota) => "modelo-falso";
+        public decimal CustoEstimadoUsd(RotaIa rota, UsoIa uso) => 0.0001m;
+        public Task<RespostaIa> CompletarAsync(RotaIa rota, IReadOnlyList<MensagemIa> mensagens, OpcoesIa opcoes, CancellationToken ct = default) =>
+            Task.FromResult(new RespostaIa("Abra a nota em Notas emitidas e use Cancelar.", new UsoIa(1000, 800, 50), "modelo-falso-v1",
+                Array.Empty<ChamadaFerramentaIa>()));
+    }
+
+    [Fact]
+    public async Task Conversa_com_modelo_grava_as_mensagens_de_cada_turno()
+    {
+        await using var factory = _fixture.Factory.WithWebHostBuilder(b =>
+            b.ConfigureTestServices(s => s.AddSingleton<IAssistenteIA, IaFalsa>()));
+        var conta = await CriarContaAsync("61", factory: factory);
+
+        var conversa = await (await conta.Cliente.PostAsJsonAsync("/api/assistente/conversas", new { titulo = (string?)null }))
+            .Content.ReadFromJsonAsync<JsonElement>(Json);
+        var id = conversa.GetProperty("id").GetGuid();
+
+        for (var turno = 0; turno < 2; turno++)
+        {
+            var sse = await (await conta.Cliente.PostAsJsonAsync($"/api/assistente/conversas/{id}/mensagens",
+                new { texto = "Como cancelar uma nota?", contexto = new { tela = "notas-emitidas", rota = "/notas" } })).Content.ReadAsStringAsync();
+            sse.Should().Contain("\"tipo\":\"resposta\"").And.NotContain("\"tipo\":\"erro\"");
+        }
+
+        await using var db = _fixture.CreateDbContext();
+        (await db.Set<MensagemConversa>().CountAsync(m => m.ConversaId == id)).Should().Be(4);
     }
 
     [Fact]
