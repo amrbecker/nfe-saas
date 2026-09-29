@@ -38,5 +38,6 @@ em outro sistema.
 
 ## Regra oficial
 
-As regras de unicidade da chave de acesso e da numeração estão no MOC (validação de duplicidade).
+As regras de unicidade da chave de acesso e da numeração estão no MOC (validação de duplicidade). A numeração é
+controlada por modelo (55 = NF-e, 65 = NFC-e) e série.
 

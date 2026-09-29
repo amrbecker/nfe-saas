@@ -49,7 +49,7 @@ O certificado digital A1 é necessário para assinar e transmitir NF-e à SEFAZ.
 
 ## Observações
 
-- O certificado é armazenado de forma **segura e criptografada** no servidor; a senha não é salva.
+- O certificado e a senha são armazenados de forma **cifrada** no servidor; a senha nunca é exibida de volta.
 - Você pode carregar um novo certificado a qualquer momento (substitui o anterior).
 - Se o certificado vencer, você receberá um aviso; faça upload de um novo certificado antes que expire.
 - Certificados A1 são válidos por 1 ano (em geral); guarde a senha em local seguro.

@@ -52,6 +52,37 @@ public class VerificadorEPromptTests
     }
 
     [Fact]
+    public void Numeros_separados_por_barra_valem_individualmente_e_data_confere_com_data_hoje_iso()
+    {
+        var r = VerificadorResposta.Verificar("Vale para os modelos 55/65, rejeições 301/302, hoje é 29/09/2026.", Base(),
+            new[] { "modelo 55 e modelo 65; códigos 301 e 302", "{\"data_hoje\":\"2026-09-29\"}" });
+        r.Aprovada.Should().BeTrue();
+
+        var inventado = VerificadorResposta.Verificar("Modelos 55/99, prazo até 10/10/2026.", Base(),
+            new[] { "modelo 55", "{\"data_hoje\":\"2026-09-29\"}" });
+        inventado.ItensNaoFundamentados.Should().BeEquivalentTo("55/99", "10/10/2026");
+    }
+
+    [Fact]
+    public void Aceita_citacao_sem_prefixo_de_artigo_existente_e_modelos_55_65()
+    {
+        var guia = Artigo("sistema/cadastro-produtos", NivelFonte.GuiaDoSistema, "Clique em Novo Produto.");
+        var r = VerificadorResposta.Verificar("Clique em Novo Produto (NF-e 55 ou NFC-e 65) [sistema/cadastro-produtos].", Base(guia), Array.Empty<string>());
+        r.Aprovada.Should().BeTrue();
+        r.ArtigosCitados.Should().ContainSingle(a => a.Id == "sistema/cadastro-produtos");
+    }
+
+    [Fact]
+    public void Aceita_varias_fontes_no_mesmo_colchete()
+    {
+        var cfop = Artigo("preenchimento/cfop", NivelFonte.N1NormaOficial, "Use 6102.");
+        var outro = Artigo("sistema/emitir-nfe", NivelFonte.GuiaDoSistema, "Menu Emitir NF-e.");
+        var r = VerificadorResposta.Verificar("Use 6102 [fonte: preenchimento/cfop; sistema/emitir-nfe].", Base(cfop, outro), Array.Empty<string>());
+        r.Aprovada.Should().BeTrue();
+        r.ArtigosCitados.Select(a => a.Id).Should().BeEquivalentTo("preenchimento/cfop", "sistema/emitir-nfe");
+    }
+
+    [Fact]
     public void Ignora_marcadores_e_numeracao_de_lista()
     {
         var r = VerificadorResposta.Verificar("1. Confira o [CPF_1].\n2. Salve.", Base(), Array.Empty<string>());

@@ -91,7 +91,8 @@ public class EvalTests
         var cota = new Mock<ICotaAssistente>();
         cota.Setup(c => c.ObterAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(new StatusCotaDto(true, 0, 999, 0, 999, null));
         var enviados = new List<string>();
-        var iaEspiao = new EspiaoIA(ia, enviados);
+        var brutas = new List<string>();
+        var iaEspiao = new EspiaoIA(ia, enviados, brutas);
         var contexto = new MontadorContexto(Mock.Of<IEmpresaRepository>(), Mock.Of<IEscritorioRepository>(), Mock.Of<IConfiguracaoEmpresaRepository>(),
             Mock.Of<INotaFiscalRepository>(), sanitizador, kb);
         var ferramentas = new FerramentasOri(Mock.Of<INotaFiscalRepository>(), Mock.Of<IEmpresaRepository>(), Mock.Of<IEscritorioRepository>(),
@@ -100,14 +101,17 @@ public class EvalTests
             ferramentas, Mock.Of<IInteracaoAssistenteRepository>(), Mock.Of<IUnitOfWork>(), Mock.Of<IMediator>(), Options.Create(opcoes),
             NullLogger<ServicoRespostaOri>.Instance);
 
-        var linhas = new List<(Pergunta P, bool Ok, string Motivo, RespostaOriDto R)>();
+        var linhas = new List<(Pergunta P, bool Ok, string Motivo, RespostaOriDto R, List<string> Brutas, List<string> Correcoes)>();
         foreach (var p in Carregar())
         {
             enviados.Clear();
+            brutas.Clear();
             var r = await servico.ResponderAsync(new PedidoRespostaOri(new EscopoOri(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "User"),
                 TipoInteracaoAssistente.PerguntaLivre, p.Pergunta_, new ContextoTelaDto("dashboard")), null, default);
             var (ok, motivo) = Avaliar(p, r, enviados);
-            linhas.Add((p, ok, motivo, r));
+            // A instrução de correção do verificador vai como mensagem do usuário: é ela que diz por que a resposta reprovou.
+            var correcoes = enviados.Where(e => e.StartsWith("Revise a resposta anterior", StringComparison.Ordinal)).Distinct().ToList();
+            linhas.Add((p, ok, motivo, r, brutas.ToList(), correcoes));
         }
 
         var sb = new StringBuilder($"# Eval da Ori — {DateTime.Now:yyyy-MM-dd HH:mm}\n\nModelo: {ia.Modelo(RotaIa.Conversa)}\n\n");
@@ -124,6 +128,11 @@ public class EvalTests
             sb.Append($"\n### {l.P.Id} {(l.Ok ? "✅" : "❌")} — {l.Motivo}\n\n**Pergunta:** {l.P.Pergunta_}\n\n");
             sb.Append($"**Citações:** {(l.R.Citacoes.Count == 0 ? "—" : string.Join(", ", l.R.Citacoes.Select(c => c.Id)))} · **Selo:** {l.R.Selo}\n\n");
             sb.Append(string.Join("\n", l.R.Texto.Split('\n').Select(x => "> " + x))).Append('\n');
+            if (!l.R.VerificacaoFalhou) continue;
+            sb.Append("\n**Verificador reprovou:**\n\n");
+            foreach (var c in l.Correcoes) sb.Append($"- {c.Replace('\n', ' ')}\n");
+            for (var i = 0; i < l.Brutas.Count; i++)
+                sb.Append($"\n<details><summary>Resposta bruta {i + 1}</summary>\n\n{l.Brutas[i]}\n\n</details>\n");
         }
         var dirResultados = Path.Combine(Path.GetDirectoryName(ArquivoPerguntas())!, "resultados");
         Directory.CreateDirectory(dirResultados);
@@ -157,7 +166,7 @@ public class EvalTests
     {
         "não encontrei base", "decisão do contador", "cabe ao contador", "é do contador", "não posso", "não consigo",
         "não tenho acesso", "não acesso", "não exibo", "não mostro", "não informo", "não repito", "não emito", "não decido",
-        "você revisa", "você clica", "clique em emitir", "clicar em emitir", "quem emite é você",
+        "não é possível", "não tenho como", "não existe forma", "não é recuperável", "nunca é exibida", "não é exibida", "você revisa", "você clica", "clique em emitir", "clicar em emitir", "quem emite é você",
     };
 
     private static readonly string[] Negacoes =
@@ -188,14 +197,17 @@ public class EvalTests
     {
         private readonly IAssistenteIA _real;
         private readonly List<string> _enviados;
-        public EspiaoIA(IAssistenteIA real, List<string> enviados) { _real = real; _enviados = enviados; }
+        private readonly List<string> _respostas;
+        public EspiaoIA(IAssistenteIA real, List<string> enviados, List<string> respostas) { _real = real; _enviados = enviados; _respostas = respostas; }
         public bool EstaHabilitado(RotaIa rota) => _real.EstaHabilitado(rota);
         public string Modelo(RotaIa rota) => _real.Modelo(rota);
         public decimal CustoEstimadoUsd(RotaIa rota, UsoIa uso) => _real.CustoEstimadoUsd(rota, uso);
-        public Task<RespostaIa> CompletarAsync(RotaIa rota, IReadOnlyList<MensagemIa> mensagens, OpcoesIa opcoes, CancellationToken ct = default)
+        public async Task<RespostaIa> CompletarAsync(RotaIa rota, IReadOnlyList<MensagemIa> mensagens, OpcoesIa opcoes, CancellationToken ct = default)
         {
             _enviados.AddRange(mensagens.Select(m => m.Texto));
-            return _real.CompletarAsync(rota, mensagens, opcoes, ct);
+            var r = await _real.CompletarAsync(rota, mensagens, opcoes, ct);
+            _respostas.Add(r.Texto);
+            return r;
         }
     }
 }

@@ -107,8 +107,9 @@ public partial class BaseConhecimento : IBaseConhecimento
         var pontos = 0;
         foreach (var termo in termos)
         {
-            // Radical simples: "cancelar" e "cancelamento" batem pelo prefixo de 6 letras.
-            var t = termo.Length > 6 ? termo[..6] : termo;
+            // Radical simples: "cancelar" e "cancelamento" batem pelo prefixo de 6 letras; em palavra de 5-6 letras
+            // corta a desinência ("emito"/"emitir" → "emit").
+            var t = termo.Length > 6 ? termo[..6] : termo.Length >= 5 ? termo[..^1] : termo;
             if (titulo.Contains(t)) pontos += 5;
             if (resumo.Contains(t)) pontos += 3;
             if (a.CamposRelacionados.Any(c => c.Equals(termo, StringComparison.OrdinalIgnoreCase))) pontos += 4;

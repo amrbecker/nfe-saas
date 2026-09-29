@@ -27,7 +27,8 @@ salto de numeração ou falha técnica.
 ## Como corrigir no NFeFlow
 
 1. Menu **Inutilizações** › **Nova Inutilização**.
-2. Informe ano, modelo, série, faixa de números e a justificativa.
+2. Informe ano, modelo (55 = NF-e, 65 = NFC-e), série, faixa de números e a justificativa. Ex.: saltou da nota 150 para
+   a 153 → inutilize a faixa 151 a 152.
 3. Não é possível inutilizar números já usados em notas emitidas (autorizadas, rejeitadas ou denegadas).
 
 ## Regra oficial
