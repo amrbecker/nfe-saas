@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "Empresa do Simples Nacional (CRT 1) informa o ICMS pelo CSOSN (101, 102, 500...). Empresa do regime normal (CRT 3) usa o CST (00, 10, 20...). Misturar os dois gera rejeição."
 ---
 
@@ -47,4 +47,3 @@ O CRT e as tabelas de CST e CSOSN estão no leiaute da NF-e (MOC). O regime do S
 
 A escolha entre 101 e 102 (crédito de ICMS) depende da situação do cliente — decisão do contador.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

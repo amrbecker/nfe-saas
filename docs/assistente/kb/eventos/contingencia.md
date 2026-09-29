@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "Quando o autorizador da UF está fora do ar, a NF-e pode ser autorizada em contingência pela SEFAZ Virtual (SVC-AN ou SVC-RS, conforme a UF). O NFeFlow tenta a contingência e, se nada responder, deixa a nota pendente de retransmissão."
 ---
 
@@ -38,4 +38,3 @@ Se o autorizador da UF não responde, a NF-e pode ser autorizada pela **SEFAZ Vi
 
 A contingência SVC e a relação de UFs atendidas por SVC-AN e SVC-RS estão no MOC e nas Notas Técnicas de contingência.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

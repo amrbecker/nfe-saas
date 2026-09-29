@@ -12,10 +12,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "Uso denegado significa irregularidade fiscal: 301 do emitente e 302 do destinatário. A nota fica registrada como denegada, o número é consumido e não pode ser reutilizado. A regularização é com a SEFAZ."
 ---
 
@@ -38,4 +38,3 @@ A SEFAZ identificou situação cadastral irregular (por exemplo, IE suspensa, ca
 
 A denegação de uso e seus efeitos estão no MOC e no Ajuste SINIEF 07/05.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "A NFC-e exige o CSC (Código de Segurança do Contribuinte), obtido no portal da SEFAZ da UF, para gerar o QR Code do DANFE NFC-e. Sem CSC válido, a NFC-e é rejeitada."
 ---
 
@@ -37,4 +37,3 @@ impresso no DANFE NFC-e.
 
 A NFC-e foi instituída pelo Ajuste SINIEF 19/2016; o QR Code e o uso do CSC estão no MOC e nas Notas Técnicas da NFC-e.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

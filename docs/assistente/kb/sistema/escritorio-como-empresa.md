@@ -12,10 +12,10 @@ fontes:
     nivel: sistema
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "Permita que o próprio escritório emita NF-e em seu nome sem criar uma empresa cliente duplicando dados."
 ---
 

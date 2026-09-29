@@ -12,10 +12,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "Rejeições de IE do destinatário surgem quando o indicador de contribuinte não combina com a IE informada: contribuinte exige IE válida da UF do destinatário; não contribuinte não deve informar IE."
 ---
 
@@ -42,4 +42,3 @@ As validações de IE do destinatário e do indicador (indIEDest) estão no MOC.
 
 A situação cadastral da IE pode ser consultada no Sintegra da UF do destinatário.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

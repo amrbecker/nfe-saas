@@ -12,10 +12,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "A rejeição 610 aparece quando o total da NF-e não bate com a soma dos valores que o compõem (produtos, frete, seguro, descontos, impostos). Revise descontos, frete e arredondamentos dos itens."
 ---
 
@@ -37,4 +37,3 @@ Diferença de arredondamento, desconto aplicado só no total, frete ou seguro in
 
 A composição do valor total (vNF) e as regras de validação dos totais estão no MOC.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

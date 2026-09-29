@@ -12,10 +12,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "204: já existe NF-e autorizada com o mesmo número e série. 539: mesmo número e série, mas com chave diferente. Consulte a nota original antes de reenviar e não reutilize o número."
 ---
 
@@ -40,4 +40,3 @@ em outro sistema.
 
 As regras de unicidade da chave de acesso e da numeração estão no MOC (validação de duplicidade).
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

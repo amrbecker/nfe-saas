@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "O primeiro dígito do CFOP indica o destino: 5 (mesma UF), 6 (outra UF) e 7 (exterior) nas saídas; 1, 2 e 3 nas entradas. Venda de mercadoria comprada de terceiros: 5102 dentro da UF e 6102 para outra UF."
 ---
 
@@ -52,4 +52,3 @@ com o destino da operação (indicador de local de destino).
 A natureza exata da operação (revenda, industrialização, remessa, devolução) é decisão do contador — o CFOP deve refletir
 a operação real.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "O certificado A1 (.pfx/.p12) precisa estar válido, pertencer ao CNPJ do emitente e ser da cadeia ICP-Brasil. Certificado vencido ou com senha errada impede a assinatura e a emissão."
 ---
 
@@ -37,4 +37,3 @@ cadeia **ICP-Brasil**.
 
 A assinatura digital da NF-e com certificado ICP-Brasil está prevista no Ajuste SINIEF 07/05 e detalhada no MOC.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "A CC-e corrige erros que não alterem valores, base de cálculo, alíquota, diferença de preço, quantidade, dados cadastrais que mudem o remetente ou destinatário, nem data de emissão ou saída. Cada nova CC-e substitui a anterior."
 ---
 
@@ -42,4 +42,3 @@ Cada nova CC-e para a mesma nota substitui a anterior — a última precisa cont
 
 As vedações da CC-e estão no §1º-A da cláusula décima quarta-A do Ajuste SINIEF 07/05.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

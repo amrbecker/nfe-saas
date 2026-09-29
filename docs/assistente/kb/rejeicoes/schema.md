@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "A rejeição 225 indica que o XML não segue o schema oficial: campo com tamanho ou formato inválido, campo obrigatório vazio ou caractere não permitido. Normalmente é defeito do sistema — vale abrir um chamado."
 ---
 
@@ -40,4 +40,3 @@ o XML contra o schema antes de enviar, então essa rejeição costuma indicar um
 
 O schema XSD vigente é publicado no Portal Nacional da NF-e junto com as Notas Técnicas; o MOC define a validação de schema.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

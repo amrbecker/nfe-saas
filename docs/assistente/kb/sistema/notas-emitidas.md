@@ -12,10 +12,10 @@ fontes:
     nivel: sistema
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "Visualize todas as notas emitidas, seus status e detalhes; baixe DANFE, cancele ou retransmita conforme necessário."
 ---
 

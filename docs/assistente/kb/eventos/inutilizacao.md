@@ -12,10 +12,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "A inutilização informa à SEFAZ números de série que não foram usados (salto de numeração). Só vale para números que nunca geraram nota. Deve ser feita, em regra, até o dia 10 do mês seguinte à quebra."
 ---
 
@@ -38,4 +38,3 @@ O pedido de inutilização e seu leiaute estão no MOC. O prazo usual é até o 
 
 Confirme o prazo com a SEFAZ da sua UF.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

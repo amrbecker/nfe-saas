@@ -15,10 +15,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "O cancelamento é feito por evento e, em regra, dentro de 24 horas da autorização, desde que a mercadoria não tenha circulado. Fora desse prazo, a possibilidade depende da legislação da UF."
 ---
 
@@ -42,4 +42,3 @@ O cancelamento de NF-e está previsto no Ajuste SINIEF 07/05; o leiaute do event
 
 Várias UFs aceitam cancelamento extemporâneo com regras próprias — confirmar com a SEFAZ da UF do emitente.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.

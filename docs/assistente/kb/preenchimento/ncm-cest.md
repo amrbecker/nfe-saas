@@ -18,10 +18,10 @@ fontes:
     nivel: N1
 vigencia_inicio: null
 vigencia_fim: null
-verificado_em: null
-revisar_ate: null
-curador: null
-status: rascunho
+verificado_em: 2026-09-29
+revisar_ate: 2026-12-28
+curador: "Curadoria NFeFlow \u2014 equipe interna"
+status: publicado
 resumo_curto: "O NCM tem 8 dígitos e precisa existir na tabela vigente (rejeição 778). O CEST tem 7 dígitos e é exigido quando a mercadoria está sujeita a substituição tributária (rejeição 806)."
 ---
 
@@ -51,4 +51,3 @@ NCM e CEST estão no MOC.
 
 A obrigatoriedade de ST varia por UF e por protocolo/convênio — confirme com a legislação da UF de destino.
 
-> Rascunho gerado com apoio de IA — conferir números, prazos e códigos na fonte oficial antes de publicar.
