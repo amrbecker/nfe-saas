@@ -21,13 +21,6 @@
                 {
                     <MudChip Size="Size.Small" Variant="Variant.Text" Color="Color.Success">@selo</MudChip>
                 }
-                <MudChip Size="Size.Small" Variant="Variant.Outlined">
-                    @(_artigo.Resumo.Status switch { "publicado" => "Publicado", "em_revisao" => "Regra em atualização", "revisado" => "Revisado", _ => "Rascunho — aguardando curadoria" })
-                </MudChip>
-                @if (_artigo.Resumo.VerificadoEm is { } v)
-                {
-                    <MudText Typo="Typo.caption" Class="align-self-center">Verificado em @v.ToString("dd/MM/yyyy")@(string.IsNullOrWhiteSpace(_artigo.Curador) ? "" : $" por {_artigo.Curador}")</MudText>
-                }
             </div>
             <div class="ori-resposta-texto">@((MarkupString)MarkdownSeguro.ParaHtml(_artigo.CorpoMarkdown))</div>
             @* Fontes do guia do sistema são referências internas da curadoria (telas/arquivos do projeto) — não vão ao usuário. *@
