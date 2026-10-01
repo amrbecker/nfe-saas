@@ -35,7 +35,7 @@ public class InsightsWorker : BackgroundService
                 using var scope = _scopes.CreateScope();
                 await scope.ServiceProvider.GetRequiredService<RelatoriosSemanais>().EnviarAsync(DateTime.UtcNow, stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Falha ao enviar os relatórios semanais da Ori.");
             }

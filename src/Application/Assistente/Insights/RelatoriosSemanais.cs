@@ -80,7 +80,7 @@ public class RelatoriosSemanais
                 }, new OpcoesIa(800, Raciocinio: false), ct);
                 sb.Append("<h3>Resumo executivo (IA)</h3><p>").Append(WebUtility.HtmlEncode(r.Texto).Replace("\n", "<br>")).Append("</p>");
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "Resumo executivo de insights indisponível.");
             }

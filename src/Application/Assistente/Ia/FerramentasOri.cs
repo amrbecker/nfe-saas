@@ -241,7 +241,7 @@ public class FerramentasOri
                     if (tipo == TipoSinalProduto.LacunaConhecimento)
                     {
                         try { await _mediator.Send(new RegistrarSinalCommand(escopo.EscritorioId, escopo.EmpresaId, escopo.UsuarioId, tipo, resumo, null, Arg(a, "tema")), ct); }
-                        catch (Exception ex) when (ex is not OperationCanceledException) { _logger.LogWarning(ex, "Falha ao registrar lacuna de conhecimento."); }
+                        catch (Exception ex) when (!ct.IsCancellationRequested) { _logger.LogWarning(ex, "Falha ao registrar lacuna de conhecimento."); }
                         return "{\"ok\":true}";
                     }
                     acoes.Add(new AcaoUiDto("confirmar_sinal", resumo, new() { ["tipo"] = tipo.ToString(), ["resumo"] = resumo }));

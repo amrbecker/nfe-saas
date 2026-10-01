@@ -95,6 +95,34 @@ public class ServicoRespostaOriTests
     }
 
     [Fact]
+    public async Task Timeout_do_modelo_responde_com_a_base_em_vez_de_falhar()
+    {
+        // HttpClient.Timeout lança TaskCanceledException (um OperationCanceledException) sem o pedido ter sido cancelado.
+        _ia.Setup(i => i.CompletarAsync(RotaIa.Conversa, It.IsAny<IReadOnlyList<MensagemIa>>(), It.IsAny<OpcoesIa>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout of 40 seconds elapsing."));
+        var nota = NotaRejeitada(_empresaId);
+        var (servico, _, _) = Criar();
+
+        var r = await servico.ResponderAsync(new PedidoRespostaOri(Escopo, TipoInteracaoAssistente.ExplicarRejeicao, "por quê?", null, nota.Id), null, default);
+
+        r.RespondidaSemModelo.Should().BeTrue();
+        r.Texto.Should().Contain(ArtigoNcm.ResumoCurto);
+    }
+
+    [Fact]
+    public async Task Pedido_cancelado_pelo_usuario_continua_propagando()
+    {
+        using var cts = new CancellationTokenSource();
+        _ia.Setup(i => i.CompletarAsync(RotaIa.Conversa, It.IsAny<IReadOnlyList<MensagemIa>>(), It.IsAny<OpcoesIa>(), It.IsAny<CancellationToken>()))
+            .Returns(() => { cts.Cancel(); throw new OperationCanceledException(cts.Token); });
+        var (servico, _, _) = Criar();
+
+        var acao = () => servico.ResponderAsync(new PedidoRespostaOri(Escopo, TipoInteracaoAssistente.PerguntaLivre, "ncm inexistente", null), null, cts.Token);
+
+        await acao.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task Cota_esgotada_nao_chama_o_modelo()
     {
         _cota.Setup(c => c.ObterAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))

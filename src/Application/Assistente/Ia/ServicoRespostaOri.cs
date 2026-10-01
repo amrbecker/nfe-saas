@@ -98,7 +98,7 @@ public class ServicoRespostaOri
                 new OpcoesIa(MaxTokens: p.Tipo == TipoInteracaoAssistente.ExplicarRejeicao ? 900 : 1200, Raciocinio: true,
                     Ferramentas: ferramentas, MaxIteracoesFerramentas: 4, Progresso: progressoFerramentas), ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Falha ao consultar o modelo da Ori; respondendo só com a base.");
             return await RespostaDaBaseAsync(p, artigos, pergunta, mapa, cota, ct);
@@ -125,7 +125,7 @@ public class ServicoRespostaOri
                 texto = segunda.Texto;
                 verificacao = VerificadorResposta.Verificar(texto, _base, permitidos);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "Falha na segunda tentativa da Ori.");
             }
@@ -216,7 +216,7 @@ public class ServicoRespostaOri
             await _mediator.Send(new RegistrarSinalCommand(p.Escopo.EscritorioId, p.Escopo.EmpresaId, p.Escopo.UsuarioId,
                 TipoSinalProduto.LacunaConhecimento, resumo, p.Contexto?.Tela, tema), ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "Não foi possível registrar a lacuna de conhecimento.");
         }

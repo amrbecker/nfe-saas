@@ -42,7 +42,7 @@ public class SaudeContaWorker : BackgroundService
                 if (scope.ServiceProvider.GetRequiredService<IOptions<AssistenteOptions>>().Value.Habilitado)
                     await ExecutarAsync(scope.ServiceProvider, stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Falha no ciclo do SaudeContaWorker.");
             }

@@ -110,7 +110,7 @@ public class AssistenteIA : IAssistenteIA
                         using var doc = JsonDocument.Parse(argumentos);
                         resultado = await ferramenta.Executar(doc.RootElement.Clone(), ct);
                     }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    catch (Exception ex) when (!ct.IsCancellationRequested)
                     {
                         _logger.LogWarning(ex, "Ferramenta {Ferramenta} falhou.", pedido.Name);
                         resultado = "{\"erro\":\"não foi possível executar a consulta agora\"}";

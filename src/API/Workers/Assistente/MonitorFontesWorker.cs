@@ -43,7 +43,7 @@ public class MonitorFontesWorker : BackgroundService
                 using var scope = _scopes.CreateScope();
                 await ExecutarAsync(scope.ServiceProvider, _logger, stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Falha no ciclo do MonitorFontesWorker.");
             }
@@ -85,7 +85,7 @@ public class MonitorFontesWorker : BackgroundService
                     await publicacoes.AddAsync(p, ct);
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "Fonte {Fonte} não pôde ser lida.", fonte.Nome);
                 fonte.RegistrarFalha(agora);
@@ -103,7 +103,7 @@ public class MonitorFontesWorker : BackgroundService
                 if (await classificador.ClassificarAsync(p, ct) is { } c)
                     p.Classificar(c.Relevante, c.Resumo, c.VigenciaInicio, c.ArtigosAfetados, c.ImpactoTecnico);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "Classificação da publicação {Id} falhou.", p.Id);
             }

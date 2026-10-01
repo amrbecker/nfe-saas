@@ -72,7 +72,7 @@ public class CotaAssistente : ICotaAssistente
                 await _uow.SaveChangesAsync(ct);
                 return;
             }
-            catch (Exception ex) when (tentativa == 0 && ex is not OperationCanceledException)
+            catch (Exception ex) when (tentativa == 0 && !ct.IsCancellationRequested)
             {
                 // Corrida na criação do registro do dia (índice único usuário+dia): tenta de novo, agora atualizando.
                 _logger.LogWarning(ex, "Conflito ao registrar uso da Ori; tentando novamente.");

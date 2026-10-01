@@ -49,7 +49,7 @@ public class PreferenciasHandlers :
         var bloqueadas = habilitado ? await _sugestoes.GetChavesBloqueadasAsync(r.UsuarioId, DateTime.UtcNow, ct) : new List<string>();
         StatusCotaDto cota;
         try { cota = await _cota.ObterAsync(r.UsuarioId, r.EscritorioId, ct); }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "Não foi possível obter a cota da Ori.");
             cota = new StatusCotaDto(true, 0, 0, 0, 0, null);

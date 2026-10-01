@@ -30,7 +30,7 @@ public class ExpurgoConversasWorker : BackgroundService
                 var removidas = await repo.ExpurgarAnterioresAsync(DateTime.UtcNow.AddDays(-Conversa.DiasRetencao), stoppingToken);
                 if (removidas > 0) _logger.LogInformation("Expurgo da Ori: {Quantidade} conversas removidas.", removidas);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Falha no expurgo de conversas da Ori.");
             }
