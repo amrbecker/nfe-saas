@@ -1,0 +1,125 @@
+@page "/termos"
+@layout EmptyLayout
+@using NfeSaas.Domain.Entities
+
+<PageTitle>Termos de Uso — NFeFlow</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Style="max-width:780px">
+    <MudPaper Elevation="8" Class="pa-6 pa-sm-8">
+        <MudButton Href="/" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mb-4 ml-n2">
+            Voltar
+        </MudButton>
+
+        <h1 class="termos-titulo">Termos de Uso do NFeFlow</h1>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">Vigentes desde @Vigencia</MudText>
+
+        <div class="termos">
+            <p>
+                Estes termos regem o uso do NFeFlow, sistema de emissão de NF-e e NFC-e oferecido por @Operador
+                (“nós”) a escritórios de contabilidade e às empresas que eles atendem (“você”). Ao criar uma conta ou usar o
+                sistema, você concorda com estes termos.
+            </p>
+
+            <h2>1. O serviço</h2>
+            <p>
+                O NFeFlow ajuda a preencher, assinar, transmitir e guardar notas fiscais eletrônicas junto à SEFAZ. O sistema
+                faz validações e cálculos para reduzir erros, mas <strong>a responsabilidade pelas informações fiscais
+                de cada nota é do emitente</strong> — dados do destinatário, produtos, tributação e valores devem ser conferidos
+                antes da emissão.
+            </p>
+            <p>
+                A autorização das notas depende dos serviços da SEFAZ de cada estado, que podem ficar indisponíveis sem aviso.
+                Nesses casos não respondemos por atrasos ou rejeições causados por terceiros.
+            </p>
+
+            <h2>2. Conta e usuários</h2>
+            <ul>
+                <li>A conta pertence ao escritório. Quem a cria é o administrador e responde pelos usuários que convidar.</li>
+                <li>Mantenha senhas em sigilo. Toda ação feita com um login é considerada feita pelo seu titular.</li>
+                <li>O escritório deve ter autorização das empresas clientes para emitir notas em nome delas.</li>
+            </ul>
+
+            <h2>3. Período de teste e planos</h2>
+            <ul>
+                <li>Todo escritório começa com <strong>30 dias de teste gratuito</strong>, sem cobrança no cadastro.</li>
+                <li>Encerrado o teste, o acesso fica bloqueado até a ativação de um plano pago. Os dados não são apagados
+                    nesse momento.</li>
+                <li>Preços e limites de cada plano são os informados na contratação e podem mudar com aviso prévio de 30 dias.</li>
+            </ul>
+
+            <h2>4. Certificado digital</h2>
+            <p>
+                O certificado A1 e sua senha são guardados cifrados e usados apenas para assinar documentos que você mandar emitir.
+                A senha nunca é exibida de volta. Você pode substituir o certificado a qualquer momento.
+            </p>
+
+            <h2>5. Ori, a assistente</h2>
+            <ul>
+                <li>A Ori explica rejeições, mostra o caminho das telas e pode preencher campos ou rascunhos.
+                    <strong>Emitir, cancelar, salvar e enviar sempre dependem de um clique seu.</strong></li>
+                <li>As respostas são orientativas, baseadas na nossa base de conhecimento e, em perguntas livres, em
+                    inteligência artificial. Podem conter erros e <strong>não substituem a análise de um profissional
+                    contábil</strong>.</li>
+                <li>Antes de qualquer consulta à inteligência artificial, dados pessoais — CPF, CNPJ, inscrição estadual,
+                    nomes e endereços — são removidos ou substituídos por marcadores. O provedor de IA não recebe esses dados.</li>
+                <li>O contexto da tela só é enviado quando você chama a Ori. As conversas são guardadas por
+                    @Conversa.DiasRetencao dias para suporte e melhoria das respostas e depois apagadas.</li>
+                <li>Quando você pede para relatar um problema, enviamos à nossa equipe o contexto técnico da tela, sem dados pessoais.</li>
+                <li>A opção “Silenciar dicas” desliga as sugestões que a Ori oferece por conta própria.</li>
+            </ul>
+
+            <h2>6. Dados e privacidade (LGPD)</h2>
+            <ul>
+                <li>Os dados das empresas clientes e dos destinatários das notas são tratados por nós apenas para prestar o
+                    serviço, conforme as instruções do escritório, que é o controlador desses dados.</li>
+                <li>Os dados de uma empresa não são acessíveis a outros escritórios ou empresas.</li>
+                <li>Registramos o uso do sistema (telas acessadas e ações, nunca o conteúdo dos campos) e erros técnicos, para
+                    corrigir falhas e melhorar o produto.</li>
+                <li>O sistema é hospedado em provedores de nuvem que podem armazenar dados fora do Brasil, com as garantias
+                    previstas na LGPD.</li>
+                <li>Pedidos de acesso, correção ou exclusão de dados podem ser feitos pelo contato abaixo.</li>
+            </ul>
+
+            <h2>7. Guarda das notas</h2>
+            <p>
+                A legislação exige que o contribuinte guarde os XML das notas pelo prazo decadencial (em geral, cinco anos).
+                Mantemos os XML disponíveis enquanto a conta estiver ativa, mas recomendamos que você também guarde uma cópia
+                própria — especialmente antes de cancelar a assinatura.
+            </p>
+
+            <h2>8. Disponibilidade</h2>
+            <p>
+                Trabalhamos para manter o sistema disponível e com cópias de segurança, mas podem ocorrer interrupções para
+                manutenção ou por falhas de terceiros. Nossa responsabilidade se limita ao valor pago pelo serviço nos últimos
+                12 meses.
+            </p>
+
+            <h2>9. Cancelamento</h2>
+            <p>
+                Você pode cancelar a qualquer momento. Podemos suspender contas que usem o sistema para fraude ou em desacordo
+                com estes termos. Após o cancelamento, os dados ficam disponíveis para exportação por 90 dias e depois são
+                excluídos, salvo obrigação legal de guarda.
+            </p>
+
+            <h2>10. Alterações</h2>
+            <p>
+                Podemos atualizar estes termos. Mudanças relevantes serão avisadas no sistema com antecedência; continuar usando
+                o NFeFlow depois disso significa concordar com a nova versão.
+            </p>
+
+            <h2>11. Contato e foro</h2>
+            <p>
+                Dúvidas e pedidos: <a href="mailto:@Contato">@Contato</a>.
+                Fica eleito o foro da comarca de @Foro para resolver questões relacionadas a estes termos.
+            </p>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    // Identificação do operador — preencher antes de divulgar a página.
+    private const string Operador = "[RAZÃO SOCIAL], CNPJ [00.000.000/0000-00]";
+    private const string Contato = "contato@sideral.app.br";
+    private const string Foro = "[CIDADE/UF]";
+    private const string Vigencia = "01/10/2026";
+}

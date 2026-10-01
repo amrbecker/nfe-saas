@@ -100,3 +100,12 @@ input:-webkit-autofill:focus {
     transition: none !important;
   }
 }
+
+/* ---------- Termos de Uso (/termos) ---------- */
+.termos-titulo { font-size: 1.75rem; font-weight: 700; line-height: 1.25; margin: 0 0 4px; color: var(--mud-palette-text-primary); }
+.termos { font-size: 15px; line-height: 1.65; color: var(--mud-palette-text-primary); max-width: 68ch; }
+.termos h2 { font-size: 1.05rem; font-weight: 600; margin: 28px 0 8px; }
+.termos p { margin: 0 0 12px; }
+.termos ul { margin: 0 0 12px; padding-left: 22px; list-style: disc; }
+.termos li { margin: 6px 0; }
+.termos a { color: var(--mud-palette-primary); }

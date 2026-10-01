@@ -48,6 +48,9 @@
                                OnClick="@(() => _tela = Tela.Registro)">
                         Criar conta para meu escritório
                     </MudButton>
+                    <MudText Typo="Typo.caption" Align="Align.Center" Class="d-block mt-4">
+                        <MudLink Href="/termos" Color="Color.Secondary" Typo="Typo.caption">Termos de uso</MudLink>
+                    </MudText>
                 </MudCardContent>
             </MudCard>
         }
@@ -161,6 +164,10 @@
                         </MudItem>
                     </MudGrid>
 
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="d-block mb-2">
+                        Ao criar a conta, você concorda com os
+                        <MudLink Href="/termos" Target="_blank" Typo="Typo.caption">Termos de uso</MudLink>.
+                    </MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
                                OnClick="HandleRegistro" Disabled="@_loading" Class="mb-2">
                         @if (_loading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
