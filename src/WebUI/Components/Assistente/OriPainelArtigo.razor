@@ -1,5 +1,6 @@
 @* Artigo completo da base, aberto a partir de uma citação. *@
 @using NfeSaas.Application.Assistente.Hipoteses
+@using NfeSaas.Domain.Enums
 @inject IOriApi Api
 
 <MudDialog>
@@ -29,11 +30,12 @@
                 }
             </div>
             <div class="ori-resposta-texto">@((MarkupString)MarkdownSeguro.ParaHtml(_artigo.CorpoMarkdown))</div>
-            @if (_artigo.Fontes.Count > 0)
+            @* Fontes do guia do sistema são referências internas da curadoria (telas/arquivos do projeto) — não vão ao usuário. *@
+            @if (_artigo.Fontes.Where(f => f.Nivel != NivelFonte.GuiaDoSistema).ToList() is { Count: > 0 } fontes)
             {
                 <MudText Typo="Typo.subtitle2" Class="mt-3">Fontes</MudText>
                 <ul>
-                    @foreach (var f in _artigo.Fontes)
+                    @foreach (var f in fontes)
                     {
                         <li>
                             @if (Uri.TryCreate(f.Url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps)

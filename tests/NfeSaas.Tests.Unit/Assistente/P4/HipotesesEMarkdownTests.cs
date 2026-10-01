@@ -59,6 +59,27 @@ public class HipotesesEMarkdownTests
     }
 
     [Fact]
+    public void Markdown_de_artigo_tem_titulos_listas_aninhadas_e_numeracao_continua()
+    {
+        var html = MarkdownSeguro.ParaHtml(
+            "## Como fazer\n\n1. **Abra o menu**.\n\n2. Secao status:\n   - Verifique:\n     - **Valido**\n   - Dados\n\n3. Envie.\n\n---\n\nFim.");
+
+        html.Should().Be(
+            "<h4>Como fazer</h4>" +
+            "<ol><li><strong>Abra o menu</strong>.</li>" +
+            "<li>Secao status:<ul><li>Verifique:<ul><li><strong>Valido</strong></li></ul></li><li>Dados</li></ul></li>" +
+            "<li>Envie.</li></ol>" +
+            "<p>Fim.</p>");
+    }
+
+    [Fact]
+    public void Markdown_lista_numerada_interrompida_preserva_o_numero()
+    {
+        MarkdownSeguro.ParaHtml("Texto\n\n3. terceiro\n4. quarto")
+            .Should().Be("<p>Texto</p><ol start=\"3\"><li>terceiro</li><li>quarto</li></ol>");
+    }
+
+    [Fact]
     public void Regras_de_dica_limitam_frequencia_e_respeitam_contexto()
     {
         var agora = new DateTime(2026, 9, 25, 10, 0, 0, DateTimeKind.Utc);

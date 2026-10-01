@@ -10,18 +10,8 @@
         {
             <MudChip Size="Size.Small" Color="SeloCor(Resposta.Selo)" Variant="Variant.Text" Icon="@Icons.Material.Filled.Verified">@selo</MudChip>
         }
-        @if (Resposta.RespondidaSemModelo)
-        {
-            <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">Resposta da base de conhecimento</MudText>
-        }
     </div>
 
-    @if (Resposta.DadosPessoaisRemovidos > 0)
-    {
-        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
-            Removi @Resposta.DadosPessoaisRemovidos dado@(Resposta.DadosPessoaisRemovidos > 1 ? "s" : "") pessoa@(Resposta.DadosPessoaisRemovidos > 1 ? "is" : "l") da sua pergunta antes de consultar a IA.
-        </MudAlert>
-    }
     @if (Resposta.VerificacaoFalhou)
     {
         <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">Não encontrei base oficial suficiente para responder com segurança.</MudAlert>

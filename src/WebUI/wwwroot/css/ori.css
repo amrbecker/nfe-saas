@@ -134,3 +134,17 @@
   /* ---------- Painel lateral: superfície clara, não o navy do menu ---------- */
   .ori-drawer.mud-drawer { background-color: var(--mud-palette-surface); color: var(--mud-palette-text-primary); }
   .ori-drawer .mud-drawer-content { background-color: var(--mud-palette-surface); }
+
+  /* ---------- Texto das respostas e artigos (HTML do MarkdownSeguro) ---------- */
+  .ori-resposta-texto { font-size: 14px; line-height: 1.55; color: var(--mud-palette-text-primary); overflow-wrap: anywhere; }
+  .ori-resposta-texto > :first-child { margin-top: 0; }
+  .ori-resposta-texto > :last-child { margin-bottom: 0; }
+  .ori-resposta-texto p { margin: 0 0 10px; }
+  .ori-resposta-texto h4 { font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
+  .ori-resposta-texto ul, .ori-resposta-texto ol { margin: 0 0 10px; padding-left: 22px; }
+  .ori-resposta-texto ul { list-style: disc; }
+  .ori-resposta-texto ol { list-style: decimal; }
+  .ori-resposta-texto li { margin: 4px 0; }
+  .ori-resposta-texto li > ul, .ori-resposta-texto li > ol { margin: 4px 0 0; }
+  .ori-resposta-texto li > ul { list-style: circle; }
+  .ori-resposta-texto code { font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--mud-palette-action-default-hover); }

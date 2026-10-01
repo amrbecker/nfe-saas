@@ -57,45 +57,78 @@ public static class MotorHipoteses
 }
 
 /// <summary>
-/// Markdown mínimo e seguro para as respostas da Ori: escapa TODO o HTML primeiro e só então aplica negrito, itálico,
-/// código, listas e parágrafos. Citações [fonte: id] são removidas do texto (aparecem como lista à parte).
+/// Markdown mínimo e seguro para as respostas da Ori: escapa TODO o HTML primeiro e só então aplica títulos, negrito,
+/// itálico, código, listas (aninhadas pela indentação; numeração continua mesmo com linha em branco entre os itens) e
+/// parágrafos. Citações [fonte: id] são removidas do texto (aparecem como lista à parte).
 /// </summary>
 public static partial class MarkdownSeguro
 {
     public static string ParaHtml(string? markdown)
     {
         if (string.IsNullOrWhiteSpace(markdown)) return "";
-        var texto = RegexCitacao().Replace(markdown, "").Replace("\r\n", "\n").Trim();
+        var texto = RegexCitacao().Replace(markdown, "").Replace("\r\n", "\n").Replace("\t", "    ").Trim();
         var sb = new StringBuilder();
-        string? listaAberta = null;
+        var listas = new Stack<(int Indent, string Tipo)>();
+        var paragrafo = new List<string>();
 
-        void FecharLista() { if (listaAberta != null) { sb.Append($"</{listaAberta}>"); listaAberta = null; } }
-
-        foreach (var bloco in texto.Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
+        void FecharParagrafo()
         {
-            var linhas = bloco.Split('\n');
-            var paragrafo = new List<string>();
-            foreach (var bruta in linhas)
-            {
-                var linha = bruta.TrimEnd();
-                var mItem = RegexItem().Match(linha);
-                var mNum = RegexNumerado().Match(linha);
-                if (mItem.Success || mNum.Success)
-                {
-                    if (paragrafo.Count > 0) { sb.Append("<p>").Append(string.Join("<br>", paragrafo)).Append("</p>"); paragrafo.Clear(); }
-                    var tipo = mItem.Success ? "ul" : "ol";
-                    if (listaAberta != tipo) { FecharLista(); sb.Append($"<{tipo}>"); listaAberta = tipo; }
-                    sb.Append("<li>").Append(Inline((mItem.Success ? mItem : mNum).Groups["t"].Value)).Append("</li>");
-                }
-                else if (linha.Length > 0)
-                {
-                    FecharLista();
-                    paragrafo.Add(Inline(linha.TrimStart('#', ' ')));
-                }
-            }
-            if (paragrafo.Count > 0) { FecharLista(); sb.Append("<p>").Append(string.Join("<br>", paragrafo)).Append("</p>"); }
+            if (paragrafo.Count == 0) return;
+            sb.Append("<p>").Append(string.Join("<br>", paragrafo)).Append("</p>");
+            paragrafo.Clear();
         }
-        FecharLista();
+        void FecharLista() { var l = listas.Pop(); sb.Append($"</li></{l.Tipo}>"); }
+        void FecharListas() { while (listas.Count > 0) FecharLista(); }
+
+        foreach (var bruta in texto.Split('\n'))
+        {
+            var linha = bruta.TrimEnd();
+            var indent = linha.Length - linha.TrimStart().Length;
+            if (linha.Length == 0) { FecharParagrafo(); continue; }
+            if (RegexSeparador().IsMatch(linha)) { FecharParagrafo(); FecharListas(); continue; }
+
+            var mTitulo = RegexTitulo().Match(linha);
+            if (mTitulo.Success)
+            {
+                FecharParagrafo();
+                FecharListas();
+                sb.Append("<h4>").Append(Inline(mTitulo.Groups["t"].Value)).Append("</h4>");
+                continue;
+            }
+
+            var mItem = RegexItem().Match(linha);
+            var mNum = RegexNumerado().Match(linha);
+            if (mItem.Success || mNum.Success)
+            {
+                FecharParagrafo();
+                var tipo = mItem.Success ? "ul" : "ol";
+                while (listas.Count > 0 && listas.Peek().Indent > indent) FecharLista();
+                if (listas.Count > 0 && listas.Peek().Indent == indent)
+                {
+                    if (listas.Peek().Tipo == tipo) sb.Append("</li>");
+                    else FecharLista();
+                }
+                if (listas.Count == 0 || listas.Peek().Indent < indent)
+                {
+                    var inicio = mNum.Success && int.TryParse(mNum.Groups["n"].Value, out var n) && n != 1 ? $" start=\"{n}\"" : "";
+                    sb.Append($"<{tipo}{inicio}>");
+                    listas.Push((indent, tipo));
+                }
+                sb.Append("<li>").Append(Inline((mItem.Success ? mItem : mNum).Groups["t"].Value));
+                continue;
+            }
+
+            // Texto indentado logo abaixo de um item continua dentro dele.
+            if (listas.Count > 0 && indent > 0)
+            {
+                sb.Append("<br>").Append(Inline(linha.Trim()));
+                continue;
+            }
+            FecharListas();
+            paragrafo.Add(Inline(linha.Trim()));
+        }
+        FecharParagrafo();
+        FecharListas();
         return sb.ToString();
     }
 
@@ -114,8 +147,14 @@ public static partial class MarkdownSeguro
     [GeneratedRegex(@"^\s*[-*•]\s+(?<t>.+)$")]
     private static partial Regex RegexItem();
 
-    [GeneratedRegex(@"^\s*\d+[.)]\s+(?<t>.+)$")]
+    [GeneratedRegex(@"^\s*(?<n>\d+)[.)]\s+(?<t>.+)$")]
     private static partial Regex RegexNumerado();
+
+    [GeneratedRegex(@"^\s*#{1,6}\s+(?<t>.+)$")]
+    private static partial Regex RegexTitulo();
+
+    [GeneratedRegex(@"^\s*([-*_])(\s*\1){2,}\s*$")]
+    private static partial Regex RegexSeparador();
 
     [GeneratedRegex(@"\*\*(.+?)\*\*")]
     private static partial Regex RegexNegrito();
