@@ -33,7 +33,8 @@ logs/
 *.log
 
 ## Claude Code local settings (sessões, transcripts, etc.)
-.claude/
+.claude/settings.local.json
+.claude/worktrees/
 
 ## OS
 .DS_Store
