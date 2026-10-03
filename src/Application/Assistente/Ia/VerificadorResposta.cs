@@ -18,8 +18,9 @@ public record ResultadoVerificacao(
 public static partial class VerificadorResposta
 {
     public const string RespostaSemFonte =
-        "Não encontrei base oficial para responder com segurança. Você pode confirmar no Portal Nacional da NF-e " +
-        "(www.nfe.fazenda.gov.br) ou com a SEFAZ da sua UF. Registrei a dúvida para a nossa equipe.";
+        "Não encontrei uma regra oficial na minha base para responder isso com segurança — e prefiro não arriscar. " +
+        "Confirme com o contador responsável, com a SEFAZ da sua UF ou no Portal Nacional da NF-e (www.nfe.fazenda.gov.br). " +
+        "Já avisei a equipe do NFeFlow sobre essa dúvida.";
 
     public static ResultadoVerificacao Verificar(
         string resposta,

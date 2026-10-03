@@ -12,11 +12,6 @@
         }
     </div>
 
-    @if (Resposta.VerificacaoFalhou)
-    {
-        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">Não encontrei base oficial suficiente para responder com segurança.</MudAlert>
-    }
-
     <div class="ori-resposta-texto">@((MarkupString)MarkdownSeguro.ParaHtml(Resposta.Texto))</div>
 
     @if (Resposta.Citacoes.Count > 0)
